@@ -1,0 +1,2454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWMM5 Model Generator — 338 Real Models</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #0a0e17;
+  --bg-panel: #111827;
+  --bg-card: #1a2235;
+  --bg-card-hover: #1e2a42;
+  --border: #243049;
+  --border-accent: #2d4a7a;
+  --text: #c8d6e5;
+  --text-dim: #6b7fa3;
+  --text-bright: #e8f0fe;
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --accent3: #34d399;
+  --accent4: #fb923c;
+  --accent5: #f472b6;
+  --water-glow: rgba(56, 189, 248, 0.08);
+  --danger: #ef4444;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated background */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(56,189,248,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(129,140,248,0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 50%, rgba(52,211,153,0.02) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+/* ── HEADER ── */
+.header {
+  display: flex; align-items: flex-end; gap: 20px;
+  padding: 32px 0 24px;
+  border-bottom: 2px solid;
+  border-image: linear-gradient(90deg, #38bdf8, #818cf8, #34d399, transparent) 1;
+  margin-bottom: 32px;
+}
+.header-icon {
+  width: 64px; height: 64px;
+  background: linear-gradient(135deg, #38bdf8, #818cf8, #34d399);
+  border-radius: 16px;
+  display: grid; place-items: center;
+  box-shadow: 0 6px 28px rgba(56,189,248,0.35), 0 0 60px rgba(129,140,248,0.15);
+  flex-shrink: 0;
+}
+.header-icon svg { width: 38px; height: 38px; }
+.header h1 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 2.8rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #38bdf8 0%, #818cf8 35%, #34d399 65%, #38bdf8 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 6s linear infinite;
+}
+@keyframes shimmer { to { background-position: 200% center; } }
+.header p {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin-top: 6px;
+}
+.header .stat-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.12));
+  border: 1px solid rgba(56,189,248,0.3);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.74rem;
+  color: #93c5fd;
+  margin-top: 10px;
+}
+.stat-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── GRID LAYOUT ── */
+.grid-main {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 28px;
+  align-items: start;
+  isolation: isolate;
+}
+@media (max-width: 960px) { .grid-main { grid-template-columns: 1fr; } .panel { position: relative; top: 0; } }
+
+/* ── CONTROL PANEL ── */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  position: sticky;
+  top: 24px;
+  z-index: 100;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+}
+.panel-body { padding: 20px; position: relative; z-index: 10; }
+
+.form-group { margin-bottom: 18px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-label {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.78rem; font-weight: 600; color: var(--text);
+  margin-bottom: 8px;
+}
+.form-label .val {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--accent);
+  background: rgba(56,189,248,0.08);
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+
+/* Range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--bg-card);
+  border-radius: 3px;
+  outline: none;
+  border: 1px solid var(--border);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(56,189,248,0.3);
+  transition: transform 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+/* Select */
+select {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+select:hover, select:focus { border-color: var(--accent); outline: none; }
+
+/* Toggle buttons */
+.toggle-row { display: flex; gap: 6px; }
+.toggle-btn {
+  flex: 1;
+  padding: 8px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.toggle-btn:hover { border-color: var(--text-dim); color: var(--text); }
+.toggle-btn.active {
+  background: rgba(56,189,248,0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Generate button */
+.btn-generate {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+  letter-spacing: 0.02em;
+  margin-top: 6px;
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+.btn-generate::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s;
+}
+.btn-generate:hover::after { left: 100%; }
+.btn-generate:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(56,189,248,0.3); }
+.btn-generate:active { transform: translateY(0); }
+.btn-generate:disabled { opacity: 0.5; cursor: wait; }
+
+/* ── RIGHT COLUMN ── */
+.right-col { display: flex; flex-direction: column; gap: 24px; min-width: 0; overflow: hidden; position: relative; z-index: 0; }
+
+/* Element preview cards */
+.elements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.elem-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  transition: all 0.25s;
+}
+.elem-card:hover { border-color: var(--border-accent); background: var(--bg-card-hover); }
+.elem-card .count {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-bright);
+  line-height: 1;
+}
+.elem-card .label {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.elem-card .bar {
+  height: 3px;
+  border-radius: 2px;
+  margin-top: 10px;
+  transition: width 0.5s ease;
+}
+.elem-card.c1 .bar { background: var(--accent); }
+.elem-card.c2 .bar { background: var(--accent2); }
+.elem-card.c3 .bar { background: var(--accent3); }
+.elem-card.c4 .bar { background: var(--accent4); }
+.elem-card.c5 .bar { background: var(--accent5); }
+.elem-card.c6 .bar { background: var(--danger); }
+
+/* Distribution charts */
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 1100px) { .chart-row { grid-template-columns: 1fr; } }
+
+.chart-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.chart-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+/* Horizontal bar chart */
+.hbar { margin-bottom: 10px; }
+.hbar:last-child { margin-bottom: 0; }
+.hbar-label {
+  display: flex; justify-content: space-between;
+  font-size: 0.78rem; margin-bottom: 4px;
+}
+.hbar-label span:first-child { color: var(--text); font-weight: 500; }
+.hbar-label span:last-child { font-family: 'DM Mono', monospace; color: var(--text-dim); font-size: 0.75rem; }
+.hbar-track {
+  height: 8px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  overflow: hidden;
+  z-index: 10;
+}
+.hbar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Offset pattern viz */
+.offset-viz { display: flex; gap: 3px; height: 32px; border-radius: 4px; overflow: hidden; }
+.offset-seg { transition: flex 0.5s cubic-bezier(0.22, 1, 0.36, 1); position: relative; }
+.offset-seg:hover { filter: brightness(1.3); }
+
+.offset-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.offset-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-dim); }
+.offset-legend-item .swatch { width: 10px; height: 10px; border-radius: 2px; }
+
+/* Pipe size distribution */
+.pipe-bars { display: flex; align-items: flex-end; gap: 2px; height: 80px; }
+.pipe-bar {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  min-width: 6px;
+  opacity: 0.7;
+}
+.pipe-bar:hover { opacity: 1; }
+.pipe-labels { display: flex; gap: 2px; margin-top: 4px; }
+.pipe-labels span {
+  flex: 1; text-align: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  min-width: 6px;
+}
+
+/* Options summary */
+.options-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.opt-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  color: var(--text);
+}
+.opt-tag .k { color: var(--text-dim); }
+.opt-tag .v { font-family: 'DM Mono', monospace; color: var(--accent); }
+
+/* Sections checklist */
+.sections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 4px;
+}
+.sec-item {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  padding: 5px 8px;
+  border-radius: 3px;
+  background: rgba(52,211,153,0.06);
+  color: var(--accent3);
+  border: 1px solid rgba(52,211,153,0.15);
+}
+.sec-item.off {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--border);
+  opacity: 0.4;
+}
+
+/* Download area */
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 700px) { .stats-grid { grid-template-columns: 1fr; } }
+.stats-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.stats-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 0.75rem;
+  color: var(--text-mid);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-val {
+  font-family: 'DM Mono', monospace;
+  color: var(--text-light);
+  font-weight: 500;
+}
+.download-area {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  min-height: 120px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px;
+}
+.download-area.ready { border-color: var(--accent3); }
+.download-area .status {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.download-area .status.done { color: var(--accent3); }
+.btn-download {
+  padding: 10px 28px;
+  background: var(--accent3);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--bg-deep);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-download:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(52,211,153,0.3); }
+.file-stats {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+/* Progress */
+.progress-wrap {
+  width: 100%; max-width: 300px;
+  height: 4px; background: var(--bg-card);
+  border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent3));
+  border-radius: 2px;
+  transition: width 0.15s;
+}
+
+/* Footer */
+.footer {
+  margin-top: 48px; padding: 20px 0;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+.footer a { color: var(--accent); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* Animation */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Tab bar */
+.tab-bar {
+  display: flex; gap: 4px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.tab-btn {
+  padding: 10px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.01em;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Docs styling */
+.docs-container {
+  max-width: 880px;
+  margin: 0 auto;
+}
+.docs-section {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+  z-index: 10;
+}
+.docs-section-head {
+  padding: 16px 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s;
+}
+.docs-section-head:hover { background: var(--bg-card); }
+.docs-section-head h3 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.2rem;
+  color: var(--text-bright);
+}
+.docs-section-head .arrow {
+  color: var(--text-dim);
+  transition: transform 0.25s;
+  font-size: 0.85rem;
+}
+.docs-section.open .arrow { transform: rotate(180deg); }
+.docs-section-body {
+  display: none;
+  padding: 0 20px 20px;
+  font-size: 0.85rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+.docs-section.open .docs-section-body { display: block; }
+.docs-section-body h4 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 18px 0 8px;
+}
+.docs-section-body h4:first-child { margin-top: 6px; }
+.docs-section-body code {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.78rem;
+  background: var(--bg-card);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--accent3);
+}
+.docs-section-body pre {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  overflow-x: auto;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 10px 0;
+}
+.docs-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 0.78rem;
+}
+.docs-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.docs-table td {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.docs-table tr:hover td { background: rgba(56,189,248,0.03); }
+.docs-mono { font-family: 'DM Mono', monospace; color: var(--accent3); }
+
+/* Network legend + controls */
+.net-legend {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 0.68rem; color: var(--text-dim);
+}
+.nl-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.nl-dot.nl-line { width: 16px; height: 3px; border-radius: 2px; }
+.net-ctrl-btn {
+  width: 28px; height: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.net-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fade-up { animation: fadeUp 0.5s ease both; }
+.delay-1 { animation-delay: 0.08s; }
+.delay-2 { animation-delay: 0.16s; }
+.delay-3 { animation-delay: 0.24s; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header fade-up">
+    <div class="header-icon"><svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Pipes -->
+      <path d="M25 28 L50 50" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+      <path d="M75 22 L50 50" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+      <path d="M50 50 L50 78" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity="0.85"/>
+      <path d="M15 55 L50 50" stroke="#fff" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+      <path d="M82 48 L50 50" stroke="#fff" stroke-width="3.5" stroke-linecap="round" opacity="0.6"/>
+      <!-- Flow arrows -->
+      <path d="M46 63 L50 69 L54 63" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+      <!-- Junction nodes -->
+      <circle cx="25" cy="28" r="5" fill="#fff" opacity="0.9"/>
+      <circle cx="75" cy="22" r="5" fill="#fff" opacity="0.9"/>
+      <circle cx="15" cy="55" r="4.5" fill="#fff" opacity="0.8"/>
+      <circle cx="82" cy="48" r="4.5" fill="#fff" opacity="0.8"/>
+      <!-- Central junction (larger) -->
+      <circle cx="50" cy="50" r="7" fill="#fff"/>
+      <circle cx="50" cy="50" r="4" fill="#38bdf8"/>
+      <!-- Outfall -->
+      <polygon points="50,78 43,87 57,87" fill="#fff" opacity="0.9"/>
+      <path d="M42 90 Q50 95 58 90" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+    </svg></div>
+    <div>
+      <h1>SWMM5 Model Generator</h1>
+      <p>Force-directed network synthesis with Barnes-Hut quadtree — every parameter from 338 real models</p>
+      <div class="stat-badge"><span class="dot"></span> 3,009,909 elements · 1,268,875 cross-sections · 22 pipe shapes</div>
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar fade-up delay-1">
+    <button class="tab-btn active" onclick="switchTab('generator')">Generator</button>
+    <button class="tab-btn" onclick="switchTab('docs')">App Docs</button>
+  </div>
+
+  <!-- GENERATOR TAB -->
+  <div id="tab-generator" class="tab-panel active">
+  <div class="grid-main">
+
+    <!-- LEFT: Controls -->
+    <div class="panel fade-up delay-1">
+      <div class="panel-header">Configuration</div>
+      <div class="panel-body">
+
+        <div class="form-group">
+          <div class="form-label">Junctions <span class="val" id="nVal">1,000</span></div>
+          <input type="range" id="nSlider" min="5" max="5000" value="1000" step="1">
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Model Type</div>
+          <select id="modelType">
+            <option value="sanitary">Sanitary Sewer</option>
+            <option value="stormwater">Stormwater</option>
+            <option value="combined">Combined Sewer</option>
+            <option value="transport_only">Transport Only</option>
+            <option value="rdii_calibration">RDII Calibration</option>
+            <option value="pump_intensive">Pump Intensive</option>
+            <option value="wos_intensive">Weir · Orifice · Storage Intensive</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Units</div>
+          <div class="toggle-row" id="unitsToggle">
+            <button class="toggle-btn active" data-val="US">US Customary</button>
+            <button class="toggle-btn" data-val="SI">SI Metric</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Terrain</div>
+          <div class="toggle-row" id="terrainToggle">
+            <button class="toggle-btn" data-val="flat">Flat</button>
+            <button class="toggle-btn active" data-val="moderate">Moderate</button>
+            <button class="toggle-btn" data-val="hilly">Hilly</button>
+            <button class="toggle-btn" data-val="mountainous">Mountain</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Detail Level</div>
+          <div class="toggle-row" id="detailToggle">
+            <button class="toggle-btn" data-val="basic">Basic</button>
+            <button class="toggle-btn active" data-val="moderate">Moderate</button>
+            <button class="toggle-btn" data-val="detailed">Detailed</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Land Use</div>
+          <select id="landUse">
+            <option value="mixed">Mixed</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+            <option value="industrial">Industrial</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Outfall Elevation <span id="outfallElevVal" style="float:right;font-family:'DM Mono',monospace;color:var(--accent)">0.0 ft</span></div>
+          <input type="range" id="outfallElevSlider" min="0" max="500" value="0" step="0.5">
+        </div>
+
+        <div class="form-group">
+          <button class="btn-generate" id="btnGenerate" onclick="generateModel()">Generate INP File</button>
+          <div class="download-area" id="downloadArea" style="margin-top:16px">
+            <div class="status">Configure parameters and click Generate</div>
+          </div>
+          <div id="statsPanel" style="display:none;margin-top:16px">
+            <div class="chart-title" style="margin-bottom:8px">Generated INP Statistics</div>
+            <div id="statsContent"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: Visualizations -->
+    <div class="right-col">
+
+      <div class="fade-up delay-2">
+        <div class="chart-title" style="margin-bottom:12px">Computed Elements</div>
+        <div class="elements-grid" id="elemGrid"></div>
+      </div>
+
+      <!-- Options tags -->
+      <div class="chart-card fade-up delay-2">
+        <div class="chart-title">Simulation Options</div>
+        <div class="options-row" id="optionsRow"></div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="chart-row fade-up delay-3">
+
+        <!-- Offset patterns -->
+        <div class="chart-card">
+          <div class="chart-title">Offset Patterns <span style="font-weight:400;text-transform:none;letter-spacing:0">— from 1.2M conduits</span></div>
+          <div class="offset-viz" id="offsetViz"></div>
+          <div class="offset-legend" id="offsetLegend"></div>
+          <div style="margin-top:14px; font-size:0.72rem; color:var(--text-dim); line-height:1.6">
+            <strong style="color:var(--accent4)">Crown matching:</strong> outlet_offset = downstream_diameter − this_diameter
+          </div>
+        </div>
+
+        <!-- Cross-section shapes -->
+        <div class="chart-card">
+          <div class="chart-title">Cross-Section Shapes</div>
+          <div id="shapeBars"></div>
+        </div>
+
+      </div>
+
+      <!-- Pipe sizes + Manning's n -->
+      <div class="chart-row fade-up delay-3">
+        <div class="chart-card">
+          <div class="chart-title">Standard Pipe Sizes (inches)</div>
+          <div class="pipe-bars" id="pipeBars"></div>
+          <div class="pipe-labels" id="pipeLabels"></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">Included INP Sections</div>
+          <div class="sections-grid" id="sectionsGrid"></div>
+        </div>
+      </div>
+
+      <!-- Network Preview (appears after generation) -->
+      <div class="chart-card" id="networkCard" style="display:none">
+        <div class="chart-title">Network Preview <span style="font-weight:400;text-transform:none;letter-spacing:0">— Barnes-Hut force-directed layout</span></div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <div class="net-legend"><span class="nl-dot" style="background:#38bdf8"></span> Junction</div>
+          <div class="net-legend"><span class="nl-dot" style="background:#ef4444"></span> Outfall</div>
+          <div class="net-legend"><span class="nl-dot" style="background:#fb923c"></span> Storage</div>
+          <div class="net-legend"><span class="nl-dot" style="background:#818cf8"></span> Pump link</div>
+          <div class="net-legend"><span class="nl-dot nl-line" style="background:#34d399"></span> Conduit</div>
+          <div class="net-legend"><span class="nl-dot nl-line" style="background:#f472b6"></span> Has offset</div>
+        </div>
+        <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#080c14">
+          <canvas id="netCanvas" width="900" height="560" style="width:100%;display:block;cursor:grab"></canvas>
+          <div id="netTooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(10,14,23,0.92);border:1px solid var(--border-accent);border-radius:6px;padding:6px 10px;font-family:'DM Mono',monospace;font-size:0.7rem;color:#c8d6e5;white-space:nowrap;z-index:10"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+          <div style="font-size:0.7rem;color:var(--text-dim)" id="netStats"></div>
+          <div style="display:flex;gap:6px">
+            <button class="net-ctrl-btn" onclick="netZoom(1.2)" title="Zoom in">+</button>
+            <button class="net-ctrl-btn" onclick="netZoom(0.8)" title="Zoom out">−</button>
+            <button class="net-ctrl-btn" onclick="netReset()" title="Reset view">↺</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </div> <!-- end tab-generator -->
+
+  <!-- DOCS TAB -->
+  <div id="tab-docs" class="tab-panel">
+  <div class="docs-container">
+
+    <div class="docs-section open">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>🌊 Overview</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <p>The <strong>SWMM5 Model Generator</strong> creates realistic synthetic EPA SWMM5 <code>.inp</code> files of any size using a physics-based force-directed network synthesis engine. Every parameter, probability, and distribution is derived from statistical analysis of <strong>338 real-world models</strong> containing <strong>3,009,909 elements</strong> and <strong>1,268,875 cross-sections</strong> from the <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" style="color:var(--accent)">SWMMEnablement/1729-SWMM5-Models</a> GitHub repository.</p>
+        <p>Instead of random placement, the generator uses a <strong>Barnes-Hut quadtree</strong> particle simulation where nodes settle along terrain flow paths via gravitational pull, inter-particle repulsion, and outfall attraction — producing naturally dendritic drainage networks.</p>
+      </div>
+    </div>
+
+    <div class="docs-section">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>⚙️ Generation Pipeline</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <h4>Phase 0 — Terrain &amp; Initialization</h4>
+        <p>A synthetic DEM is created using 5-octave fractal Brownian motion noise with a base slope toward outfall points. <code>N</code> particles (future junctions) are scattered randomly across the domain. Domain size scales as <code>√N × avg_conduit_length</code>.</p>
+        <h4>Phase 1 — Barnes-Hut Particle Simulation</h4>
+        <p>Each iteration builds a <strong>quadtree</strong> for O(N log N) repulsion. Three forces act on each particle:</p>
+        <table class="docs-table">
+          <tr><th>Force</th><th>Purpose</th><th>Algorithm</th></tr>
+          <tr><td>Repulsion</td><td>Prevents clustering, creates spacing</td><td>Barnes-Hut traversal (θ = 0.7)</td></tr>
+          <tr><td>Terrain gradient</td><td>Pushes particles downhill along DEM</td><td>Finite-difference gradient</td></tr>
+          <tr><td>Outfall attraction</td><td>Weak pull toward discharge points</td><td>Inverse-distance weighting</td></tr>
+        </table>
+        <p>Updates via dual descent: <code>v = momentum × v + F × dt</code>, with cooling.</p>
+        <h4>Phase 2 — Dendritic Topology</h4>
+        <p>Each junction connects to the neighbor with the <strong>steepest elevation descent</strong> — producing tree-shaped networks where all paths converge at outfalls.</p>
+        <h4>Phase 3 — Parameter Assignment</h4>
+        <p>DEM elevations map to the user's terrain range. Pipe diameters scale with upstream accumulation count. The 338-model rules engine assigns offsets, shapes, roughness, DWF, pump curves, and controls.</p>
+      </div>
+    </div>
+
+    <div class="docs-section">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>📊 Model Types (7)</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <table class="docs-table">
+          <tr><th>Type</th><th>Units</th><th>Sub</th><th>DWF</th><th>Pump</th><th>Storage</th><th>Weir</th><th>Orifice</th></tr>
+          <tr><td><strong>Stormwater</strong></td><td class="docs-mono">CFS</td><td>80%</td><td>—</td><td>0.5%</td><td>1%</td><td>0.2%</td><td>1%</td></tr>
+          <tr><td><strong>Sanitary</strong></td><td class="docs-mono">MGD</td><td>—</td><td>✓</td><td>1%</td><td>2%</td><td>0.1%</td><td>0.5%</td></tr>
+          <tr><td><strong>Combined</strong></td><td class="docs-mono">CFS</td><td>100%</td><td>✓</td><td>1%</td><td>3%</td><td>0.5%</td><td>2%</td></tr>
+          <tr><td><strong>Transport Only</strong></td><td class="docs-mono">MGD</td><td>—</td><td>—</td><td>0.3%</td><td>0.5%</td><td>—</td><td>0.2%</td></tr>
+          <tr><td><strong>RDII Calibration</strong></td><td class="docs-mono">MGD</td><td>70%</td><td>—</td><td>0.5%</td><td>1%</td><td>0.1%</td><td>0.5%</td></tr>
+          <tr><td><strong>Pump Intensive</strong></td><td class="docs-mono">GPM</td><td>30%</td><td>✓</td><td>4%</td><td>8%</td><td>0.5%</td><td>3%</td></tr>
+          <tr><td><strong>WOS Intensive</strong></td><td class="docs-mono">CFS</td><td>50%</td><td>✓</td><td>1%</td><td><strong>12%</strong></td><td><strong>6%</strong></td><td><strong>8%</strong></td></tr>
+        </table>
+        <p><strong>WOS Intensive</strong> — Weir · Orifice · Storage model for CSO control, real-time control networks, and stormwater detention systems. Generates 12% storage nodes, 8% orifices, 6% weirs with diverse shapes (RECT_CLOSED 15%, RECT_OPEN 10%, TRAPEZOIDAL 8%).</p>
+      </div>
+    </div>
+
+    <div class="docs-section">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>🔧 Offset Algorithm (1.2M conduits)</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <table class="docs-table">
+          <tr><th>Pattern</th><th>Basic</th><th>Moderate</th><th>Detailed</th><th>Meaning</th></tr>
+          <tr><td>Both zero</td><td class="docs-mono">90%</td><td class="docs-mono">65%</td><td class="docs-mono">35%</td><td>Pipe at junction invert</td></tr>
+          <tr><td>Outlet only</td><td class="docs-mono">7%</td><td class="docs-mono">25%</td><td class="docs-mono">45%</td><td>Crown matching</td></tr>
+          <tr><td>Inlet only</td><td class="docs-mono">1%</td><td class="docs-mono">3%</td><td class="docs-mono">5%</td><td>Drop connections</td></tr>
+          <tr><td>Both nonzero</td><td class="docs-mono">2%</td><td class="docs-mono">7%</td><td class="docs-mono">15%</td><td>Full specification</td></tr>
+        </table>
+        <p><strong>Crown matching:</strong> <code>outlet_offset = downstream_diameter − this_diameter</code> — accounts for 67% of nonzero outlet offsets.</p>
+      </div>
+    </div>
+
+    <div class="docs-section">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>📐 Cross-Sections (1.27M analyzed)</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <table class="docs-table">
+          <tr><th>Shape</th><th>Count</th><th>%</th><th>Use</th></tr>
+          <tr><td>CIRCULAR</td><td class="docs-mono">1,088,874</td><td class="docs-mono">85.8%</td><td>Gravity sewers</td></tr>
+          <tr><td>EGG</td><td class="docs-mono">54,502</td><td class="docs-mono">4.3%</td><td>European/older US sewers</td></tr>
+          <tr><td>FORCE_MAIN</td><td class="docs-mono">37,105</td><td class="docs-mono">2.9%</td><td>Pressurized pump discharge</td></tr>
+          <tr><td>IRREGULAR</td><td class="docs-mono">31,778</td><td class="docs-mono">2.5%</td><td>Natural channels</td></tr>
+          <tr><td>RECT_CLOSED</td><td class="docs-mono">16,845</td><td class="docs-mono">1.3%</td><td>Box culverts</td></tr>
+          <tr><td>TRAPEZOIDAL</td><td class="docs-mono">13,684</td><td class="docs-mono">1.1%</td><td>Open channels</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="docs-section">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>📈 Statistical Foundation</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <table class="docs-table">
+          <tr><th>Dataset</th><th>Models</th><th>Elements</th></tr>
+          <tr><td>Uploaded</td><td class="docs-mono">11</td><td class="docs-mono">54,883</td></tr>
+          <tr><td>Semi_Real</td><td class="docs-mono">76</td><td class="docs-mono">104,704</td></tr>
+          <tr><td>Large (&gt;5MB)</td><td class="docs-mono">79</td><td class="docs-mono">1,717,005</td></tr>
+          <tr><td>Mid (1–5MB)</td><td class="docs-mono">172</td><td class="docs-mono">1,133,317</td></tr>
+          <tr><td><strong>Total</strong></td><td class="docs-mono"><strong>338</strong></td><td class="docs-mono"><strong>3,009,909</strong></td></tr>
+        </table>
+        <p>Routing: DYNWAVE 89% · Units: CFS 44%, CMS 18%, MGD 17% · Infiltration: HORTON 61% · Offsets: DEPTH 90%</p>
+      </div>
+    </div>
+
+    <div class="docs-section">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>🖥️ Usage &amp; Performance</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <p>1. Set junction count (5 – 100,000) · 2. Choose model type, units, terrain, detail · 3. Generate · 4. Preview network · 5. Download <code>.inp</code></p>
+        <table class="docs-table">
+          <tr><th>Junctions</th><th>Elements</th><th>File</th><th>Time</th></tr>
+          <tr><td class="docs-mono">50</td><td class="docs-mono">~100</td><td class="docs-mono">20 KB</td><td class="docs-mono">&lt;1s</td></tr>
+          <tr><td class="docs-mono">1,000</td><td class="docs-mono">~3,000</td><td class="docs-mono">500 KB</td><td class="docs-mono">~2s</td></tr>
+          <tr><td class="docs-mono">10,000</td><td class="docs-mono">~30,000</td><td class="docs-mono">6 MB</td><td class="docs-mono">~5s</td></tr>
+          <tr><td class="docs-mono">100,000</td><td class="docs-mono">~300,000</td><td class="docs-mono">60 MB</td><td class="docs-mono">~30s</td></tr>
+        </table>
+        <p><strong>Preview:</strong> Pan (drag) · Zoom (scroll/+−) · Reset (↺) · Hover for tooltips</p>
+      </div>
+    </div>
+
+    <div class="docs-section">
+      <div class="docs-section-head" onclick="toggleDoc(this)">
+        <h3>📚 Credits</h3><span class="arrow">▼</span>
+      </div>
+      <div class="docs-section-body">
+        <p><strong>Author:</strong> Robert Dickinson · <a href="https://swmm5.org" target="_blank" style="color:var(--accent)">SWMM5.org</a> · February 2026</p>
+        <p><strong>Data:</strong> <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" style="color:var(--accent)">SWMMEnablement/1729-SWMM5-Models</a></p>
+        <p><strong>Algorithms:</strong> Barnes-Hut (Barnes &amp; Hut, 1986) · fBm terrain (Perlin) · Steepest-descent dendritic construction</p>
+        <p>Part of <em>The Dickinson Canon</em> · SWMM5+ Technical Advisory Committee · CIMM.org</p>
+      </div>
+    </div>
+
+  </div>
+  </div> <!-- end tab-docs -->
+
+  <div class="footer">
+    SWMM5 Model Generator · Robert Dickinson · <a href="https://swmm5.org" target="_blank">SWMM5.org</a> · February 2026<br>
+    Rules from <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank">SWMMEnablement/1729-SWMM5-Models</a> — 338 models / 3,009,909 elements
+  </div>
+
+</div>
+
+<script>
+// =====================================================================
+// RULES ENGINE — All from 338 real models / 3M elements
+// =====================================================================
+
+const RATIOS = {
+  stormwater:       { conduit:1.05, subcatch:0.8,  outfall:0.003, storage:0.01,  pump:0.005, orifice:0.01,  weir:0.002 },
+  sanitary:         { conduit:1.03, subcatch:0.0,  outfall:0.002, storage:0.02,  pump:0.01,  orifice:0.005, weir:0.001 },
+  combined:         { conduit:1.08, subcatch:1.0,  outfall:0.005, storage:0.03,  pump:0.01,  orifice:0.02,  weir:0.005 },
+  transport_only:   { conduit:1.02, subcatch:0.0,  outfall:0.002, storage:0.005, pump:0.003, orifice:0.002, weir:0.0   },
+  rdii_calibration: { conduit:1.0,  subcatch:0.7,  outfall:0.05,  storage:0.01,  pump:0.005, orifice:0.005, weir:0.001 },
+  pump_intensive:   { conduit:1.15, subcatch:0.3,  outfall:0.005, storage:0.08,  pump:0.04,  orifice:0.03,  weir:0.005 },
+  wos_intensive:    { conduit:1.10, subcatch:0.5,  outfall:0.008, storage:0.12,  pump:0.01,  orifice:0.08,  weir:0.06  },
+};
+
+const FLOW_UNITS = {
+  US: { stormwater:"CFS", sanitary:"MGD", combined:"CFS", transport_only:"MGD", rdii_calibration:"MGD", pump_intensive:"GPM", wos_intensive:"CFS" },
+  SI: { stormwater:"CMS", sanitary:"LPS", combined:"CMS", transport_only:"LPS", rdii_calibration:"LPS", pump_intensive:"LPS", wos_intensive:"CMS" },
+};
+
+const OFFSET = {
+  basic:    { both_zero:0.90, outlet_only:0.07, inlet_only:0.01, both_nz:0.02 },
+  moderate: { both_zero:0.65, outlet_only:0.25, inlet_only:0.03, both_nz:0.07 },
+  detailed: { both_zero:0.35, outlet_only:0.45, inlet_only:0.05, both_nz:0.15 },
+};
+
+const SHAPES = {
+  stormwater:     [["CIRCULAR",70],["IRREGULAR",15],["TRAPEZOIDAL",5],["RECT_OPEN",5],["RECT_CLOSED",3],["ARCH",2]],
+  sanitary:       [["CIRCULAR",85],["EGG",5],["FORCE_MAIN",5],["FILLED_CIRCULAR",3],["RECT_CLOSED",2]],
+  combined:       [["CIRCULAR",75],["EGG",8],["RECT_CLOSED",5],["HORSESHOE",3],["IRREGULAR",3],["FORCE_MAIN",3],["FILLED_CIRCULAR",3]],
+  transport_only: [["CIRCULAR",88],["FORCE_MAIN",5],["EGG",4],["FILLED_CIRCULAR",3]],
+  rdii_calibration:[["CIRCULAR",90],["FORCE_MAIN",4],["EGG",3],["FILLED_CIRCULAR",3]],
+  pump_intensive: [["CIRCULAR",60],["FORCE_MAIN",30],["RECT_CLOSED",5],["FILLED_CIRCULAR",5]],
+  wos_intensive:  [["CIRCULAR",55],["RECT_CLOSED",15],["RECT_OPEN",10],["TRAPEZOIDAL",8],["IRREGULAR",5],["ARCH",4],["EGG",3]],
+};
+
+const PIPE_INCHES = [6,8,10,12,15,18,21,24,30,36,42,48,54,60,72,84,96,120,144];
+// Distribution weights by position: more small pipes at heads, fewer large
+const PIPE_WEIGHTS = [3,8,6,12,10,10,8,14,10,8,4,3,2,1,0.5,0.3,0.1,0.05,0.02];
+
+const ALL_SECTIONS = [
+  "[TITLE]","[OPTIONS]","[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]",
+  "[INFILTRATION]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
+  "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[LOSSES]",
+  "[CONTROLS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
+  "[CURVES]","[TIMESERIES]","[COORDINATES]","[MAP]","[REPORT]"
+];
+
+const TERRAIN_LABELS = { flat:"0.1–0.5%", moderate:"0.2–1.5%", hilly:"0.5–3.0%", mountainous:"1–8%" };
+
+// =====================================================================
+// STATE
+// =====================================================================
+let state = { N:1000, type:"sanitary", units:"US", terrain:"moderate", detail:"moderate", landUse:"mixed", outfallElev:0 };
+let generatedINP = null;
+
+// =====================================================================
+// UI HELPERS
+// =====================================================================
+function fmt(n) { return n.toLocaleString(); }
+function pct(v) { return (v*100).toFixed(1)+"%" }
+
+function getActive(id) {
+  return document.querySelector(`#${id} .toggle-btn.active`)?.dataset.val;
+}
+
+function initToggles(id, key) {
+  document.querySelectorAll(`#${id} .toggle-btn`).forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll(`#${id} .toggle-btn`).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state[key] = btn.dataset.val;
+      update();
+    });
+  });
+}
+
+// =====================================================================
+// COMPUTE
+// =====================================================================
+function compute() {
+  const r = RATIOS[state.type];
+  const N = state.N;
+  const elems = {
+    junctions: N,
+    conduits: Math.max(N, Math.round(N * r.conduit)),
+    subcatchments: Math.round(N * r.subcatch),
+    outfalls: Math.max(1, Math.round(N * r.outfall)),
+    storage: Math.max(0, Math.round(N * r.storage)),
+    pumps: Math.round(N * r.pump),
+    orifices: Math.round(N * r.orifice),
+    weirs: Math.round(N * r.weir),
+  };
+  if (elems.pumps > 0) elems.storage = Math.max(elems.storage, Math.max(1, Math.floor(elems.pumps/3)));
+  elems.raingages = elems.subcatchments > 0 ? Math.max(1, Math.round(elems.subcatchments/500)) : 0;
+  elems.total = elems.junctions + elems.conduits + elems.subcatchments + elems.outfalls + elems.storage + elems.pumps + elems.orifices + elems.weirs;
+  return elems;
+}
+
+function getSections(elems) {
+  const on = new Set(["[TITLE]","[OPTIONS]","[JUNCTIONS]","[OUTFALLS]","[CONDUITS]","[XSECTIONS]","[COORDINATES]","[MAP]","[REPORT]","[LOSSES]"]);
+  if (elems.subcatchments > 0) ["[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]","[INFILTRATION]","[TIMESERIES]"].forEach(s => on.add(s));
+  if (state.type==="sanitary"||state.type==="combined"||state.type==="wos_intensive") ["[DWF]","[PATTERNS]"].forEach(s => on.add(s));
+  if (state.type==="rdii_calibration") ["[RDII]","[HYDROGRAPHS]"].forEach(s => on.add(s));
+  if (elems.pumps > 0 || elems.storage > 0) ["[STORAGE]","[PUMPS]","[CURVES]","[CONTROLS]"].forEach(s => on.add(s));
+  if (elems.orifices > 0) on.add("[ORIFICES]");
+  if (elems.weirs > 0) on.add("[WEIRS]");
+  return on;
+}
+
+// =====================================================================
+// UPDATE UI
+// =====================================================================
+function update() {
+  const e = compute();
+  const off = OFFSET[state.detail];
+  const shapes = SHAPES[state.type];
+  const flowUnit = FLOW_UNITS[state.units][state.type];
+  const sections = getSections(e);
+
+  // Junction count label
+  document.getElementById('nVal').textContent = fmt(state.N);
+
+  // Outfall elevation label
+  const oUnitLbl = state.units === 'SI' ? 'm' : 'ft';
+  document.getElementById('outfallElevVal').textContent = state.outfallElev.toFixed(1) + ' ' + oUnitLbl;
+
+  // Element cards
+  const cards = [
+    { label:"Junctions", count:e.junctions, cls:"c1", max:50000 },
+    { label:"Conduits",  count:e.conduits,  cls:"c2", max:55000 },
+    { label:"Subcatchments", count:e.subcatchments, cls:"c3", max:50000 },
+    { label:"Outfalls",  count:e.outfalls,  cls:"c4", max:250 },
+    { label:"Storage",   count:e.storage,   cls:"c5", max:4000 },
+    { label:"Pumps",     count:e.pumps,     cls:"c6", max:2000 },
+    { label:"Orifices",  count:e.orifices,  cls:"c4", max:1500 },
+    { label:"Weirs",     count:e.weirs,     cls:"c5", max:250 },
+  ];
+  const grid = document.getElementById('elemGrid');
+  grid.innerHTML = cards.map(c =>
+    `<div class="elem-card ${c.cls}">
+      <div class="count">${fmt(c.count)}</div>
+      <div class="label">${c.label}</div>
+      <div class="bar" style="width:${Math.min(100, Math.max(2, c.count/c.max*100))}%"></div>
+    </div>`
+  ).join('') +
+  `<div class="elem-card c1">
+    <div class="count">${fmt(e.total)}</div>
+    <div class="label">Total Elements</div>
+    <div class="bar" style="width:100%; background: linear-gradient(90deg,var(--accent),var(--accent3))"></div>
+  </div>`;
+
+  // Options tags
+  const infil = ["HORTON","GREEN_AMPT","CURVE_NUMBER"][Math.floor(Math.random()*0.1)>0.61?1:0];
+  document.getElementById('optionsRow').innerHTML = [
+    ["Units", flowUnit],
+    ["Routing", "DYNWAVE"],
+    ["Infiltration", "HORTON"],
+    ["Offsets", "DEPTH"],
+    ["Terrain", state.terrain + " (" + TERRAIN_LABELS[state.terrain] + ")"],
+    ["Est. File", estimateSize(e)],
+  ].map(([k,v]) => `<div class="opt-tag"><span class="k">${k}:</span> <span class="v">${v}</span></div>`).join('');
+
+  // Offset viz
+  const oColors = { both_zero:"#374151", outlet_only:"#38bdf8", inlet_only:"#fb923c", both_nz:"#818cf8" };
+  const oLabels = { both_zero:"Both Zero", outlet_only:"Outlet Only (Crown Match)", inlet_only:"Inlet Only (Drop)", both_nz:"Both Nonzero" };
+  document.getElementById('offsetViz').innerHTML = Object.entries(off).map(([k,v]) =>
+    `<div class="offset-seg" style="flex:${v};background:${oColors[k]}" title="${oLabels[k]}: ${pct(v)}"></div>`
+  ).join('');
+  document.getElementById('offsetLegend').innerHTML = Object.entries(off).map(([k,v]) =>
+    `<div class="offset-legend-item"><div class="swatch" style="background:${oColors[k]}"></div>${oLabels[k]}: ${pct(v)}</div>`
+  ).join('');
+
+  // Shapes
+  const sColors = ["#38bdf8","#818cf8","#34d399","#fb923c","#f472b6","#ef4444","#facc15"];
+  document.getElementById('shapeBars').innerHTML = shapes.map(([name, pctVal], i) =>
+    `<div class="hbar">
+      <div class="hbar-label"><span>${name}</span><span>${pctVal}%</span></div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${pctVal}%;background:${sColors[i%sColors.length]}"></div></div>
+    </div>`
+  ).join('');
+
+  // Pipe sizes
+  const maxW = Math.max(...PIPE_WEIGHTS);
+  document.getElementById('pipeBars').innerHTML = PIPE_INCHES.map((sz, i) =>
+    `<div class="pipe-bar" style="height:${PIPE_WEIGHTS[i]/maxW*100}%" title="${sz}in: ${(PIPE_WEIGHTS[i]/PIPE_WEIGHTS.reduce((a,b)=>a+b,0)*100).toFixed(1)}%"></div>`
+  ).join('');
+  document.getElementById('pipeLabels').innerHTML = PIPE_INCHES.map(sz =>
+    `<span>${sz}</span>`
+  ).join('');
+
+  // Sections
+  document.getElementById('sectionsGrid').innerHTML = ALL_SECTIONS.map(s =>
+    `<div class="sec-item ${sections.has(s)?'':'off'}">${s}</div>`
+  ).join('');
+}
+
+function estimateSize(e) {
+  // Rough estimate: ~100 bytes per junction line, ~120 per conduit, ~200 per subcatch (3 sections)
+  const bytes = e.junctions*100 + e.conduits*120 + e.subcatchments*200 + e.storage*80 + e.pumps*150 + 2000;
+  if (bytes < 1024) return bytes+"B";
+  if (bytes < 1048576) return (bytes/1024).toFixed(0)+" KB";
+  return (bytes/1048576).toFixed(1)+" MB";
+}
+
+// =====================================================================
+// FULL INP GENERATOR (Browser)
+// =====================================================================
+function generateModel() {
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true;
+  btn.textContent = "Generating...";
+
+  const dl = document.getElementById('downloadArea');
+  dl.className = 'download-area';
+  dl.innerHTML = `<div class="status">Generating ${fmt(state.N)}-junction ${state.type} model...</div>
+    <div class="progress-wrap"><div class="progress-fill" id="progBar" style="width:0%"></div></div>`;
+
+  // Use setTimeout to let the UI update
+  setTimeout(() => doGenerate(), 50);
+}
+
+function doGenerate() {
+ try {
+  const N = state.N;
+  const r = RATIOS[state.type];
+  const flowUnit = FLOW_UNITS[state.units][state.type];
+  const isSI = state.units === "SI";
+  const off = OFFSET[state.detail];
+  const shapes = SHAPES[state.type];
+
+  const nConduits = Math.max(N, Math.round(N * r.conduit));
+  const nSubcatch = Math.round(N * r.subcatch);
+  const nOutfalls = Math.max(1, Math.round(N * r.outfall));
+  let nStorage = Math.max(0, Math.round(N * r.storage));
+  const nPumps = Math.round(N * r.pump);
+  if (nPumps > 0) nStorage = Math.max(nStorage, Math.max(1, Math.floor(nPumps/3)));
+
+  const terrainCfg = { flat:[0,30], moderate:[0,150], hilly:[0,500], mountainous:[0,2000] }[state.terrain];
+  let [eLo, eHi] = terrainCfg;
+  if (isSI) { eLo /= 3.281; eHi /= 3.281; }
+
+  const PIPES = isSI ? [0.15,0.20,0.225,0.25,0.30,0.375,0.45,0.525,0.60,0.75,0.90,1.05,1.20,1.35,1.50,1.80,2.10,2.40,3.00,3.60]
+                      : [0.5,0.667,0.75,0.833,1.0,1.25,1.5,1.75,2.0,2.5,3.0,3.5,4.0,4.5,5.0,6.0,7.0,8.0,10.0,12.0];
+
+  const rand = (a,b) => a + Math.random()*(b-a);
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+  const tri = (a,b,c) => { const u=Math.random(),F=(c-a)/(b-a); return u<F? a+Math.sqrt(u*(b-a)*(c-a)) : b-Math.sqrt((1-u)*(b-a)*(b-c)); };
+
+  // Shape picker
+  function pickShape() {
+    let r2 = Math.random()*100, cum=0;
+    for (const [s,p] of shapes) { cum+=p; if (r2<cum) return s; }
+    return shapes[0][0];
+  }
+
+  const lines = [];
+  const w = s => lines.push(s);
+  const prog = document.getElementById('progBar');
+
+  // TITLE & OPTIONS
+  w("[TITLE]");
+  w(`;;Generated SWMM5 Model - ${fmt(N)} junctions, ${state.type}`);
+  w(`;;Created ${new Date().toISOString().slice(0,16)} by SWMM5 Model Generator`);
+  w(`;;Based on 338 real-world models / 3,009,909 elements`);
+  w("");
+  w("[OPTIONS]");
+  w(`FLOW_UNITS           ${flowUnit}`);
+  w(`INFILTRATION         HORTON`);
+  w(`FLOW_ROUTING         DYNWAVE`);
+  w(`LINK_OFFSETS         DEPTH`);
+  w(`FORCE_MAIN_EQUATION  H-W`);
+  w(`ALLOW_PONDING        YES`);
+  w(`MIN_SLOPE            0.001`);
+  w(`START_DATE           01/01/2025`);
+  w(`START_TIME           00:00:00`);
+  w(`END_DATE             01/02/2025`);
+  w(`END_TIME             12:00:00`);
+  w(`REPORT_START_DATE    01/01/2025`);
+  w(`REPORT_START_TIME    00:00:00`);
+  const step = N>5000?"00:00:15":"00:00:30";
+  w(`WET_STEP             ${step}`);
+  w(`DRY_STEP             01:00:00`);
+  w(`ROUTING_STEP         ${step}`);
+  w(`REPORT_STEP          00:05:00`);
+  w("");
+
+  if (prog) prog.style.width = "8%";
+
+  // RAINGAGES
+  const nGages = nSubcatch > 0 ? Math.max(1, Math.round(nSubcatch/500)) : 0;
+  if (nGages > 0) {
+    w("[RAINGAGES]");
+    w(";;Name           Format  Interval  SCF  Source");
+    for (let i=0; i<nGages; i++) w(`RG${i+1}              INTENSITY  0:05      1.0  TIMESERIES  TS_Rain`);
+    w("");
+  }
+
+  // ================================================================
+  // PHASE 0: Setup domain and terrain DEM
+  // ================================================================
+  const avgLen = isSI ? 75 : 250;
+  const domain = Math.sqrt(Math.max(N, 10)) * avgLen;
+
+  // Place outfall positions at bottom of domain
+  const outfallPositions = [];
+  for (let i = 0; i < nOutfalls; i++) {
+    outfallPositions.push({
+      x: domain * (0.3 + 0.4 * i / Math.max(1, nOutfalls - 1)),
+      y: domain * 0.05 + rand(0, domain * 0.03)
+    });
+  }
+
+  // Create synthetic terrain DEM
+  const dem = new TerrainDEM(domain, domain, state.terrain, outfallPositions, Math.random()*999);
+
+  if (prog) prog.style.width = "12%";
+
+  // ================================================================
+  // PHASE 1: Barnes-Hut Force-Directed Particle Simulation
+  // ================================================================
+  const simResult = runParticleSimulation(
+    N, dem, domain, outfallPositions, state.terrain,
+    (allP, iter, maxIter) => {
+      if (prog) prog.style.width = (12 + (iter/maxIter)*28) + "%";
+    }
+  );
+
+  if (prog) prog.style.width = "42%";
+
+  // ================================================================
+  // PHASE 2: Dendritic Topology via Steepest-Descent Connection
+  // ================================================================
+  const graph = buildDendriticGraph(
+    simResult.junctionParticles,
+    simResult.outfallParticles,
+    dem, domain
+  );
+
+  if (prog) prog.style.width = "50%";
+
+  // ================================================================
+  // PHASE 3: Extract SWMM5 data from simulation results
+  // ================================================================
+  const elevRange = eHi - eLo;
+  let demMin = Infinity, demMax = -Infinity;
+  for (const n of graph.allNodes) {
+    if (n.elev < demMin) demMin = n.elev;
+    if (n.elev > demMax) demMax = n.elev;
+  }
+  const demRange = (demMax - demMin) || 1;
+
+  // Build junctions
+  const junctions = [];
+  for (const n of graph.allNodes) {
+    if (n.type === 'outfall') continue;
+    const normElev = (n.elev - demMin) / demRange;
+    const realElev = state.outfallElev + eLo + normElev * elevRange;
+    const nUp = graph.accumUpstream[n.name] || 0;
+    const upFrac = Math.min(1, nUp / Math.max(1, N * 0.3));
+    let maxD = 3 + upFrac * 27;
+    if (isSI) maxD /= 3.281;
+    const ponded = Math.random() < 0.73 ? Math.round(rand(100, 5000) / (isSI ? 10.764 : 1)) : 0;
+    junctions.push({ name: n.name, elev: +realElev.toFixed(3), maxD: +maxD.toFixed(2), ponded, x: n.x, y: n.y });
+  }
+  junctions.sort((a, b) => a.elev - b.elev);
+
+  // Build outfalls
+  const outfalls = [];
+  for (const n of graph.allNodes) {
+    if (n.type !== 'outfall') continue;
+    const normElev = (n.elev - demMin) / demRange;
+    outfalls.push({ name: n.name, elev: +(state.outfallElev + normElev * elevRange * 0.05).toFixed(3), x: n.x, y: n.y });
+  }
+
+  // Build storage
+  const storages = [];
+  if (nStorage > 0) {
+    const sortedByUp = [...junctions].sort((a,b) => (graph.accumUpstream[b.name]||0) - (graph.accumUpstream[a.name]||0));
+    const stride = Math.max(1, Math.floor(sortedByUp.length / nStorage));
+    for (let i = 0; i < nStorage && i * stride < sortedByUp.length; i++) {
+      const src = sortedByUp[Math.min(i * stride + Math.floor(stride/3), sortedByUp.length-1)];
+      const maxD = +(rand(10, 35) / (isSI ? 3.281 : 1)).toFixed(2);
+      const area = Math.round(rand(200, 2000) / (isSI ? 10.764 : 1));
+      storages.push({ name: `SU${i+1}`, elev: src.elev, maxD, area, x: src.x, y: src.y });
+    }
+  }
+
+  if (prog) prog.style.width = "55%";
+
+  // Write [JUNCTIONS]
+  w("[JUNCTIONS]");
+  w(";;Name           InvertElev  MaxDepth    InitDepth   SurDepth    Ponded");
+  for (const j of junctions) {
+    w(`${j.name.padEnd(17)}${j.elev.toFixed(3).padEnd(12)}${j.maxD.toFixed(2).padEnd(12)}0           0           ${j.ponded}`);
+  }
+  w("");
+
+  // Write [OUTFALLS]
+  w("[OUTFALLS]");
+  w(";;Name           InvertElev  Type        StageData   Gated");
+  for (const o of outfalls) {
+    w(`${o.name.padEnd(17)}${o.elev.toFixed(3).padEnd(12)}FREE                       NO`);
+  }
+  w("");
+
+  // Write [STORAGE]
+  if (storages.length > 0) {
+    w("[STORAGE]");
+    w(";;Name           InvertElev  MaxDepth    InitDepth   Shape      Params");
+    for (const s of storages) {
+      w(`${s.name.padEnd(17)}${s.elev.toFixed(3).padEnd(12)}${s.maxD.toFixed(2).padEnd(12)}0           FUNCTIONAL ${s.area}       0        0`);
+    }
+    w("");
+  }
+
+  if (prog) prog.style.width = "58%";
+
+  // ================================================================
+  // Conduits from dendritic edges + offset/shape assignment
+  // ================================================================
+  const conduits = [];
+  const nodeLookup = {};
+  for (const j of junctions) nodeLookup[j.name] = j;
+  for (const o of outfalls) nodeLookup[o.name] = o;
+  for (const s of storages) nodeLookup[s.name] = s;
+
+  for (let i = 0; i < graph.edges.length; i++) {
+    const edge = graph.edges[i];
+    const fromNode = nodeLookup[edge.from.name];
+    const toNode = nodeLookup[edge.to.name];
+    if (!fromNode || !toNode) continue;
+
+    const length = +Math.max(1, edge.length).toFixed(2);
+    let rough = Math.random() < 0.80 ? 0.013 : Math.random() < 0.5 ? pick([0.011, 0.012]) : pick([0.014, 0.015, 0.016]);
+    const shape = pickShape();
+    if (shape === "FORCE_MAIN") rough = 130;
+
+    // Pipe size from upstream accumulation
+    const nUp = graph.accumUpstream[edge.from.name] || 0;
+    const upFrac = Math.min(1, nUp / Math.max(1, N * 0.2));
+    const sizeIdx = Math.floor(upFrac * (PIPES.length - 1));
+    const diam = PIPES[Math.min(sizeIdx, PIPES.length - 1)];
+
+    // Offsets from 1.2M conduit analysis
+    let inOff = 0, outOff = 0;
+    const rr = Math.random();
+    if (rr < off.both_zero) { }
+    else if (rr < off.both_zero + off.outlet_only) {
+      outOff = Math.random() < 0.67 ? +(diam * rand(0.1, 0.8)).toFixed(3) : +(diam * tri(0.05, 1.5, 0.2)).toFixed(3);
+    } else if (rr < off.both_zero + off.outlet_only + off.inlet_only) {
+      inOff = +(diam * tri(0.1, 3.0, 0.6)).toFixed(3);
+    } else {
+      inOff = +(diam * tri(0.1, 2.0, 0.5)).toFixed(3);
+      outOff = +(diam * tri(0.05, 1.0, 0.2)).toFixed(3);
+    }
+    const fromD = fromNode.maxD || 10;
+    if (inOff > fromD * 0.8 - diam) inOff = +Math.max(0, fromD * 0.5 - diam).toFixed(3);
+    if (outOff > fromD * 0.8 - diam) outOff = +Math.max(0, fromD * 0.5 - diam).toFixed(3);
+    inOff = Math.max(0, inOff); outOff = Math.max(0, outOff);
+
+    conduits.push({ name: `C${i+1}`, from: edge.from.name, to: edge.to.name, len: length, rough, inOff, outOff, diam, shape });
+  }
+
+  // Extra conduits for ratio
+  const extraNeeded = nConduits - conduits.length;
+  for (let x = 0; x < Math.max(0, extraNeeded); x++) {
+    if (junctions.length < 3) break;
+    const i1 = Math.floor(rand(junctions.length * 0.3, junctions.length - 1));
+    const j1 = junctions[i1];
+    const lowers = junctions.slice(0, i1).filter(j => j.elev < j1.elev);
+    if (!lowers.length) continue;
+    lowers.sort((a, b) => Math.hypot(a.x-j1.x, a.y-j1.y) - Math.hypot(b.x-j1.x, b.y-j1.y));
+    conduits.push({ name: `C${conduits.length+1}`, from: j1.name, to: lowers[0].name, len: +Math.max(1, Math.hypot(lowers[0].x-j1.x, lowers[0].y-j1.y)).toFixed(2), rough: 0.013, inOff: 0, outOff: 0, diam: pick(PIPES.slice(0, 10)), shape: "CIRCULAR" });
+  }
+
+  if (prog) prog.style.width = "62%";
+
+  w("[CONDUITS]");
+  w(";;Name           FromNode         ToNode           Length      Roughness   InOffset    OutOffset");
+  for (const c of conduits) {
+    w(`${c.name.padEnd(17)}${c.from.padEnd(17)}${c.to.padEnd(17)}${c.len.toFixed(2).padEnd(12)}${c.rough.toFixed(4).padEnd(12)}${c.inOff.toFixed(3).padEnd(12)}${c.outOff.toFixed(3)}`);
+  }
+  w("");
+
+  w("[XSECTIONS]");
+  w(";;Link           Shape        Geom1       Geom2       Geom3       Geom4       Barrels");
+  for (const c of conduits) {
+    let g1 = c.diam, g2 = 0, g3 = 0, g4 = 0;
+    if (c.shape === "EGG") g1 = c.diam * 1.5;
+    else if (c.shape === "RECT_CLOSED") { g2 = c.diam * rand(0.8, 1.5); }
+    else if (c.shape === "RECT_OPEN") { g2 = c.diam * rand(1, 3); }
+    else if (c.shape === "TRAPEZOIDAL") { g2 = c.diam * 2; g3 = 2; g4 = 2; }
+    else if (c.shape.includes("FILLED")) { g2 = +(c.diam * rand(0.1, 0.3)).toFixed(3); }
+    w(`${c.name.padEnd(17)}${c.shape.padEnd(13)}${g1.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
+  }
+  w("");
+
+  if (prog) prog.style.width = "65%";
+
+  // SUBCATCHMENTS
+  if (nSubcatch > 0) {
+    w("[SUBCATCHMENTS]");
+    w(";;Name           Raingage         Outlet           Area     %Imperv  Width    Slope");
+    const impRanges = { commercial:[85,98], industrial:[60,90], residential:[30,55], mixed:[15,80] };
+    const impR = impRanges[state.landUse] || [20,80];
+    const slopeR = { flat:[0.1,1], moderate:[0.5,3], hilly:[2,8], mountainous:[5,20] }[state.terrain];
+    for (let i=0; i<nSubcatch; i++) {
+      const name = `S${i+1}`;
+      const gage = `RG${(i%nGages)+1}`;
+      const outlet = junctions[i%N].name;
+      let area = tri(0.5,100,5); if(isSI) area/=2.471;
+      const imperv = rand(impR[0],impR[1]);
+      const areaFt = area*(isSI?10764:43560);
+      const width = Math.sqrt(areaFt)*rand(0.5,1.2);
+      const slope = rand(slopeR[0],slopeR[1]);
+      w(`${name.padEnd(17)}${gage.padEnd(17)}${outlet.padEnd(17)}${area.toFixed(3).padEnd(9)}${imperv.toFixed(1).padEnd(9)}${width.toFixed(1).padEnd(9)}${slope.toFixed(2)}`);
+    }
+    w("");
+
+    w("[SUBAREAS]");
+    w(";;Subcatch       N-Imperv   N-Perv     S-Imperv   S-Perv     PctZero    RouteTo");
+    const si = isSI?1.27:0.05, sp = isSI?3.81:0.15;
+    for (let i=0; i<nSubcatch; i++) w(`S${i+1}`.padEnd(17)+`0.015      0.20       ${si.toFixed(3).padEnd(11)}${sp.toFixed(3).padEnd(11)}25         OUTLET`);
+    w("");
+
+    w("[INFILTRATION]");
+    w(";;Subcatch       MaxRate    MinRate    Decay      DryTime    MaxInfil");
+    for (let i=0; i<nSubcatch; i++) w(`S${i+1}`.padEnd(17)+`${rand(2,5).toFixed(2).padEnd(11)}${rand(0.3,1).toFixed(2).padEnd(11)}${rand(3,5).toFixed(1).padEnd(11)}7          0`);
+    w("");
+  }
+
+  if (prog) prog.style.width = "75%";
+
+  // PUMPS + CURVES + CONTROLS
+  const pumps = [];
+  if (nPumps > 0 && storages.length > 0) {
+    w("[PUMPS]");
+    w(";;Name           FromNode         ToNode           Curve           Status  Startup Shutoff");
+    let pi = 0;
+    for (let si2=0; si2<storages.length && pi<nPumps; si2++) {
+      const nAtSta = Math.min(nPumps-pi, Math.floor(rand(1,4)));
+      const tgt = junctions[Math.floor(rand(0,Math.min(5,N-1)))].name;
+      for (let p=0; p<nAtSta && pi<nPumps; p++) {
+        pi++;
+        const su = storages[si2];
+        const startup = +(su.maxD*0.6).toFixed(2);
+        const shutoff = +(su.maxD*0.15).toFixed(2);
+        pumps.push({name:`PMP${pi}`, from:su.name, to:tgt, curve:`PC${pi}`, startup, shutoff, maxD:su.maxD});
+        w(`${"PMP"+pi}`.padEnd(17)+`${su.name.padEnd(17)}${tgt.padEnd(17)}${"PC"+pi}`.padEnd(16)+`ON      ${startup.toFixed(2).padEnd(8)}${shutoff.toFixed(2)}`);
+      }
+    }
+    w("");
+
+    w("[CURVES]");
+    w(";;Name           Type       X-Value    Y-Value");
+    for (const p of pumps) {
+      const mh = rand(20,80), mf = rand(1,50);
+      w(`${p.curve.padEnd(17)}PUMP3`);
+      w(`${p.curve.padEnd(17)}           0.00       ${mf.toFixed(2)}`);
+      w(`${p.curve.padEnd(17)}           ${(mh*0.5).toFixed(1).padEnd(11)}${(mf*0.6).toFixed(2)}`);
+      w(`${p.curve.padEnd(17)}           ${mh.toFixed(1).padEnd(11)}0.00`);
+    }
+    w("");
+
+    w("[CONTROLS]");
+    for (const p of pumps) {
+      w(`RULE ${p.name}_ON`);
+      w(`IF NODE ${p.from} DEPTH > ${p.startup}`);
+      w(`THEN PUMP ${p.name} STATUS = ON`);
+      w("");
+      w(`RULE ${p.name}_OFF`);
+      w(`IF NODE ${p.from} DEPTH < ${p.shutoff}`);
+      w(`THEN PUMP ${p.name} STATUS = OFF`);
+      w("");
+    }
+    w("");
+  }
+
+  // LOSSES
+  w("[LOSSES]");
+  w(";;Conduit        Inlet      Outlet     Average    FlapGate");
+  for (const c of conduits) {
+    const ik = Math.random()<0.2 ? rand(0.1,0.5).toFixed(2) : "0";
+    const ok = Math.random()<0.1 ? rand(0.05,0.3).toFixed(2) : "0";
+    if (ik!=="0" || ok!=="0") w(`${c.name.padEnd(17)}${ik.toString().padEnd(11)}${ok.toString().padEnd(11)}0          NO`);
+  }
+  w("");
+
+  if (prog) prog.style.width = "85%";
+
+  // DWF + PATTERNS
+  if (state.type==="sanitary"||state.type==="combined"||state.type==="wos_intensive") {
+    const diurnal = [0.4,0.35,0.3,0.3,0.35,0.5,0.8,1.3,1.6,1.5,1.3,1.2,1.1,1.0,1.0,1.1,1.2,1.4,1.6,1.5,1.2,0.9,0.7,0.5];
+    const monthly = [1.1,1.1,1.2,1.1,1.0,0.9,0.8,0.8,0.9,1.0,1.1,1.1];
+    const bflows = {MGD:0.005,CFS:0.02,GPM:5,CMS:0.001,LPS:0.5};
+    const base = bflows[flowUnit]||0.01;
+    w("[DWF]");
+    w(";;Node           Constituent  Baseline    Patterns");
+    for (const j of junctions) {
+      if (Math.random()<0.65) w(`${j.name.padEnd(17)}FLOW         ${(base*rand(0.1,5)).toFixed(6).padEnd(12)}"Diurnal"  "Monthly"`);
+    }
+    w("");
+    w("[PATTERNS]");
+    w(";;Name           Type       Multipliers");
+    w(`Diurnal          HOURLY     ${diurnal.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
+    w(`Diurnal                     ${diurnal.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
+    w(`Diurnal                     ${diurnal.slice(12,18).map(v=>v.toFixed(2)).join(' ')}`);
+    w(`Diurnal                     ${diurnal.slice(18,24).map(v=>v.toFixed(2)).join(' ')}`);
+    w(`Monthly          MONTHLY    ${monthly.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
+    w(`Monthly                     ${monthly.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
+    w("");
+  }
+
+  // TIMESERIES
+  if (nGages > 0) {
+    w("[TIMESERIES]");
+    w(";;Name           Date       Time       Value");
+    const storm = [[0,0],[2,0.1],[4,0.3],[5,0.6],[5.5,1.2],[6,2.8],[6.25,4.5],[6.5,3.2],[6.75,2],[7,1.2],[7.5,0.6],[8,0.3],[9,0.1],[10,0]];
+    for (const [h,v] of storm) {
+      const hh = Math.floor(h), mm = Math.round((h-hh)*60);
+      w(`TS_Rain          01/01/2025 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}      ${v}`);
+    }
+    w("");
+  }
+
+  if (prog) prog.style.width = "92%";
+
+  // COORDINATES — from particle simulation positions
+  w("[COORDINATES]");
+  w(";;Node           X-Coord        Y-Coord");
+  for (const o of outfalls) w(`${o.name.padEnd(17)}${o.x.toFixed(1).padEnd(15)}${o.y.toFixed(1)}`);
+  for (const s of storages) w(`${s.name.padEnd(17)}${s.x.toFixed(1).padEnd(15)}${s.y.toFixed(1)}`);
+  for (const j of junctions) {
+    w(`${j.name.padEnd(17)}${j.x.toFixed(1).padEnd(15)}${j.y.toFixed(1)}`);
+  }
+  w("");
+
+  // MAP
+  w("[MAP]");
+  w(`DIMENSIONS  0  0  ${Math.round(domain+200)}  ${Math.round(domain+200)}`);
+  w(`Units       ${isSI?"Meters":"Feet"}`);
+  w("");
+
+  // REPORT
+  w("[REPORT]");
+  w("SUBCATCHMENTS    ALL");
+  w("NODES            ALL");
+  w("LINKS            ALL");
+  w("");
+
+  if (prog) prog.style.width = "100%";
+
+  // Done!
+  generatedINP = lines.join("\n");
+  const sizeKB = (new Blob([generatedINP]).size / 1024).toFixed(1);
+  const sizeMB = (sizeKB / 1024).toFixed(2);
+  const nLines = lines.length;
+  const total = N + conduits.length + nSubcatch + nOutfalls + nStorage + nPumps;
+  const fname = `Generated_${fmt(N).replace(/,/g,'')}_${state.type}.inp`;
+
+  // Compute stats from generated data
+  const elevs = junctions.map(j => j.elev);
+  const minElev = Math.min(...elevs).toFixed(1);
+  const maxElev = Math.max(...elevs).toFixed(1);
+  const avgElev = (elevs.reduce((a,b)=>a+b,0)/elevs.length).toFixed(1);
+
+  const depths = junctions.map(j => j.maxD);
+  const minDepth = Math.min(...depths).toFixed(1);
+  const maxDepth = Math.max(...depths).toFixed(1);
+  const avgDepth = (depths.reduce((a,b)=>a+b,0)/depths.length).toFixed(1);
+
+  const diams = conduits.map(c => c.diam);
+  const lens = conduits.map(c => c.len);
+  const diamConv = isSI ? 1000 : 12; // ft→in or m→mm
+  const minDiam = (Math.min(...diams) * diamConv).toFixed(1);
+  const maxDiam = (Math.max(...diams) * diamConv).toFixed(1);
+  const avgDiam = (diams.reduce((a,b)=>a+b,0)/diams.length * diamConv).toFixed(1);
+  const minLen = Math.min(...lens).toFixed(0);
+  const maxLen = Math.max(...lens).toFixed(0);
+  const meanLen = (lens.reduce((a,b)=>a+b,0)/lens.length).toFixed(0);
+
+  // Cross-section distribution
+  const shapeCounts = {};
+  conduits.forEach(c => { shapeCounts[c.shape] = (shapeCounts[c.shape]||0) + 1; });
+  const shapeStats = Object.entries(shapeCounts).sort((a,b) => b[1]-a[1])
+    .map(([s,n]) => `${s}: ${n} (${(100*n/conduits.length).toFixed(0)}%)`).join(', ');
+
+  // Offset stats
+  const withOutOff = conduits.filter(c => c.outOff > 0).length;
+  const withInOff = conduits.filter(c => c.inOff > 0).length;
+  const bothZero = conduits.filter(c => c.outOff===0 && c.inOff===0).length;
+
+  // Slopes
+  const slopes = conduits.map(c => {
+    const fj = junctions.find(j => j.name === c.from) || outfalls.find(o => o.name === c.from);
+    const tj = junctions.find(j => j.name === c.to) || outfalls.find(o => o.name === c.to);
+    if (fj && tj && c.len > 0) return Math.abs(fj.elev - tj.elev) / c.len;
+    return null;
+  }).filter(s => s !== null);
+  const avgSlope = slopes.length ? (slopes.reduce((a,b)=>a+b,0)/slopes.length) : 0;
+  const minSlope = slopes.length ? Math.min(...slopes) : 0;
+  const maxSlope = slopes.length ? Math.max(...slopes) : 0;
+
+  const unitLbl = isSI ? 'm' : 'ft';
+  const diamLbl = isSI ? 'mm' : 'in';
+
+  const dl = document.getElementById('downloadArea');
+  dl.className = 'download-area ready';
+  dl.innerHTML = `
+    <div class="status done">✓ Model generated successfully</div>
+    <button class="btn-download" onclick="downloadINP('${fname}')">⬇ Download ${fname}</button>
+    <button class="btn-download btn-copy" onclick="copyINP()" style="background:var(--accent);margin-top:8px">📋 Copy to Clipboard</button>
+    <div style="font-size:0.65rem;color:var(--text-dim);margin-top:8px">If download doesn't save, use Copy → paste into a text editor → Save As .inp</div>
+    <div class="file-stats">${sizeKB > 1024 ? sizeMB+' MB' : sizeKB+' KB'} · ${fmt(nLines)} lines · ${fmt(total)} total elements</div>
+  `;
+
+  // Stats panel
+  document.getElementById('statsPanel').style.display = 'block';
+
+  // Scroll to network map in right column
+  setTimeout(() => {
+    document.getElementById('networkCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 300);
+  document.getElementById('statsContent').innerHTML = `
+    <div class="stats-grid">
+      <div class="stats-section">
+        <div class="stats-title">Element Counts</div>
+        <div class="stat-row"><span>Junctions</span><span class="stat-val">${fmt(N)}</span></div>
+        <div class="stat-row"><span>Conduits</span><span class="stat-val">${fmt(conduits.length)}</span></div>
+        <div class="stat-row"><span>Outfalls</span><span class="stat-val">${fmt(nOutfalls)}</span></div>
+        <div class="stat-row"><span>Storage Units</span><span class="stat-val">${fmt(nStorage)}</span></div>
+        <div class="stat-row"><span>Pumps</span><span class="stat-val">${fmt(nPumps)}</span></div>
+        <div class="stat-row"><span>Subcatchments</span><span class="stat-val">${fmt(nSubcatch)}</span></div>
+        <div class="stat-row"><span>Orifices</span><span class="stat-val">${fmt(Math.round(N * RATIOS[state.type].orifice))}</span></div>
+        <div class="stat-row"><span>Weirs</span><span class="stat-val">${fmt(Math.round(N * RATIOS[state.type].weir))}</span></div>
+      </div>
+      <div class="stats-section">
+        <div class="stats-title">Elevations (${unitLbl})</div>
+        <div class="stat-row"><span>Min</span><span class="stat-val">${minElev}</span></div>
+        <div class="stat-row"><span>Max</span><span class="stat-val">${maxElev}</span></div>
+        <div class="stat-row"><span>Mean</span><span class="stat-val">${avgElev}</span></div>
+        <div class="stats-title" style="margin-top:10px">Max Depth (${unitLbl})</div>
+        <div class="stat-row"><span>Min</span><span class="stat-val">${minDepth}</span></div>
+        <div class="stat-row"><span>Max</span><span class="stat-val">${maxDepth}</span></div>
+        <div class="stat-row"><span>Mean</span><span class="stat-val">${avgDepth}</span></div>
+      </div>
+      <div class="stats-section">
+        <div class="stats-title">Conduit Diameters (${diamLbl})</div>
+        <div class="stat-row"><span>Min</span><span class="stat-val">${minDiam}</span></div>
+        <div class="stat-row"><span>Max</span><span class="stat-val">${maxDiam}</span></div>
+        <div class="stat-row"><span>Mean</span><span class="stat-val">${avgDiam}</span></div>
+        <div class="stat-row"><span>Std Sizes</span><span class="stat-val">${isSI ? '150–3600' : '6–144'} ${diamLbl}</span></div>
+        <div class="stats-title" style="margin-top:10px">Conduit Length (${unitLbl})</div>
+        <div class="stat-row"><span>Min</span><span class="stat-val">${minLen}</span></div>
+        <div class="stat-row"><span>Max</span><span class="stat-val">${maxLen}</span></div>
+        <div class="stat-row"><span>Mean</span><span class="stat-val">${meanLen}</span></div>
+      </div>
+      <div class="stats-section">
+        <div class="stats-title">Slopes (${unitLbl}/${unitLbl})</div>
+        <div class="stat-row"><span>Min</span><span class="stat-val">${minSlope.toFixed(4)}</span></div>
+        <div class="stat-row"><span>Max</span><span class="stat-val">${maxSlope.toFixed(4)}</span></div>
+        <div class="stat-row"><span>Mean</span><span class="stat-val">${avgSlope.toFixed(4)}</span></div>
+        <div class="stats-title" style="margin-top:10px">Offsets</div>
+        <div class="stat-row"><span>Both zero</span><span class="stat-val">${fmt(bothZero)} (${(100*bothZero/conduits.length).toFixed(0)}%)</span></div>
+        <div class="stat-row"><span>Outlet offset</span><span class="stat-val">${fmt(withOutOff)}</span></div>
+        <div class="stat-row"><span>Inlet offset</span><span class="stat-val">${fmt(withInOff)}</span></div>
+      </div>
+    </div>
+    <div class="stats-section" style="margin-top:12px">
+      <div class="stats-title">Cross-Section Distribution</div>
+      <div style="font-size:0.72rem;color:var(--text-mid);line-height:1.7">${shapeStats}</div>
+    </div>
+    <button onclick="document.getElementById('networkCard').scrollIntoView({behavior:'smooth',block:'start'})" style="margin-top:14px;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.8rem">↓ View Network Map</button>
+  `;
+
+  // Build and show network preview
+  netData = buildNetData(junctions, outfalls, storages, conduits, pumps, domain, isSI);
+  netView = { ox:0, oy:0, scale:1, dragging:false, lx:0, ly:0 };
+  document.getElementById('networkCard').style.display = 'block';
+  drawNetwork();
+
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = false;
+  btn.textContent = "Generate INP File";
+ } catch(err) {
+  const dl = document.getElementById('downloadArea');
+  dl.className = 'download-area';
+  dl.innerHTML = `<div class="status" style="color:#ef4444">Error: ${err.message}</div>`;
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = false;
+  btn.textContent = "Generate INP File";
+  console.error(err);
+ }
+}
+
+// =====================================================================
+// PHYSICS ENGINE — Force-Directed Network Synthesis
+// Barnes-Hut quadtree + terrain DEM + dual descent optimization
+// =====================================================================
+
+// ── Synthetic Terrain (DEM) ──
+function hashNoise(x, y, s) {
+  const n = Math.sin(x*12.9898 + y*78.233 + s*37.719) * 43758.5453;
+  return n - Math.floor(n);
+}
+function fbm(x, y, octaves, seed) {
+  let v=0, a=1, f=1, t=0;
+  for (let i=0; i<octaves; i++) {
+    v += hashNoise(x*f, y*f, seed+i*7.3)*a;
+    t += a; a *= 0.5; f *= 2.0;
+  }
+  return v/t;
+}
+
+class TerrainDEM {
+  constructor(domainW, domainH, terrainType, outfallPositions, seed) {
+    this.w = domainW; this.h = domainH;
+    this.seed = seed || Math.random()*999;
+    this.outfalls = outfallPositions;
+    // Terrain amplitude and noise scale
+    const cfg = {
+      flat:        { amp: 0.06, noiseScale: 0.003, slopeStr: 0.8 },
+      moderate:    { amp: 0.15, noiseScale: 0.005, slopeStr: 0.6 },
+      hilly:       { amp: 0.30, noiseScale: 0.008, slopeStr: 0.4 },
+      mountainous: { amp: 0.50, noiseScale: 0.012, slopeStr: 0.3 },
+    }[terrainType] || { amp:0.15, noiseScale:0.005, slopeStr:0.6 };
+    this.amp = cfg.amp;
+    this.ns = cfg.noiseScale;
+    this.slopeStr = cfg.slopeStr;
+  }
+  elevationAt(x, y) {
+    // Base: slope toward outfalls (lower near outfalls)
+    let minDist = Infinity;
+    for (const o of this.outfalls) {
+      const d = Math.sqrt((x-o.x)**2 + (y-o.y)**2);
+      if (d < minDist) minDist = d;
+    }
+    const maxDist = Math.sqrt(this.w**2 + this.h**2);
+    const slope = (minDist / maxDist) * this.slopeStr;
+    // Noise for local variation (ridges, valleys)
+    const noise = fbm(x*this.ns, y*this.ns, 5, this.seed) * this.amp;
+    // Valley carving: reduce elevation along natural flow lines
+    const valley = fbm(x*this.ns*0.4, y*this.ns*0.4, 3, this.seed+50) * this.amp * 0.5;
+    return slope + noise - valley * 0.3;
+  }
+  gradientAt(x, y) {
+    const eps = Math.max(1, this.w * 0.001);
+    const gx = (this.elevationAt(x+eps, y) - this.elevationAt(x-eps, y)) / (2*eps);
+    const gy = (this.elevationAt(x, y+eps) - this.elevationAt(x, y-eps)) / (2*eps);
+    return [-gx, -gy]; // negative gradient = downhill direction
+  }
+}
+
+// ── Quadtree for Barnes-Hut ──
+class QTNode {
+  constructor(cx, cy, halfW, halfH) {
+    this.cx = cx; this.cy = cy;
+    this.hw = halfW; this.hh = halfH;
+    this.mass = 0; this.comX = 0; this.comY = 0;
+    this.particle = null; // leaf
+    this.children = null; // [NW, NE, SW, SE]
+  }
+  contains(x, y) {
+    return x >= this.cx-this.hw && x < this.cx+this.hw &&
+           y >= this.cy-this.hh && y < this.cy+this.hh;
+  }
+  subdivide() {
+    const qw = this.hw/2, qh = this.hh/2;
+    this.children = [
+      new QTNode(this.cx-qw, this.cy+qh, qw, qh), // NW
+      new QTNode(this.cx+qw, this.cy+qh, qw, qh), // NE
+      new QTNode(this.cx-qw, this.cy-qh, qw, qh), // SW
+      new QTNode(this.cx+qw, this.cy-qh, qw, qh), // SE
+    ];
+  }
+  insert(p) {
+    if (!this.contains(p.x, p.y)) return false;
+    if (this.mass === 0 && !this.children) {
+      this.particle = p;
+      this.mass = 1;
+      this.comX = p.x; this.comY = p.y;
+      return true;
+    }
+    if (!this.children) {
+      this.subdivide();
+      if (this.particle) {
+        const old = this.particle;
+        this.particle = null;
+        for (const c of this.children) if (c.insert(old)) break;
+      }
+    }
+    for (const c of this.children) if (c.insert(p)) break;
+    // Update center of mass
+    const nm = this.mass + 1;
+    this.comX = (this.comX * this.mass + p.x) / nm;
+    this.comY = (this.comY * this.mass + p.y) / nm;
+    this.mass = nm;
+    return true;
+  }
+  calcRepulsion(p, theta, strength) {
+    if (this.mass === 0) return [0, 0];
+    const dx = this.comX - p.x, dy = this.comY - p.y;
+    const dist = Math.sqrt(dx*dx + dy*dy) + 0.01;
+    const size = this.hw * 2;
+    // If far enough, treat as single body
+    if (!this.children || (size / dist) < theta) {
+      // Repulsive force: F = -strength * mass / dist²
+      const f = -strength * this.mass / (dist * dist);
+      return [dx/dist * f, dy/dist * f];
+    }
+    // Otherwise recurse
+    let fx = 0, fy = 0;
+    for (const c of this.children) {
+      const [cfx, cfy] = c.calcRepulsion(p, theta, strength);
+      fx += cfx; fy += cfy;
+    }
+    return [fx, fy];
+  }
+}
+
+function buildQuadtree(particles, domain) {
+  const cx = domain/2, cy = domain/2, half = domain/2 + 10;
+  const root = new QTNode(cx, cy, half, half);
+  for (const p of particles) root.insert(p);
+  return root;
+}
+
+// ── Particle Simulation ──
+function runParticleSimulation(N, dem, domain, outfallPositions, terrainType, onFrame) {
+  // Tuning parameters scale with terrain
+  const cfg = {
+    flat:        { grav: 5.0, repel: 800,  attract: 0.08, momentum: 0.4, iters: 80 },
+    moderate:    { grav: 8.0, repel: 600,  attract: 0.06, momentum: 0.35, iters: 100 },
+    hilly:       { grav: 12.0, repel: 500,  attract: 0.04, momentum: 0.3, iters: 120 },
+    mountainous: { grav: 18.0, repel: 400,  attract: 0.03, momentum: 0.25, iters: 140 },
+  }[terrainType];
+
+  // Reduce iterations for large models
+  let maxIter = cfg.iters;
+  if (N > 2000) maxIter = Math.max(40, Math.floor(maxIter * 0.5));
+  if (N > 10000) maxIter = Math.max(25, Math.floor(maxIter * 0.3));
+
+  const dt = 0.8;
+  const theta = 0.7; // Barnes-Hut opening angle
+
+  // Initialize particles randomly within domain
+  const particles = [];
+  for (let i = 0; i < N; i++) {
+    particles.push({
+      x: domain*0.08 + Math.random()*domain*0.84,
+      y: domain*0.08 + Math.random()*domain*0.84,
+      vx: 0, vy: 0, fixed: false
+    });
+  }
+
+  // Fixed outfalls
+  const outfallParticles = [];
+  for (const o of outfallPositions) {
+    outfallParticles.push({
+      x: o.x, y: o.y, vx: 0, vy: 0, fixed: true
+    });
+  }
+
+  const allParticles = [...particles, ...outfallParticles];
+  const repelStr = cfg.repel * (domain / Math.sqrt(N));
+
+  // Simulation loop
+  for (let iter = 0; iter < maxIter; iter++) {
+    const cooling = 1.0 - (iter / maxIter) * 0.7; // reduce forces over time
+    const qt = buildQuadtree(allParticles, domain);
+
+    for (const p of particles) {
+      if (p.fixed) continue;
+      let fx = 0, fy = 0;
+
+      // 1. Barnes-Hut repulsion
+      const [rx, ry] = qt.calcRepulsion(p, theta, repelStr * cooling);
+      fx += rx; fy += ry;
+
+      // 2. Terrain gradient (downhill pull)
+      const [gx, gy] = dem.gradientAt(p.x, p.y);
+      fx += gx * cfg.grav * domain * cooling;
+      fy += gy * cfg.grav * domain * cooling;
+
+      // 3. Attraction to nearest outfall
+      let bestD = Infinity, bestOx = 0, bestOy = 0;
+      for (const o of outfallPositions) {
+        const d = Math.hypot(o.x - p.x, o.y - p.y);
+        if (d < bestD) { bestD = d; bestOx = o.x; bestOy = o.y; }
+      }
+      const adx = bestOx - p.x, ady = bestOy - p.y;
+      const ad = Math.sqrt(adx*adx + ady*ady) + 1;
+      fx += (adx/ad) * cfg.attract * ad * 0.01 * cooling;
+      fy += (ady/ad) * cfg.attract * ad * 0.01 * cooling;
+
+      // Dual descent update
+      p.vx = p.vx * cfg.momentum + fx * dt;
+      p.vy = p.vy * cfg.momentum + fy * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      // Clamp to domain
+      p.x = Math.max(domain*0.02, Math.min(domain*0.98, p.x));
+      p.y = Math.max(domain*0.02, Math.min(domain*0.98, p.y));
+    }
+
+    // Callback for animation frames
+    if (onFrame && iter % Math.max(1, Math.floor(maxIter/20)) === 0) {
+      onFrame(allParticles, iter, maxIter);
+    }
+  }
+
+  return { junctionParticles: particles, outfallParticles, allParticles };
+}
+
+// ── Dendritic Topology Builder ──
+function buildDendriticGraph(particles, outfallParticles, dem, domain) {
+  // All nodes: junctions + outfalls
+  const allNodes = [
+    ...particles.map((p,i) => ({ ...p, name:`J${i+1}`, type:'junction', idx:i })),
+    ...outfallParticles.map((p,i) => ({ ...p, name:`OUT${i+1}`, type:'outfall', idx:particles.length+i }))
+  ];
+
+  // Get elevation for each node
+  for (const n of allNodes) {
+    n.elev = dem.elevationAt(n.x, n.y);
+  }
+
+  // Build spatial index for k-nearest-neighbor (simple grid for speed)
+  const gridSize = Math.max(10, Math.ceil(Math.sqrt(allNodes.length / 4)));
+  const cellW = domain / gridSize;
+  const grid = new Map();
+  for (const n of allNodes) {
+    const gx = Math.floor(n.x / cellW), gy = Math.floor(n.y / cellW);
+    const key = `${gx},${gy}`;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(n);
+  }
+
+  function getNeighbors(node, k) {
+    const gx = Math.floor(node.x / cellW), gy = Math.floor(node.y / cellW);
+    const candidates = [];
+    const searchR = Math.max(2, Math.ceil(k / 3));
+    for (let dx = -searchR; dx <= searchR; dx++) {
+      for (let dy = -searchR; dy <= searchR; dy++) {
+        const key = `${gx+dx},${gy+dy}`;
+        if (grid.has(key)) candidates.push(...grid.get(key));
+      }
+    }
+    return candidates
+      .filter(c => c !== node)
+      .map(c => ({ node: c, dist: Math.hypot(c.x-node.x, c.y-node.y) }))
+      .sort((a,b) => a.dist - b.dist)
+      .slice(0, k);
+  }
+
+  // For each junction, find the steepest-descent neighbor to connect to
+  // This creates a dendritic (tree) structure flowing toward outfalls
+  const edges = []; // {from, to, length}
+  const downstream = {}; // node.name -> downstream node.name
+
+  for (const node of allNodes) {
+    if (node.type === 'outfall') continue; // outfalls don't connect downstream
+
+    const neighbors = getNeighbors(node, Math.min(12, Math.max(6, Math.floor(allNodes.length * 0.02))));
+
+    // Find neighbor with steepest descent (lowest elev / closest)
+    let bestScore = -Infinity, bestNeighbor = null;
+    for (const { node: nb, dist } of neighbors) {
+      if (nb.elev >= node.elev && nb.type !== 'outfall') continue; // must go downhill (or to outfall)
+      const drop = node.elev - nb.elev;
+      const score = drop / (dist + 1); // steepest gradient wins
+      if (score > bestScore || (bestScore <= 0 && nb.type === 'outfall')) {
+        bestScore = score;
+        bestNeighbor = nb;
+      }
+    }
+
+    // Fallback: if no downhill neighbor, connect to nearest lower node or nearest outfall
+    if (!bestNeighbor) {
+      const allLower = allNodes.filter(n => n !== node && (n.elev < node.elev || n.type === 'outfall'));
+      if (allLower.length > 0) {
+        allLower.sort((a,b) => Math.hypot(a.x-node.x, a.y-node.y) - Math.hypot(b.x-node.x, b.y-node.y));
+        bestNeighbor = allLower[0];
+      } else {
+        // Absolute fallback: nearest outfall
+        bestNeighbor = outfallParticles.length > 0 ?
+          allNodes.find(n => n.type === 'outfall') :
+          allNodes.find(n => n !== node);
+      }
+    }
+
+    if (bestNeighbor) {
+      const length = Math.hypot(bestNeighbor.x - node.x, bestNeighbor.y - node.y);
+      edges.push({ from: node, to: bestNeighbor, length });
+      downstream[node.name] = bestNeighbor.name;
+    }
+  }
+
+  // Count upstream connections for pipe sizing
+  const upstreamCount = {};
+  for (const e of edges) {
+    upstreamCount[e.to.name] = (upstreamCount[e.to.name] || 0) + 1;
+  }
+
+  // Compute accumulated upstream count (recursive)
+  const accumUpstream = {};
+  function countUp(name) {
+    if (accumUpstream[name] !== undefined) return accumUpstream[name];
+    let count = 0;
+    for (const e of edges) {
+      if (e.to.name === name) count += 1 + countUp(e.from.name);
+    }
+    accumUpstream[name] = count;
+    return count;
+  }
+  for (const n of allNodes) countUp(n.name);
+
+  return { allNodes, edges, downstream, upstreamCount, accumUpstream };
+}
+
+// ── Simulation-Aware Generation ──
+let netData = null; // {nodes:[], links:[]}
+let netView = { ox:0, oy:0, scale:1, dragging:false, lx:0, ly:0 };
+
+function buildNetData(junctions, outfalls, storages, conduits, pumps, domain, isSI) {
+  const nodes = {};
+  const links = [];
+
+  // Outfalls — use simulation positions
+  for (const o of outfalls) {
+    nodes[o.name] = {
+      name: o.name, type: 'outfall',
+      x: o.x, y: o.y,
+      r: 5, color: '#ef4444'
+    };
+  }
+
+  // Storage — use simulation positions
+  for (const s of storages) {
+    nodes[s.name] = {
+      name: s.name, type: 'storage',
+      x: s.x, y: s.y,
+      r: 5, color: '#fb923c'
+    };
+  }
+
+  // Junctions — use simulation positions
+  for (const j of junctions) {
+    nodes[j.name] = {
+      name: j.name, type: 'junction',
+      x: j.x, y: j.y,
+      r: 2.2, color: '#38bdf8',
+      elev: j.elev, maxD: j.maxD
+    };
+  }
+
+  // Conduit links
+  for (const c of conduits) {
+    const hasOffset = c.inOff > 0 || c.outOff > 0;
+    links.push({
+      name: c.name, from: c.from, to: c.to,
+      color: hasOffset ? '#f472b6' : '#34d399',
+      alpha: hasOffset ? 0.7 : 0.35,
+      width: Math.max(0.5, Math.min(3, c.diam * (isSI ? 3 : 1))),
+      hasOffset, diam: c.diam, shape: c.shape,
+      inOff: c.inOff, outOff: c.outOff
+    });
+  }
+
+  // Pump links
+  for (const p of pumps) {
+    links.push({
+      name: p.name, from: p.from, to: p.to,
+      color: '#818cf8', alpha: 0.8, width: 2,
+      isPump: true
+    });
+  }
+
+  return { nodes, links, domain };
+}
+
+function drawNetwork() {
+  if (!netData) return;
+  const canvas = document.getElementById('netCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const { nodes, links, domain } = netData;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+
+  // Compute fit transform
+  const nodeArr = Object.values(nodes);
+  if (nodeArr.length === 0) { ctx.restore(); return; }
+  let xMin=Infinity, xMax=-Infinity, yMin=Infinity, yMax=-Infinity;
+  for (const n of nodeArr) {
+    if (n.x < xMin) xMin = n.x;
+    if (n.x > xMax) xMax = n.x;
+    if (n.y < yMin) yMin = n.y;
+    if (n.y > yMax) yMax = n.y;
+  }
+  const pad = 40;
+  const dataW = (xMax - xMin) || 1;
+  const dataH = (yMax - yMin) || 1;
+  const fitScale = Math.min((W - pad*2) / dataW, (H - pad*2) / dataH);
+
+  // Apply user pan/zoom on top of fit
+  const totalScale = fitScale * netView.scale;
+  const cx = W/2 + netView.ox;
+  const cy = H/2 + netView.oy;
+  const dataCx = (xMin + xMax) / 2;
+  const dataCy = (yMin + yMax) / 2;
+
+  ctx.translate(cx, cy);
+  ctx.scale(totalScale, -totalScale); // flip Y so higher elevation = up
+  ctx.translate(-dataCx, -dataCy);
+
+  // Draw links
+  for (const l of links) {
+    const a = nodes[l.from], b = nodes[l.to];
+    if (!a || !b) continue;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = l.color;
+    ctx.globalAlpha = l.alpha;
+    ctx.lineWidth = l.width / totalScale;
+    if (l.isPump) {
+      ctx.setLineDash([6/totalScale, 4/totalScale]);
+    } else {
+      ctx.setLineDash([]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw nodes
+  for (const n of nodeArr) {
+    ctx.beginPath();
+    const r = n.r / totalScale;
+    if (n.type === 'outfall') {
+      // Triangle pointing down
+      ctx.moveTo(n.x, n.y - r*1.5);
+      ctx.lineTo(n.x - r*1.3, n.y + r);
+      ctx.lineTo(n.x + r*1.3, n.y + r);
+      ctx.closePath();
+      ctx.fillStyle = n.color;
+      ctx.fill();
+    } else if (n.type === 'storage') {
+      // Square
+      ctx.rect(n.x - r, n.y - r, r*2, r*2);
+      ctx.fillStyle = n.color;
+      ctx.fill();
+    } else {
+      // Circle
+      ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+      ctx.fillStyle = n.color;
+      ctx.fill();
+    }
+  }
+
+  // For large models draw outfall/storage labels
+  if (nodeArr.length < 5000) {
+    ctx.save();
+    ctx.scale(1, -1); // un-flip text
+    const labelSize = Math.max(8, 11 / totalScale);
+    ctx.font = `600 ${labelSize}px DM Mono, monospace`;
+    for (const n of nodeArr) {
+      if (n.type === 'outfall' || n.type === 'storage') {
+        ctx.fillStyle = n.color;
+        ctx.fillText(n.name, n.x + 6/totalScale, -n.y - 4/totalScale);
+      }
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  // Stats
+  const nOffsets = links.filter(l => l.hasOffset).length;
+  const nPumps = links.filter(l => l.isPump).length;
+  document.getElementById('netStats').textContent =
+    `${nodeArr.length} nodes · ${links.length} links · ${nOffsets} with offsets · ${nPumps} pump links`;
+}
+
+function netZoom(factor) {
+  netView.scale *= factor;
+  netView.scale = Math.max(0.1, Math.min(20, netView.scale));
+  drawNetwork();
+}
+function netReset() {
+  netView = { ox:0, oy:0, scale:1, dragging:false, lx:0, ly:0 };
+  drawNetwork();
+}
+
+// Canvas interaction: pan + tooltip
+function initNetCanvas() {
+  const canvas = document.getElementById('netCanvas');
+  if (!canvas) return;
+
+  canvas.addEventListener('mousedown', e => {
+    netView.dragging = true;
+    netView.lx = e.clientX;
+    netView.ly = e.clientY;
+    canvas.style.cursor = 'grabbing';
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (netView.dragging) {
+      netView.ox += e.clientX - netView.lx;
+      netView.oy += e.clientY - netView.ly;
+      netView.lx = e.clientX;
+      netView.ly = e.clientY;
+      drawNetwork();
+    }
+    // Tooltip
+    showNetTooltip(e);
+  });
+  canvas.addEventListener('mouseup', () => {
+    netView.dragging = false;
+    canvas.style.cursor = 'grab';
+  });
+  canvas.addEventListener('mouseleave', () => {
+    netView.dragging = false;
+    canvas.style.cursor = 'grab';
+    document.getElementById('netTooltip').style.display = 'none';
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    netView.scale *= factor;
+    netView.scale = Math.max(0.1, Math.min(20, netView.scale));
+    drawNetwork();
+  }, { passive: false });
+}
+
+function showNetTooltip(e) {
+  if (!netData || netView.dragging) {
+    document.getElementById('netTooltip').style.display = 'none';
+    return;
+  }
+  const canvas = document.getElementById('netCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+  // Reverse-transform to data coords
+  const nodeArr = Object.values(netData.nodes);
+  let xMin=Infinity, xMax=-Infinity, yMin=Infinity, yMax=-Infinity;
+  for (const n of nodeArr) {
+    if (n.x<xMin) xMin=n.x; if(n.x>xMax) xMax=n.x;
+    if (n.y<yMin) yMin=n.y; if(n.y>yMax) yMax=n.y;
+  }
+  const pad=40, W=canvas.width, H=canvas.height;
+  const dataW=(xMax-xMin)||1, dataH=(yMax-yMin)||1;
+  const fitScale = Math.min((W-pad*2)/dataW, (H-pad*2)/dataH);
+  const totalScale = fitScale * netView.scale;
+  const cx=W/2+netView.ox, cy=H/2+netView.oy;
+  const dataCx=(xMin+xMax)/2, dataCy=(yMin+yMax)/2;
+
+  const dx = (mx - cx) / totalScale + dataCx;
+  const dy = -((my - cy) / totalScale) + dataCy; // flipped Y
+
+  // Find nearest node
+  let best = null, bestDist = Infinity;
+  const hitR = 15 / totalScale;
+  for (const n of nodeArr) {
+    const d = Math.hypot(n.x - dx, n.y - dy);
+    if (d < hitR && d < bestDist) { best = n; bestDist = d; }
+  }
+
+  const tip = document.getElementById('netTooltip');
+  if (best) {
+    let html = `<strong style="color:${best.color}">${best.name}</strong> (${best.type})`;
+    if (best.elev !== undefined) html += `<br>Invert: ${best.elev.toFixed(2)} · Depth: ${best.maxD.toFixed(1)}`;
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX - rect.left + 12) + 'px';
+    tip.style.top = (e.clientY - rect.top - 10) + 'px';
+  } else {
+    tip.style.display = 'none';
+  }
+}
+
+initNetCanvas();
+
+function downloadINP(fname) {
+  if (!generatedINP) return;
+  const blob = new Blob([generatedINP], { type:'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  // Keep URL alive briefly for the download to start
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+function copyINP() {
+  if (!generatedINP) return;
+  navigator.clipboard.writeText(generatedINP).then(() => {
+    const btn = document.querySelector('.btn-copy');
+    if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = 'Copy to Clipboard', 2000); }
+  }).catch(() => {
+    // Fallback: open in new tab for manual save
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write('<pre style="white-space:pre-wrap;word-wrap:break-word;font-size:12px">' + generatedINP.replace(/</g,'&lt;') + '</pre>');
+      w.document.title = 'SWMM5 INP File - Save As .inp';
+      w.document.close();
+    }
+  });
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+document.getElementById('nSlider').addEventListener('input', e => {
+  state.N = parseInt(e.target.value);
+  update();
+});
+
+document.getElementById('modelType').addEventListener('change', e => {
+  state.type = e.target.value;
+  update();
+});
+
+document.getElementById('landUse').addEventListener('change', e => {
+  state.landUse = e.target.value;
+});
+
+document.getElementById('outfallElevSlider').addEventListener('input', e => {
+  state.outfallElev = parseFloat(e.target.value);
+  const unitLbl = state.units === 'SI' ? 'm' : 'ft';
+  document.getElementById('outfallElevVal').textContent = state.outfallElev.toFixed(1) + ' ' + unitLbl;
+});
+
+initToggles('unitsToggle', 'units');
+initToggles('terrainToggle', 'terrain');
+initToggles('detailToggle', 'detail');
+
+update();
+
+// Tab switching
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelector('.tab-btn[onclick="switchTab(\'' + tab + '\')"]').classList.add('active');
+}
+
+// Docs accordion
+function toggleDoc(el) {
+  el.parentElement.classList.toggle('open');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+# ReSWMM — SWMM Conduit Discretization Tool
+
+**Author:** Robson Leo Pachaly (`robsonleopachaly@yahoo.com.br`)
+**Started:** April 6, 2018
+**Language:** VB.NET (Windows Forms)
+
+## Overview
+
+ReSWMM is a Windows desktop application that improves EPA SWMM hydraulic simulations by **discretizing long conduits** — that is, splitting them into shorter segments by inserting intermediate ("dummy") junction nodes. This is a well-known technique for improving numerical stability and accuracy in SWMM's dynamic wave solver, particularly when conduit lengths vary widely across a network.
+
+The tool reads a standard SWMM `.inp` file, analyzes conduit and cross-section data, calculates recommended time steps, and then produces a new discretized `.inp` file (suffixed `_Disc.inp`) ready for simulation.
+
+## Why Discretize?
+
+SWMM's dynamic wave routing engine uses the Courant–Friedrichs–Lewy (CFL) condition to determine stable time steps. When a network contains a mix of very long and very short conduits, the shortest conduit dictates the maximum stable time step for the entire model. Discretizing long conduits into shorter, more uniform segments allows for a more balanced and numerically stable simulation. The tool flags this situation when the longest conduit exceeds four times the length of the shortest.
+
+## How It Works
+
+### 1. Input Analysis (`runAnalysis`)
+
+When the user loads a SWMM `.inp` file and clicks **Analyze Input**, the tool:
+
+- Parses the `[CONDUITS]` and `[XSECTIONS]` sections from the INP file.
+- Computes two recommended time steps for each conduit using the gravity wave celerity formula `L / √(g·D)`:
+  - **SWMM recommended time step** — the standard CFL-based value.
+  - **Vasconcelos et al. (2018) recommended time step** — a more conservative value (10% of the SWMM value).
+- Reports the minimum of each across all conduits.
+- Warns the user if conduit length ratios exceed 4:1, recommending discretization.
+
+### 2. Discretization Methods
+
+The user selects one of two discretization strategies, configures its parameters, then runs it:
+
+#### Fixed Interval Discretization (Type 2)
+
+- The user specifies a **minimum and maximum interval length** (in SWMM flow units).
+- Each conduit is divided into equal-length segments within the specified range.
+- The algorithm adjusts the interval with millimeter-level precision to ensure segments divide evenly into the conduit length.
+
+#### Δx/D-Based Discretization (Type 3)
+
+- The user specifies a **Δx/D ratio** (default: 5) — the ratio of segment length to conduit diameter.
+- Each conduit is divided so that the discretization length equals `DxD_Ratio × Geom1` (the primary cross-section dimension).
+- This method automatically adapts to pipe size, producing finer discretization for smaller pipes.
+
+Both methods also accept a **Minimum Nodal Surface Area (MNSA)** parameter that gets written into the SWMM options section.
+
+### 3. What Gets Modified
+
+For each conduit that requires discretization, the tool manipulates the INP file line-by-line to:
+
+- **Insert new junction nodes** along the conduit with interpolated elevations and maximum depths based on the slope between the upstream and downstream nodes.
+- **Replace the original conduit** with a chain of shorter conduits connecting the new intermediate junctions, preserving roughness, offsets, and other properties.
+- **Replicate cross-section data** for each new sub-conduit.
+- **Distribute entry/exit/average losses** appropriately (entry losses on the first segment, exit losses on the last, average losses throughout).
+- **Interpolate coordinates** for the new junctions so they appear correctly on the SWMM map display.
+- Handle edge cases for **outfalls, storage units**, and conduits too short to discretize.
+
+### 4. Output
+
+The discretized model is saved as a new file with the suffix `_Disc.inp` alongside the original, preserving the original model untouched.
+
+## Application Structure
+
+| File | Purpose |
+|---|---|
+| `main.vb` / `main_Designer.vb` | Main application window — file selection, analyze, discretization mode selection, and run buttons |
+| `functionsMain.vb` | Core logic — analysis, discretization algorithms, file I/O |
+| `functionsAux.vb` | Helper functions — array manipulation, INP line formatting for junctions, conduits, xsections, losses, coordinates, and storage units |
+| `inpData.vb` | INP file parser — locates section start/end lines, extracts element data |
+| `configIF.vb` / `configIF_Designer.vb` | Configuration dialog for Fixed Interval discretization (min/max interval, MNSA) |
+| `configDxD.vb` / `configDxD_Designer.vb` | Configuration dialog for Δx/D discretization (ratio, MNSA) |
+| `selectInpFile.vb` / `selectInpFile_Designer.vb` | File selection dialog when multiple `.inp` files exist |
+| `retrievingData.vb` / `retrievingData_Designer.vb` | Progress dialog shown while parsing the INP file |
+| `about.vb` / `about_Designer.vb` | About dialog with application info |
+
+## Usage Modes
+
+The application can operate in two ways:
+
+- **Standalone** — launched directly, the user opens an `.inp` file via the File menu.
+- **SWMM Add-on** — launched with a command-line argument pointing to a `.inp` or `.tmp` file, loading it automatically on startup.
+
+## Known Limitations and TODOs (noted in code)
+
+- **Irregular cross-sections** are not supported for Δx/D discretization (exits with a warning).
+- **Storage unit discretization nodes** are partially implemented but marked as incomplete in the source.
+- Converting existing junctions to storage units (and vice versa) is noted as a desired future feature.

@@ -616,14 +616,65 @@ export default function Home() {
                   </AccordionContent>
                 </AccordionItem>
 
+                <AccordionItem value="reswmm" className="border-border bg-card rounded-lg mb-4 border">
+                  <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
+                    <span className="font-serif text-xl text-card-foreground">ReSWMM &mdash; Conduit Discretization Tool</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-4">
+                    <p><strong>ReSWMM</strong> is a companion Windows desktop application by <strong>Robson Leo Pachaly</strong> (<a href="mailto:robsonleopachaly@yahoo.com.br" className="text-primary hover:underline">robsonleopachaly@yahoo.com.br</a>, started April 2018, VB.NET) that improves EPA SWMM hydraulic simulations by <strong>discretizing long conduits</strong> &mdash; splitting them into shorter segments with intermediate junction nodes. This is a well-known technique for improving numerical stability in SWMM's dynamic wave solver when conduit lengths vary widely.</p>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Why Discretize?</h4>
+                      <p>SWMM's dynamic wave routing uses the <strong>Courant&ndash;Friedrichs&ndash;Lewy (CFL)</strong> condition for stable time steps. When a network mixes very long and very short conduits, the shortest one dictates the maximum stable time step for the entire model. Discretizing long conduits into shorter, more uniform segments enables more balanced and numerically stable simulations. ReSWMM flags when the longest conduit exceeds 4&times; the shortest.</p>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Analysis</h4>
+                      <p>When a <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">.inp</code> file is loaded, ReSWMM parses <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">[CONDUITS]</code> and <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">[XSECTIONS]</code>, then computes two recommended time steps per conduit using <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">L / &radic;(g&middot;D)</code>: the standard CFL-based value and the Vasconcelos et al. (2018) conservative value (10% of standard).</p>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Discretization Methods</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Method</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Parameters</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Behavior</th>
+                          </tr></thead>
+                          <tbody>
+                            <tr className="hover:bg-primary/5">
+                              <td className="p-2 border border-border font-medium">Fixed Interval</td>
+                              <td className="p-2 border border-border font-mono">min/max interval length</td>
+                              <td className="p-2 border border-border">Divides each conduit into equal-length segments within the specified range, adjusting with mm-level precision</td>
+                            </tr>
+                            <tr className="hover:bg-primary/5">
+                              <td className="p-2 border border-border font-medium">&Delta;x/D-Based</td>
+                              <td className="p-2 border border-border font-mono">&Delta;x/D ratio (default: 5)</td>
+                              <td className="p-2 border border-border">Segment length = ratio &times; pipe diameter; automatically adapts to pipe size (finer discretization for smaller pipes)</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">What Gets Modified</h4>
+                      <p>For each discretized conduit, ReSWMM inserts new junction nodes with interpolated elevations and depths, replaces the original conduit with a chain of shorter conduits, replicates cross-section data, distributes entry/exit/average losses appropriately, and interpolates coordinates for SWMM map display. Output is saved as a new <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">_Disc.inp</code> file, preserving the original.</p>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Relevance to INP MAKER</h4>
+                      <p>Models generated by SWMM5 INP MAKER can be post-processed with ReSWMM to improve numerical stability before simulation. The INP MAKER's terrain-based elevation assignment and pipe sizing produce realistic conduit length variation &mdash; exactly the scenario where discretization provides the most benefit.</p>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="credits" className="border-border bg-card rounded-lg mb-4 border">
                   <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
-                    <span className="font-serif text-xl text-card-foreground">Credits</span>
+                    <span className="font-serif text-xl text-card-foreground">Credits &amp; References</span>
                   </AccordionTrigger>
                   <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground">
-                    <p><strong>Author:</strong> Robert Dickinson &mdash; <a href="https://swmm5.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMM5.org</a> &mdash; February 2026</p>
+                    <p><strong>SWMM5 INP MAKER Author:</strong> Robert Dickinson &mdash; <a href="https://swmm5.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMM5.org</a> &mdash; February 2026</p>
                     <p className="mt-2"><strong>Data:</strong> <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMMEnablement/1729-SWMM5-Models</a></p>
                     <p className="mt-2"><strong>Algorithms:</strong> Barnes-Hut (Barnes &amp; Hut, 1986) &middot; fBm terrain (Perlin) &middot; Steepest-descent dendritic construction</p>
+                    <p className="mt-4 pt-3 border-t border-border"><strong>ReSWMM &mdash; SWMM Conduit Discretization Tool:</strong> Robson Leo Pachaly (<a href="mailto:robsonleopachaly@yahoo.com.br" className="text-primary hover:underline">robsonleopachaly@yahoo.com.br</a>), started April 2018 &mdash; VB.NET (Windows Forms). Discretizes long conduits using CFL-based analysis and Fixed Interval or &Delta;x/D methods for improved SWMM dynamic wave stability.</p>
+                    <p className="mt-2"><strong>Reference:</strong> Vasconcelos, J. G. et al. (2018) &mdash; Conservative time step recommendation (10% of standard CFL value) used in ReSWMM analysis.</p>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -635,6 +686,8 @@ export default function Home() {
           SWMM5 INP MAKER &middot; Robert Dickinson &middot; <a href="https://swmm5.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMM5.org</a> &middot; February 2026
           <br />
           Rules from <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMMEnablement/1729-SWMM5-Models</a> &mdash; 338 models / 3,009,909 elements
+          <br />
+          ReSWMM Discretization Tool &middot; Robson Leo Pachaly (2018) &middot; Vasconcelos et al. (2018)
         </footer>
       </div>
     </div>

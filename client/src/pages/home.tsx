@@ -10,12 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import NetworkCanvas from "@/components/network-canvas";
 import {
   type SwmmConfig, type ModelType, type TerrainType, type DetailLevel, type LandUseType,
-  type GeneratedModel,
+  type DiscretizationMethod, type GeneratedModel,
   compute, getSections, estimateSize, generateModel, fmt, pct,
   RATIOS, FLOW_UNITS, OFFSET, SHAPES, PIPE_INCHES, PIPE_WEIGHTS,
   ALL_SECTIONS, TERRAIN_LABELS, MODEL_TYPE_LABELS,
   OFFSET_COLORS, OFFSET_LABELS, SHAPE_COLORS,
-  EXAMPLE_PRESETS, SWMM5_REAL_STATS,
+  EXAMPLE_PRESETS, SWMM5_REAL_STATS, DEFAULT_RESWMM,
 } from "@/lib/swmm-engine";
 
 const ELEM_CARDS_META = [
@@ -55,6 +55,7 @@ export default function Home() {
   const [config, setConfig] = useState<SwmmConfig>({
     N: 1000, type: "sanitary", units: "US", terrain: "moderate",
     detail: "moderate", landUse: "mixed", outfallElev: 0,
+    reswmm: { ...DEFAULT_RESWMM },
   });
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GeneratedModel | null>(null);
@@ -72,6 +73,10 @@ export default function Home() {
 
   const update = useCallback((partial: Partial<SwmmConfig>) => {
     setConfig(prev => ({ ...prev, ...partial }));
+  }, []);
+
+  const updateReswmm = useCallback((partial: Partial<SwmmConfig['reswmm']>) => {
+    setConfig(prev => ({ ...prev, reswmm: { ...prev.reswmm, ...partial } }));
   }, []);
 
   const handleGenerate = useCallback(() => {
@@ -267,6 +272,92 @@ export default function Home() {
                     />
                   </div>
 
+                  <div className="h-px bg-border" />
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-xs font-semibold">ReSWMM Discretization</label>
+                      <button
+                        data-testid="toggle-reswmm"
+                        onClick={() => updateReswmm({ enabled: !config.reswmm.enabled })}
+                        className={`relative w-9 h-5 rounded-full transition-colors ${config.reswmm.enabled ? "bg-primary" : "bg-muted"}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.reswmm.enabled ? "translate-x-4" : ""}`} />
+                      </button>
+                    </div>
+                    {config.reswmm.enabled && (
+                      <div className="space-y-3 pl-1 border-l-2 border-primary/30 ml-1 mt-3">
+                        <div className="pl-3">
+                          <label className="text-[11px] font-semibold block mb-1.5 text-muted-foreground">Method</label>
+                          <ToggleGroup
+                            testId="reswmm-method"
+                            value={config.reswmm.method}
+                            onChange={(v) => updateReswmm({ method: v as DiscretizationMethod })}
+                            options={[
+                              { label: "Fixed Interval", value: "fixed_interval" },
+                              { label: "Δx/D Ratio", value: "dx_d_ratio" },
+                            ]}
+                          />
+                        </div>
+
+                        {config.reswmm.method === "fixed_interval" && (
+                          <>
+                            <div className="pl-3">
+                              <div className="flex justify-between items-baseline text-[11px] font-semibold mb-1">
+                                <span className="text-muted-foreground">Min Length</span>
+                                <span className="font-mono text-primary" data-testid="text-reswmm-min-len">{config.reswmm.fixedMinLength} {unitLabel}</span>
+                              </div>
+                              <Slider
+                                min={10} max={500} step={5} value={[config.reswmm.fixedMinLength]}
+                                onValueChange={([v]) => updateReswmm({ fixedMinLength: v, fixedMaxLength: Math.max(v, config.reswmm.fixedMaxLength) })}
+                                data-testid="slider-reswmm-min-len"
+                              />
+                            </div>
+                            <div className="pl-3">
+                              <div className="flex justify-between items-baseline text-[11px] font-semibold mb-1">
+                                <span className="text-muted-foreground">Max Length</span>
+                                <span className="font-mono text-primary" data-testid="text-reswmm-max-len">{config.reswmm.fixedMaxLength} {unitLabel}</span>
+                              </div>
+                              <Slider
+                                min={50} max={1000} step={10} value={[config.reswmm.fixedMaxLength]}
+                                onValueChange={([v]) => updateReswmm({ fixedMaxLength: v, fixedMinLength: Math.min(v, config.reswmm.fixedMinLength) })}
+                                data-testid="slider-reswmm-max-len"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {config.reswmm.method === "dx_d_ratio" && (
+                          <div className="pl-3">
+                            <div className="flex justify-between items-baseline text-[11px] font-semibold mb-1">
+                              <span className="text-muted-foreground">Δx/D Ratio</span>
+                              <span className="font-mono text-primary" data-testid="text-reswmm-dxd">{config.reswmm.dxDRatio}</span>
+                            </div>
+                            <Slider
+                              min={1} max={20} step={0.5} value={[config.reswmm.dxDRatio]}
+                              onValueChange={([v]) => updateReswmm({ dxDRatio: v })}
+                              data-testid="slider-reswmm-dxd"
+                            />
+                            <p className="text-[10px] text-muted-foreground mt-1">Target segment length = diameter × ratio</p>
+                          </div>
+                        )}
+
+                        <div className="pl-3">
+                          <div className="flex justify-between items-baseline text-[11px] font-semibold mb-1">
+                            <span className="text-muted-foreground">MNSA</span>
+                            <span className="font-mono text-primary" data-testid="text-reswmm-mnsa">{config.reswmm.mnsa.toFixed(3)} {config.units === "SI" ? "m²" : "ft²"}</span>
+                          </div>
+                          <Slider
+                            min={0.1} max={100} step={0.1} value={[config.reswmm.mnsa]}
+                            onValueChange={([v]) => updateReswmm({ mnsa: v })}
+                            data-testid="slider-reswmm-mnsa"
+                          />
+                          <p className="text-[10px] text-muted-foreground mt-1">Minimum Nodal Surface Area for new intermediate junctions</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <Button
                     onClick={handleGenerate}
                     disabled={generating}
@@ -370,6 +461,24 @@ export default function Home() {
                         <h4 className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1.5">Cross-Section Distribution</h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">{s.shapeDistribution}</p>
                       </div>
+                      {s.reswmmEnabled && (
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 mt-2.5" data-testid="stats-reswmm">
+                          <h4 className="text-[10px] font-bold uppercase tracking-wider text-primary mb-2">ReSWMM Discretization</h4>
+                          {[
+                            ["Method", s.reswmmMethod],
+                            ["Original conduits", fmt(s.reswmmOrigConduits)],
+                            ["New conduit segments", fmt(s.reswmmNewConduits)],
+                            ["New intermediate junctions", fmt(s.reswmmNewJunctions)],
+                            ["Final conduits", fmt(s.conduits)],
+                            ["MNSA", `${s.reswmmMNSA.toFixed(3)} ${s.unitLabel}²`],
+                          ].map(([k, v]) => (
+                            <div key={k} className="flex justify-between text-xs py-0.5 border-b border-primary/10 last:border-0">
+                              <span className="text-muted-foreground">{k}</span>
+                              <span className="font-mono text-foreground">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

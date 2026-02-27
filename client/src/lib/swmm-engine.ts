@@ -2,6 +2,25 @@ export type ModelType = 'sanitary' | 'stormwater' | 'combined' | 'transport_only
 export type TerrainType = 'flat' | 'moderate' | 'hilly' | 'mountainous';
 export type DetailLevel = 'basic' | 'moderate' | 'detailed';
 export type LandUseType = 'mixed' | 'residential' | 'commercial' | 'industrial';
+export type DiscretizationMethod = 'none' | 'fixed_interval' | 'dx_d_ratio';
+
+export interface ReswmmConfig {
+  enabled: boolean;
+  method: DiscretizationMethod;
+  fixedMinLength: number;
+  fixedMaxLength: number;
+  dxDRatio: number;
+  mnsa: number;
+}
+
+export const DEFAULT_RESWMM: ReswmmConfig = {
+  enabled: false,
+  method: 'fixed_interval',
+  fixedMinLength: 50,
+  fixedMaxLength: 200,
+  dxDRatio: 5,
+  mnsa: 12.566,
+};
 
 export interface SwmmConfig {
   N: number;
@@ -11,6 +30,7 @@ export interface SwmmConfig {
   detail: DetailLevel;
   landUse: LandUseType;
   outfallElev: number;
+  reswmm: ReswmmConfig;
 }
 
 export interface ComputedElements {
@@ -89,6 +109,12 @@ export interface GenerationStats {
   fileSize: string;
   lineCount: number;
   totalElements: number;
+  reswmmEnabled: boolean;
+  reswmmMethod: string;
+  reswmmOrigConduits: number;
+  reswmmNewConduits: number;
+  reswmmNewJunctions: number;
+  reswmmMNSA: number;
 }
 
 export interface GeneratedModel {
@@ -178,73 +204,73 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Small Residential Sanitary",
     description: "Typical small-town sanitary sewer — 200 junctions, flat terrain, basic detail",
-    config: { N: 200, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0 },
+    config: { N: 200, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Quick", "Sanitary"],
   },
   {
     name: "Medium Stormwater Network",
     description: "Urban stormwater collection system — 500 junctions, moderate terrain, mixed land use",
-    config: { N: 500, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5 },
+    config: { N: 500, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Stormwater", "Medium"],
   },
   {
     name: "Large Combined Sewer (SI)",
     description: "Full combined sewer system — 2,000 junctions, hilly terrain, detailed offsets, SI units",
-    config: { N: 2000, type: "combined", units: "SI", terrain: "hilly", detail: "detailed", landUse: "mixed", outfallElev: 10 },
+    config: { N: 2000, type: "combined", units: "SI", terrain: "hilly", detail: "detailed", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Large", "Combined", "SI"],
   },
   {
     name: "Pump Station Intensive",
     description: "Flat pump-heavy system — 800 junctions, many pumps and storage units, industrial land use",
-    config: { N: 800, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0 },
+    config: { N: 800, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Pumps", "Industrial"],
   },
   {
     name: "Mountain Stormwater (SI)",
     description: "Steep mountainous stormwater — 300 junctions, high slopes, SI metric units",
-    config: { N: 300, type: "stormwater", units: "SI", terrain: "mountainous", detail: "moderate", landUse: "mixed", outfallElev: 150 },
+    config: { N: 300, type: "stormwater", units: "SI", terrain: "mountainous", detail: "moderate", landUse: "mixed", outfallElev: 150, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Mountain", "SI"],
   },
   {
     name: "RDII Calibration Model",
     description: "RDII calibration setup — 400 junctions, moderate terrain, with subcatchments and hydrographs",
-    config: { N: 400, type: "rdii_calibration", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0 },
+    config: { N: 400, type: "rdii_calibration", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["RDII", "Calibration"],
   },
   {
     name: "Commercial Combined (Detailed)",
     description: "Dense commercial combined sewer — 1,000 junctions, detailed offsets, commercial land use",
-    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 3 },
+    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 3, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Commercial", "Detailed"],
   },
   {
     name: "Weir/Orifice/Storage Intensive",
     description: "CSO/SSO control model — 600 junctions, many weirs, orifices, and storage units",
-    config: { N: 600, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0 },
+    config: { N: 600, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["WOS", "CSO"],
   },
   {
     name: "Transport Only (Large)",
     description: "Pipe-only transport model — 1,500 junctions, no subcatchments, no DWF, flat terrain",
-    config: { N: 1500, type: "transport_only", units: "US", terrain: "flat", detail: "basic", landUse: "mixed", outfallElev: 0 },
+    config: { N: 1500, type: "transport_only", units: "US", terrain: "flat", detail: "basic", landUse: "mixed", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Transport", "Large"],
   },
   {
     name: "Mega Stormwater (5,000 Junctions)",
     description: "Large-scale stormwater network — 5,000 junctions, hilly terrain, full subcatchments",
-    config: { N: 5000, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 20 },
+    config: { N: 5000, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 20, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Mega", "5K"],
   },
   {
     name: "Small SI Sanitary (Metric)",
     description: "Small metric sanitary model — 100 junctions, moderate terrain, SI units",
-    config: { N: 100, type: "sanitary", units: "SI", terrain: "moderate", detail: "basic", landUse: "residential", outfallElev: 0 },
+    config: { N: 100, type: "sanitary", units: "SI", terrain: "moderate", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Small", "SI", "Quick"],
   },
   {
     name: "Industrial Pump Network",
     description: "Industrial pump-heavy network — 1,200 junctions, flat terrain, many force mains",
-    config: { N: 1200, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0 },
+    config: { N: 1200, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Industrial", "Pumps", "Large"],
   },
 ];
@@ -766,6 +792,9 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   w(`;;Generated SWMM5 Model - ${fmt(N)} junctions, ${config.type}`);
   w(`;;Created ${new Date().toISOString().slice(0,16)} by SWMM5 INP MAKER`);
   w(`;;Based on 338 real-world models / 3,009,909 elements`);
+  if (config.reswmm.enabled) {
+    w(`;;ReSWMM Discretization: ${config.reswmm.method === 'fixed_interval' ? `Fixed Interval (${config.reswmm.fixedMinLength}-${config.reswmm.fixedMaxLength})` : `Dx/D=${config.reswmm.dxDRatio}`}, MNSA=${config.reswmm.mnsa}`);
+  }
   w("");
   w("[OPTIONS]");
   w(`FLOW_UNITS           ${flowUnit}`);
@@ -793,29 +822,6 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("[RAINGAGES]");
     w(";;Name           Format  Interval  SCF  Source");
     for (let i=0; i<nGages; i++) w(`RG${i+1}              INTENSITY  0:05      1.0  TIMESERIES  TS_Rain`);
-    w("");
-  }
-
-  w("[JUNCTIONS]");
-  w(";;Name           InvertElev  MaxDepth    InitDepth   SurDepth    Ponded");
-  for (const j of junctions) {
-    w(`${j.name.padEnd(17)}${j.elev.toFixed(3).padEnd(12)}${j.maxD.toFixed(2).padEnd(12)}0           0           ${j.ponded}`);
-  }
-  w("");
-
-  w("[OUTFALLS]");
-  w(";;Name           InvertElev  Type        StageData   Gated");
-  for (const o of outfalls) {
-    w(`${o.name.padEnd(17)}${o.elev.toFixed(3).padEnd(12)}FREE                       NO`);
-  }
-  w("");
-
-  if (storages.length > 0) {
-    w("[STORAGE]");
-    w(";;Name           InvertElev  MaxDepth    InitDepth   Shape      Params");
-    for (const s of storages) {
-      w(`${s.name.padEnd(17)}${s.elev.toFixed(3).padEnd(12)}${s.maxD.toFixed(2).padEnd(12)}0           FUNCTIONAL ${s.area}       0        0`);
-    }
     w("");
   }
 
@@ -869,6 +875,88 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     if (!lowers.length) continue;
     lowers.sort((a, b) => Math.hypot(a.x-j1.x, a.y-j1.y) - Math.hypot(b.x-j1.x, b.y-j1.y));
     conduits.push({ name: `C${conduits.length+1}`, from: j1.name, to: lowers[0].name, len: +Math.max(1, Math.hypot(lowers[0].x-j1.x, lowers[0].y-j1.y)).toFixed(2), rough: 0.013, inOff: 0, outOff: 0, diam: pick(PIPES.slice(0, 10)), shape: "CIRCULAR" });
+  }
+
+  const reswmmOrigConduits = conduits.length;
+  let reswmmNewJunctions = 0;
+  if (config.reswmm.enabled && config.reswmm.method !== 'none') {
+    const rCfg = config.reswmm;
+    const discretized: ConduitData[] = [];
+    for (const c of conduits) {
+      let targetLen: number;
+      if (rCfg.method === 'fixed_interval') {
+        targetLen = Math.min(rCfg.fixedMaxLength, Math.max(rCfg.fixedMinLength, c.len));
+      } else {
+        targetLen = Math.max(1, c.diam * rCfg.dxDRatio);
+      }
+      const nSeg = Math.max(1, Math.ceil(c.len / targetLen));
+      if (nSeg <= 1) {
+        discretized.push(c);
+        continue;
+      }
+      const segLen = +(c.len / nSeg).toFixed(2);
+      const fromNode = nodeLookup[c.from];
+      const toNode = nodeLookup[c.to];
+      if (!fromNode || !toNode) { discretized.push(c); continue; }
+      const fromElev = fromNode.elev || 0;
+      const toElev = toNode.elev || 0;
+      let prevNodeName = c.from;
+      for (let s = 0; s < nSeg; s++) {
+        const isLast = s === nSeg - 1;
+        let nextNodeName: string;
+        if (isLast) {
+          nextNodeName = c.to;
+        } else {
+          const frac = (s + 1) / nSeg;
+          nextNodeName = `${c.name}_N${s+1}`;
+          const interpElev = +(fromElev + (toElev - fromElev) * frac).toFixed(3);
+          const interpX = fromNode.x + (toNode.x - fromNode.x) * frac;
+          const interpY = fromNode.y + (toNode.y - fromNode.y) * frac;
+          const maxD = fromNode.maxD || 6;
+          const mnsaPonded = Math.round(rCfg.mnsa);
+          junctions.push({ name: nextNodeName, elev: interpElev, maxD: +maxD.toFixed(2), ponded: mnsaPonded, x: interpX, y: interpY });
+          nodeLookup[nextNodeName] = { elev: interpElev, maxD, x: interpX, y: interpY };
+          reswmmNewJunctions++;
+        }
+        discretized.push({
+          name: `${c.name}_${s+1}`,
+          from: prevNodeName,
+          to: nextNodeName,
+          len: segLen,
+          rough: c.rough,
+          inOff: s === 0 ? c.inOff : 0,
+          outOff: isLast ? c.outOff : 0,
+          diam: c.diam,
+          shape: c.shape,
+        });
+        prevNodeName = nextNodeName;
+      }
+    }
+    conduits.length = 0;
+    for (const d of discretized) conduits.push(d);
+  }
+
+  w("[JUNCTIONS]");
+  w(";;Name           InvertElev  MaxDepth    InitDepth   SurDepth    Ponded");
+  for (const j of junctions) {
+    w(`${j.name.padEnd(17)}${j.elev.toFixed(3).padEnd(12)}${j.maxD.toFixed(2).padEnd(12)}0           0           ${j.ponded}`);
+  }
+  w("");
+
+  w("[OUTFALLS]");
+  w(";;Name           InvertElev  Type        StageData   Gated");
+  for (const o of outfalls) {
+    w(`${o.name.padEnd(17)}${o.elev.toFixed(3).padEnd(12)}FREE                       NO`);
+  }
+  w("");
+
+  if (storages.length > 0) {
+    w("[STORAGE]");
+    w(";;Name           InvertElev  MaxDepth    InitDepth   Shape      Params");
+    for (const s of storages) {
+      w(`${s.name.padEnd(17)}${s.elev.toFixed(3).padEnd(12)}${s.maxD.toFixed(2).padEnd(12)}0           FUNCTIONAL ${s.area}       0        0`);
+    }
+    w("");
   }
 
   w("[CONDUITS]");
@@ -1127,6 +1215,12 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       fileSize: parseFloat(sizeKB) > 1024 ? sizeMB+' MB' : sizeKB+' KB',
       lineCount: nLines,
       totalElements: total,
+      reswmmEnabled: config.reswmm.enabled,
+      reswmmMethod: config.reswmm.method === 'fixed_interval' ? 'Fixed Interval' : config.reswmm.method === 'dx_d_ratio' ? 'Δx/D Ratio' : 'None',
+      reswmmOrigConduits,
+      reswmmNewConduits: conduits.length - reswmmOrigConduits,
+      reswmmNewJunctions,
+      reswmmMNSA: config.reswmm.mnsa,
     },
     netData: { nodes: netNodes, links: netLinks, domain },
   };

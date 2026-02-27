@@ -15,6 +15,7 @@ import {
   RATIOS, FLOW_UNITS, OFFSET, SHAPES, PIPE_INCHES, PIPE_WEIGHTS,
   ALL_SECTIONS, TERRAIN_LABELS, MODEL_TYPE_LABELS,
   OFFSET_COLORS, OFFSET_LABELS, SHAPE_COLORS,
+  EXAMPLE_PRESETS, SWMM5_REAL_STATS,
 } from "@/lib/swmm-engine";
 
 const ELEM_CARDS_META = [
@@ -159,6 +160,34 @@ export default function Home() {
               <Card className="lg:sticky lg:top-6 z-50 border-border bg-card">
                 <div className="px-5 py-3.5 border-b border-border text-xs font-semibold uppercase tracking-widest text-muted-foreground">Configuration</div>
                 <div className="p-5 space-y-5">
+                  <div>
+                    <label className="text-xs font-semibold block mb-2">Example Files</label>
+                    <Select onValueChange={(v) => {
+                      const preset = EXAMPLE_PRESETS[parseInt(v)];
+                      if (preset) {
+                        setConfig(preset.config);
+                        setResult(null);
+                      }
+                    }}>
+                      <SelectTrigger data-testid="select-example-preset">
+                        <SelectValue placeholder="Load an example preset..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXAMPLE_PRESETS.map((p, i) => (
+                          <SelectItem key={i} value={String(i)}>
+                            <div className="flex items-center gap-2">
+                              <span>{p.name}</span>
+                              <span className="text-[10px] text-muted-foreground ml-auto">{fmt(p.config.N)} jn</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground mt-1">12 pre-configured example models from real-world scenarios</p>
+                  </div>
+
+                  <div className="h-px bg-border" />
+
                   <div>
                     <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
                       <span>Junctions</span>
@@ -591,28 +620,237 @@ export default function Home() {
 
                 <AccordionItem value="stats" className="border-border bg-card rounded-lg mb-4 border">
                   <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
-                    <span className="font-serif text-xl text-card-foreground">Statistical Foundation</span>
+                    <span className="font-serif text-xl text-card-foreground">SWMM5 Real-World Statistics (338 Models)</span>
                   </AccordionTrigger>
-                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs border-collapse">
-                        <thead><tr className="bg-muted">
-                          <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Dataset</th>
-                          <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Models</th>
-                          <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Elements</th>
-                        </tr></thead>
-                        <tbody>
-                          {[["Uploaded","11","54,883"],["Semi_Real","76","104,704"],["Large (>5MB)","79","1,717,005"],["Mid (1-5MB)","172","1,133,317"],["Total","338","3,009,909"]].map(([d,m,e]) => (
-                            <tr key={d} className="hover:bg-primary/5">
-                              <td className={`p-2 border border-border ${d==="Total"?"font-bold":""}`}>{d}</td>
-                              <td className="p-2 border border-border font-mono">{m}</td>
-                              <td className="p-2 border border-border font-mono">{e}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-6">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Dataset Summary</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Dataset</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Models</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Elements</th>
+                          </tr></thead>
+                          <tbody>
+                            {[["Uploaded","11","54,883"],["Semi_Real","76","104,704"],["Large (>5MB)","79","1,717,005"],["Mid (1-5MB)","172","1,133,317"],["Total","338","3,009,909"]].map(([d,m,e]) => (
+                              <tr key={d} className="hover:bg-primary/5">
+                                <td className={`p-2 border border-border ${d==="Total"?"font-bold":""}`}>{d}</td>
+                                <td className="p-2 border border-border font-mono">{m}</td>
+                                <td className="p-2 border border-border font-mono">{e}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                    <p className="mt-3 text-muted-foreground">Routing: DYNWAVE 89% | Units: CFS 44%, CMS 18%, MGD 17% | Infiltration: HORTON 61% | Offsets: DEPTH 90%</p>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Element Breakdown (3,009,909 total)</h4>
+                      <div className="space-y-1.5">
+                        {SWMM5_REAL_STATS.elementBreakdown.map(({ element, count, pct: p }) => (
+                          <div key={element}>
+                            <div className="flex justify-between text-xs mb-0.5">
+                              <span className="text-foreground">{element}</span>
+                              <span className="font-mono text-muted-foreground">{fmt(count)} ({p}%)</span>
+                            </div>
+                            <div className="h-1.5 bg-muted rounded overflow-hidden">
+                              <div className="h-full rounded" style={{ width: `${Math.max(1, p / 40 * 100)}%`, background: "#38bdf8" }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Model Size Distribution</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Element Range</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Models</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">%</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Distribution</th>
+                          </tr></thead>
+                          <tbody>
+                            {SWMM5_REAL_STATS.modelSizeDistribution.map(({ range, count, pct: p }) => (
+                              <tr key={range} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border">{range}</td>
+                                <td className="p-2 border border-border font-mono">{count}</td>
+                                <td className="p-2 border border-border font-mono">{p}%</td>
+                                <td className="p-2 border border-border">
+                                  <div className="h-2 bg-muted rounded overflow-hidden">
+                                    <div className="h-full rounded" style={{ width: `${p / 25 * 100}%`, background: "#818cf8" }} />
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Flow Routing Methods</h4>
+                        <div className="space-y-2">
+                          {SWMM5_REAL_STATS.routing.map(({ method, pct: p }) => (
+                            <div key={method} className="flex items-center gap-3">
+                              <span className="text-xs w-20 text-foreground font-medium">{method}</span>
+                              <div className="flex-1 h-3 bg-muted rounded overflow-hidden">
+                                <div className="h-full rounded" style={{ width: `${p}%`, background: "#34d399" }} />
+                              </div>
+                              <span className="font-mono text-xs text-muted-foreground w-10 text-right">{p}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Flow Units</h4>
+                        <div className="space-y-2">
+                          {SWMM5_REAL_STATS.flowUnits.map(({ unit, pct: p }) => (
+                            <div key={unit} className="flex items-center gap-3">
+                              <span className="text-xs w-10 text-foreground font-mono font-medium">{unit}</span>
+                              <div className="flex-1 h-3 bg-muted rounded overflow-hidden">
+                                <div className="h-full rounded" style={{ width: `${p}%`, background: "#38bdf8" }} />
+                              </div>
+                              <span className="font-mono text-xs text-muted-foreground w-10 text-right">{p}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Infiltration Methods</h4>
+                        <div className="space-y-2">
+                          {SWMM5_REAL_STATS.infiltration.map(({ method, pct: p }) => (
+                            <div key={method} className="flex items-center gap-3">
+                              <span className="text-xs flex-shrink-0 w-28 text-foreground font-medium">{method.replace("_", " ")}</span>
+                              <div className="flex-1 h-3 bg-muted rounded overflow-hidden">
+                                <div className="h-full rounded" style={{ width: `${p}%`, background: "#fb923c" }} />
+                              </div>
+                              <span className="font-mono text-xs text-muted-foreground w-10 text-right">{p}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Offset Mode</h4>
+                        <div className="space-y-2">
+                          {SWMM5_REAL_STATS.offsets.map(({ mode, pct: p }) => (
+                            <div key={mode} className="flex items-center gap-3">
+                              <span className="text-xs w-20 text-foreground font-medium">{mode}</span>
+                              <div className="flex-1 h-3 bg-muted rounded overflow-hidden">
+                                <div className="h-full rounded" style={{ width: `${p}%`, background: "#f472b6" }} />
+                              </div>
+                              <span className="font-mono text-xs text-muted-foreground w-10 text-right">{p}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Cross-Section Shape Distribution (1,268,875 total)</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Shape</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Count</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">%</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Distribution</th>
+                          </tr></thead>
+                          <tbody>
+                            {SWMM5_REAL_STATS.crossSections.map(({ shape, count, pct: p }, i) => (
+                              <tr key={shape} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border font-mono font-medium">{shape}</td>
+                                <td className="p-2 border border-border font-mono">{fmt(count)}</td>
+                                <td className="p-2 border border-border font-mono">{p}%</td>
+                                <td className="p-2 border border-border">
+                                  <div className="h-2 bg-muted rounded overflow-hidden">
+                                    <div className="h-full rounded" style={{ width: `${Math.max(2, p / 76.2 * 100)}%`, background: SHAPE_COLORS[i % SHAPE_COLORS.length] }} />
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Manning's Roughness (n) Distribution</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">n Value</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Usage</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Material</th>
+                          </tr></thead>
+                          <tbody>
+                            {SWMM5_REAL_STATS.roughnessValues.map(({ value, pct: p, desc }) => (
+                              <tr key={value} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border font-mono font-medium">{value}</td>
+                                <td className="p-2 border border-border font-mono">{p}%</td>
+                                <td className="p-2 border border-border text-muted-foreground">{desc}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Pipe Statistics (US)</h4>
+                        <div className="space-y-1">
+                          {Object.entries(SWMM5_REAL_STATS.pipeStats.us).map(([k, v]) => (
+                            <div key={k} className="flex justify-between text-xs py-1 border-b border-border/30">
+                              <span className="text-muted-foreground capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                              <span className="font-mono text-foreground">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Pipe Statistics (SI)</h4>
+                        <div className="space-y-1">
+                          {Object.entries(SWMM5_REAL_STATS.pipeStats.si).map(([k, v]) => (
+                            <div key={k} className="flex justify-between text-xs py-1 border-b border-border/30">
+                              <span className="text-muted-foreground capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                              <span className="font-mono text-foreground">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Junction Depth (US)</h4>
+                        <div className="space-y-1">
+                          {Object.entries(SWMM5_REAL_STATS.depthStats.us).map(([k, v]) => (
+                            <div key={k} className="flex justify-between text-xs py-1 border-b border-border/30">
+                              <span className="text-muted-foreground capitalize">{k}</span>
+                              <span className="font-mono text-foreground">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Junction Depth (SI)</h4>
+                        <div className="space-y-1">
+                          {Object.entries(SWMM5_REAL_STATS.depthStats.si).map(([k, v]) => (
+                            <div key={k} className="flex justify-between text-xs py-1 border-b border-border/30">
+                              <span className="text-muted-foreground capitalize">{k}</span>
+                              <span className="font-mono text-foreground">{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
 

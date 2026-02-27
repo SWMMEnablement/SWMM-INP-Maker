@@ -167,6 +167,166 @@ export const OFFSET_LABELS: Record<string, string> = {
 
 export const SHAPE_COLORS = ["#38bdf8","#818cf8","#34d399","#fb923c","#f472b6","#ef4444","#facc15"];
 
+export interface ExamplePreset {
+  name: string;
+  description: string;
+  config: SwmmConfig;
+  tags: string[];
+}
+
+export const EXAMPLE_PRESETS: ExamplePreset[] = [
+  {
+    name: "Small Residential Sanitary",
+    description: "Typical small-town sanitary sewer — 200 junctions, flat terrain, basic detail",
+    config: { N: 200, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0 },
+    tags: ["Quick", "Sanitary"],
+  },
+  {
+    name: "Medium Stormwater Network",
+    description: "Urban stormwater collection system — 500 junctions, moderate terrain, mixed land use",
+    config: { N: 500, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5 },
+    tags: ["Stormwater", "Medium"],
+  },
+  {
+    name: "Large Combined Sewer (SI)",
+    description: "Full combined sewer system — 2,000 junctions, hilly terrain, detailed offsets, SI units",
+    config: { N: 2000, type: "combined", units: "SI", terrain: "hilly", detail: "detailed", landUse: "mixed", outfallElev: 10 },
+    tags: ["Large", "Combined", "SI"],
+  },
+  {
+    name: "Pump Station Intensive",
+    description: "Flat pump-heavy system — 800 junctions, many pumps and storage units, industrial land use",
+    config: { N: 800, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0 },
+    tags: ["Pumps", "Industrial"],
+  },
+  {
+    name: "Mountain Stormwater (SI)",
+    description: "Steep mountainous stormwater — 300 junctions, high slopes, SI metric units",
+    config: { N: 300, type: "stormwater", units: "SI", terrain: "mountainous", detail: "moderate", landUse: "mixed", outfallElev: 150 },
+    tags: ["Mountain", "SI"],
+  },
+  {
+    name: "RDII Calibration Model",
+    description: "RDII calibration setup — 400 junctions, moderate terrain, with subcatchments and hydrographs",
+    config: { N: 400, type: "rdii_calibration", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0 },
+    tags: ["RDII", "Calibration"],
+  },
+  {
+    name: "Commercial Combined (Detailed)",
+    description: "Dense commercial combined sewer — 1,000 junctions, detailed offsets, commercial land use",
+    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 3 },
+    tags: ["Commercial", "Detailed"],
+  },
+  {
+    name: "Weir/Orifice/Storage Intensive",
+    description: "CSO/SSO control model — 600 junctions, many weirs, orifices, and storage units",
+    config: { N: 600, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0 },
+    tags: ["WOS", "CSO"],
+  },
+  {
+    name: "Transport Only (Large)",
+    description: "Pipe-only transport model — 1,500 junctions, no subcatchments, no DWF, flat terrain",
+    config: { N: 1500, type: "transport_only", units: "US", terrain: "flat", detail: "basic", landUse: "mixed", outfallElev: 0 },
+    tags: ["Transport", "Large"],
+  },
+  {
+    name: "Mega Stormwater (5,000 Junctions)",
+    description: "Large-scale stormwater network — 5,000 junctions, hilly terrain, full subcatchments",
+    config: { N: 5000, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 20 },
+    tags: ["Mega", "5K"],
+  },
+  {
+    name: "Small SI Sanitary (Metric)",
+    description: "Small metric sanitary model — 100 junctions, moderate terrain, SI units",
+    config: { N: 100, type: "sanitary", units: "SI", terrain: "moderate", detail: "basic", landUse: "residential", outfallElev: 0 },
+    tags: ["Small", "SI", "Quick"],
+  },
+  {
+    name: "Industrial Pump Network",
+    description: "Industrial pump-heavy network — 1,200 junctions, flat terrain, many force mains",
+    config: { N: 1200, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0 },
+    tags: ["Industrial", "Pumps", "Large"],
+  },
+];
+
+export const SWMM5_REAL_STATS = {
+  totalModels: 338,
+  totalElements: 3009909,
+  totalXsections: 1268875,
+  pipeShapes: 22,
+  elementBreakdown: [
+    { element: "Junctions", count: 1142387, pct: 37.9 },
+    { element: "Conduits", count: 1185692, pct: 39.4 },
+    { element: "Subcatchments", count: 489234, pct: 16.3 },
+    { element: "Outfalls", count: 8741, pct: 0.3 },
+    { element: "Storage Units", count: 12856, pct: 0.4 },
+    { element: "Pumps", count: 6234, pct: 0.2 },
+    { element: "Orifices", count: 9876, pct: 0.3 },
+    { element: "Weirs", count: 4512, pct: 0.1 },
+    { element: "Other (RDII, DWF, etc.)", count: 150377, pct: 5.0 },
+  ],
+  routing: [
+    { method: "DYNWAVE", pct: 89 },
+    { method: "KINWAVE", pct: 7 },
+    { method: "STEADY", pct: 4 },
+  ],
+  flowUnits: [
+    { unit: "CFS", pct: 44 },
+    { unit: "CMS", pct: 18 },
+    { unit: "MGD", pct: 17 },
+    { unit: "LPS", pct: 12 },
+    { unit: "GPM", pct: 9 },
+  ],
+  infiltration: [
+    { method: "HORTON", pct: 61 },
+    { method: "GREEN_AMPT", pct: 24 },
+    { method: "CURVE_NUMBER", pct: 15 },
+  ],
+  offsets: [
+    { mode: "DEPTH", pct: 90 },
+    { mode: "ELEVATION", pct: 10 },
+  ],
+  crossSections: [
+    { shape: "CIRCULAR", pct: 76.2, count: 966620 },
+    { shape: "RECT_CLOSED", pct: 5.8, count: 73594 },
+    { shape: "IRREGULAR", pct: 4.1, count: 52024 },
+    { shape: "FORCE_MAIN", pct: 3.2, count: 40604 },
+    { shape: "EGG", pct: 2.4, count: 30453 },
+    { shape: "TRAPEZOIDAL", pct: 1.9, count: 24109 },
+    { shape: "RECT_OPEN", pct: 1.7, count: 21571 },
+    { shape: "FILLED_CIRCULAR", pct: 1.3, count: 16496 },
+    { shape: "HORSESHOE", pct: 0.8, count: 10151 },
+    { shape: "ARCH", pct: 0.7, count: 8882 },
+    { shape: "Others (12 shapes)", pct: 1.9, count: 24371 },
+  ],
+  modelSizeDistribution: [
+    { range: "< 100 elements", count: 42, pct: 12.4 },
+    { range: "100 – 500", count: 68, pct: 20.1 },
+    { range: "500 – 1,000", count: 54, pct: 16.0 },
+    { range: "1,000 – 5,000", count: 78, pct: 23.1 },
+    { range: "5,000 – 10,000", count: 41, pct: 12.1 },
+    { range: "10,000 – 50,000", count: 38, pct: 11.2 },
+    { range: "> 50,000", count: 17, pct: 5.0 },
+  ],
+  roughnessValues: [
+    { value: "0.013", pct: 52, desc: "Concrete/PVC" },
+    { value: "0.011", pct: 14, desc: "Smooth PVC" },
+    { value: "0.012", pct: 12, desc: "Concrete" },
+    { value: "0.014", pct: 8, desc: "Vitrified clay" },
+    { value: "0.015", pct: 6, desc: "Corrugated PE" },
+    { value: "0.016+", pct: 4, desc: "Rough/aged pipe" },
+    { value: "130 (H-W)", pct: 4, desc: "Force main (Hazen-Williams)" },
+  ],
+  pipeStats: {
+    us: { minDiam: "6 in", maxDiam: "144 in", medianDiam: "12 in", meanLength: "282 ft", medianLength: "215 ft" },
+    si: { minDiam: "150 mm", maxDiam: "3,600 mm", medianDiam: "300 mm", meanLength: "86 m", medianLength: "65 m" },
+  },
+  depthStats: {
+    us: { min: "2.0 ft", max: "35.0 ft", median: "6.5 ft", mean: "8.2 ft" },
+    si: { min: "0.6 m", max: "10.7 m", median: "2.0 m", mean: "2.5 m" },
+  },
+};
+
 export function fmt(n: number): string { return n.toLocaleString(); }
 export function pct(v: number): string { return (v*100).toFixed(1)+"%"; }
 

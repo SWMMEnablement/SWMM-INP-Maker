@@ -515,6 +515,11 @@ export default function Home() {
                         <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${config.reswmm.enabled ? "translate-x-4" : ""}`} />
                       </button>
                     </div>
+                    <div className="text-[10px] text-muted-foreground leading-relaxed space-y-1.5 mb-3">
+                      <p>ReSWMM is a conduit discretization engine originally developed by Robson Leo Pachaly (VB.NET, 2018). It improves SWMM hydraulic simulations by splitting long conduits into shorter, more uniform segments with intermediate junction nodes.</p>
+                      <p>SWMM&apos;s dynamic wave solver relies on the Courant&ndash;Friedrichs&ndash;Lewy (CFL) condition for numerical stability. When a network mixes very long and very short conduits, the shortest pipe dictates the maximum stable time step for the entire model, often forcing impractically small steps or causing instability. Discretizing long conduits into segments whose lengths are proportional to their diameters creates a more uniform CFL distribution across the network, enabling larger stable time steps and more reliable convergence.</p>
+                      <p>Two methods are available: <strong>Fixed Interval</strong> divides each conduit into equal segments within a user-specified length range, while <strong>&Delta;x/D Ratio</strong> sets each segment length as a multiple of the pipe diameter, automatically producing finer discretization for smaller pipes. Both methods insert new junctions with interpolated invert elevations and replicate cross-section properties. The MNSA (Minimum Nodal Surface Area) parameter controls surcharge behavior at the new intermediate nodes.</p>
+                    </div>
                     {config.reswmm.enabled && (
                       <div className="space-y-3 pl-1 border-l-2 border-primary/30 ml-1 mt-3">
                         <div className="pl-3">

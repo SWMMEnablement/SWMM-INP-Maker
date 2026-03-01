@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import NetworkCanvas from "@/components/network-canvas";
+import ProfileCanvas from "@/components/profile-canvas";
 import {
   type SwmmConfig, type ModelType, type TerrainType, type DetailLevel, type LandUseType,
   type DiscretizationMethod, type GeneratedModel,
@@ -608,6 +609,15 @@ export default function Home() {
                       Network Preview <span className="font-normal normal-case tracking-normal">&mdash; Barnes-Hut force-directed layout</span>
                     </h2>
                     <NetworkCanvas netData={result.netData} />
+                  </Card>
+                )}
+
+                {result && result.profiles && result.profiles.length > 0 && (
+                  <Card className="p-5 border-border bg-card">
+                    <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+                      Longitudinal Profile <span className="font-normal normal-case tracking-normal">&mdash; outfall to upstream, invert &amp; crown elevations</span>
+                    </h2>
+                    <ProfileCanvas profiles={result.profiles} />
                   </Card>
                 )}
               </div>

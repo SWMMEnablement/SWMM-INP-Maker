@@ -117,10 +117,39 @@ export interface GenerationStats {
   reswmmMNSA: number;
 }
 
+export interface ProfileNode {
+  name: string;
+  station: number;
+  invertElev: number;
+  crownElev: number;
+  maxDepth: number;
+  type: 'junction' | 'outfall' | 'storage';
+}
+
+export interface ProfileConduit {
+  name: string;
+  fromStation: number;
+  toStation: number;
+  fromInvert: number;
+  toInvert: number;
+  diameter: number;
+  shape: string;
+  fromCrown: number;
+  toCrown: number;
+}
+
+export interface ProfileData {
+  outfallName: string;
+  nodes: ProfileNode[];
+  conduits: ProfileConduit[];
+  unitLabel: string;
+}
+
 export interface GeneratedModel {
   inpText: string;
   stats: GenerationStats;
   netData: NetData;
+  profiles: ProfileData[];
 }
 
 export const RATIOS: Record<string, Record<string, number>> = {
@@ -1223,5 +1252,101 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       reswmmMNSA: config.reswmm.mnsa,
     },
     netData: { nodes: netNodes, links: netLinks, domain },
+    profiles: buildProfiles(junctions, outfalls, storages, conduits, unitLabel),
   };
+}
+
+function buildProfiles(
+  junctions: { name: string; elev: number; maxD: number; x: number; y: number }[],
+  outfalls: { name: string; elev: number; x: number; y: number }[],
+  storages: { name: string; elev: number; maxD: number; x: number; y: number }[],
+  conduits: { name: string; from: string; to: string; len: number; diam: number; shape: string; inOff: number; outOff: number }[],
+  unitLabel: string,
+): ProfileData[] {
+  const nodeMap: Record<string, { elev: number; maxD: number; type: 'junction' | 'outfall' | 'storage' }> = {};
+  for (const j of junctions) nodeMap[j.name] = { elev: j.elev, maxD: j.maxD, type: 'junction' };
+  for (const o of outfalls) nodeMap[o.name] = { elev: o.elev, maxD: 0, type: 'outfall' };
+  for (const s of storages) nodeMap[s.name] = { elev: s.elev, maxD: s.maxD, type: 'storage' };
+
+  const upstreamOf: Record<string, { from: string; conduit: typeof conduits[0] }[]> = {};
+  for (const c of conduits) {
+    if (!upstreamOf[c.to]) upstreamOf[c.to] = [];
+    upstreamOf[c.to].push({ from: c.from, conduit: c });
+  }
+
+  const profiles: ProfileData[] = [];
+  for (const outfall of outfalls) {
+    let current = outfall.name;
+    let station = 0;
+    const pathNodes: ProfileNode[] = [];
+    const pathConduits: ProfileConduit[] = [];
+    const visited = new Set<string>();
+
+    const startNd = nodeMap[current];
+    if (!startNd) continue;
+    pathNodes.push({
+      name: current,
+      station: 0,
+      invertElev: startNd.elev,
+      crownElev: startNd.elev + startNd.maxD,
+      maxDepth: startNd.maxD,
+      type: startNd.type,
+    });
+    visited.add(current);
+
+    for (let step = 0; step < 10000; step++) {
+      const ups = upstreamOf[current];
+      if (!ups || ups.length === 0) break;
+
+      let best: typeof ups[0] | null = null;
+      let bestScore = -Infinity;
+      for (const u of ups) {
+        if (visited.has(u.from)) continue;
+        const n = nodeMap[u.from];
+        if (!n) continue;
+        const score = n.elev + u.conduit.len * 0.01;
+        if (score > bestScore) { bestScore = score; best = u; }
+      }
+      if (!best) break;
+
+      const c = best.conduit;
+      const currentNd = nodeMap[current];
+      const fromNd = nodeMap[best.from];
+      if (!fromNd || !currentNd) break;
+
+      const fromStation = station;
+      station += c.len;
+
+      pathConduits.push({
+        name: c.name,
+        fromStation: fromStation,
+        toStation: station,
+        fromInvert: currentNd.elev + c.outOff,
+        toInvert: fromNd.elev + c.inOff,
+        diameter: c.diam,
+        shape: c.shape,
+        fromCrown: currentNd.elev + c.outOff + c.diam,
+        toCrown: fromNd.elev + c.inOff + c.diam,
+      });
+
+      pathNodes.push({
+        name: best.from,
+        station,
+        invertElev: fromNd.elev,
+        crownElev: fromNd.elev + fromNd.maxD,
+        maxDepth: fromNd.maxD,
+        type: fromNd.type,
+      });
+
+      visited.add(best.from);
+      current = best.from;
+    }
+
+    if (pathNodes.length >= 2) {
+      profiles.push({ outfallName: outfall.name, nodes: pathNodes, conduits: pathConduits, unitLabel });
+    }
+  }
+
+  profiles.sort((a, b) => b.nodes.length - a.nodes.length);
+  return profiles;
 }

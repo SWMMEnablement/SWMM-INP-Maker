@@ -9,10 +9,18 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - All SWMM5 model generation is performed client-side in `swmm-engine.ts`
 
 ## Key Files
-- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, all constants from 338 real models
-- `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + Docs), config panel, element cards, charts, stats, download
+- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, all constants from 338 real models
+- `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + Docs), config panel with ReSWMM params, example presets, element cards, charts, stats, download
 - `client/src/components/network-canvas.tsx` — Interactive HTML5 canvas with pan/zoom/tooltips for network preview
+- `client/src/components/profile-canvas.tsx` — Longitudinal profile canvas showing invert/crown elevations from outfall to upstream
 - `client/src/App.tsx` — Router setup (single page at `/`)
+
+## Features
+- 12 example SWMM5 file presets (quick-load configurations)
+- ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
+- Longitudinal profile view (outfall → upstream, invert + crown lines, tooltips)
+- SWMM5 real-world statistics from 338 models in docs tab
+- Comprehensive stats panel after generation
 
 ## Theme
 - Dark mode only (class="dark" on html)

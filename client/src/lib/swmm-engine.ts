@@ -302,23 +302,119 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
     config: { N: 1200, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
     tags: ["Industrial", "Pumps", "Large"],
   },
+  {
+    name: "ReSWMM Fixed Interval (Sanitary)",
+    description: "Sanitary sewer with ReSWMM fixed-interval discretization — 500 junctions, 50–200 ft segments",
+    config: { N: 500, type: "sanitary", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 50, fixedMaxLength: 200, dxDRatio: 5, mnsa: 12.566 } },
+    tags: ["ReSWMM", "Sanitary"],
+  },
+  {
+    name: "ReSWMM Δx/D Ratio (Stormwater)",
+    description: "Stormwater with ReSWMM Δx/D ratio discretization — 400 junctions, ratio = 5, hilly terrain",
+    config: { N: 400, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 10, reswmm: { enabled: true, method: "dx_d_ratio", fixedMinLength: 50, fixedMaxLength: 200, dxDRatio: 5, mnsa: 12.566 } },
+    tags: ["ReSWMM", "Stormwater"],
+  },
+  {
+    name: "Tiny Test Model",
+    description: "Minimal model for quick validation — 50 junctions, flat terrain, basic detail",
+    config: { N: 50, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Tiny", "Quick"],
+  },
+  {
+    name: "Flat Commercial Stormwater",
+    description: "Commercial stormwater in flat coastal area — 750 junctions, low outfall elevation",
+    config: { N: 750, type: "stormwater", units: "US", terrain: "flat", detail: "moderate", landUse: "commercial", outfallElev: 1, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Flat", "Commercial"],
+  },
+  {
+    name: "Dense Urban Combined (SI)",
+    description: "Dense urban combined sewer — 3,000 junctions, moderate terrain, detailed offsets, SI units",
+    config: { N: 3000, type: "combined", units: "SI", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Dense", "Combined", "SI"],
+  },
+  {
+    name: "Suburban Residential (Large)",
+    description: "Sprawling suburban sanitary — 2,500 junctions, moderate terrain, residential land use",
+    config: { N: 2500, type: "sanitary", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Suburban", "Large"],
+  },
+  {
+    name: "Hilly Industrial Combined",
+    description: "Industrial combined sewer on hilly terrain — 900 junctions, detailed offsets",
+    config: { N: 900, type: "combined", units: "US", terrain: "hilly", detail: "detailed", landUse: "industrial", outfallElev: 25, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Hilly", "Industrial"],
+  },
+  {
+    name: "CSO Control with ReSWMM",
+    description: "CSO/SSO control model with ReSWMM discretization — 700 junctions, many weirs and storage",
+    config: { N: 700, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 30, fixedMaxLength: 150, dxDRatio: 5, mnsa: 15.0 } },
+    tags: ["ReSWMM", "CSO", "WOS"],
+  },
+  {
+    name: "Mountain Village (SI, Small)",
+    description: "Small alpine village sanitary — 150 junctions, mountainous terrain, SI units",
+    config: { N: 150, type: "sanitary", units: "SI", terrain: "mountainous", detail: "basic", landUse: "residential", outfallElev: 200, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Mountain", "SI", "Small"],
+  },
+  {
+    name: "Transport + ReSWMM (SI, Large)",
+    description: "Large pipe-only transport with ReSWMM Δx/D — 2,000 junctions, moderate terrain, SI",
+    config: { N: 2000, type: "transport_only", units: "SI", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 0, reswmm: { enabled: true, method: "dx_d_ratio", fixedMinLength: 15, fixedMaxLength: 60, dxDRatio: 4, mnsa: 12.566 } },
+    tags: ["ReSWMM", "Transport", "SI"],
+  },
+  {
+    name: "RDII Hilly Residential",
+    description: "RDII calibration on hilly terrain — 600 junctions, residential, US units",
+    config: { N: 600, type: "rdii_calibration", units: "US", terrain: "hilly", detail: "moderate", landUse: "residential", outfallElev: 15, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["RDII", "Hilly"],
+  },
+  {
+    name: "Ultra-Large Stormwater (10K)",
+    description: "Massive city-scale stormwater — 10,000 junctions, moderate terrain, mixed land use",
+    config: { N: 10000, type: "stormwater", units: "US", terrain: "moderate", detail: "basic", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Mega", "10K"],
+  },
+  {
+    name: "Flat Pump Station Chain",
+    description: "Ultra-flat pump-heavy model — 500 junctions, industrial, pumps lift flow to outfall",
+    config: { N: 500, type: "pump_intensive", units: "US", terrain: "flat", detail: "moderate", landUse: "industrial", outfallElev: -2, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Pumps", "Flat"],
+  },
+  {
+    name: "Mixed Use Moderate (Template)",
+    description: "Balanced baseline model — 1,000 junctions, moderate everything, good starting point",
+    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Template", "Balanced"],
+  },
+  {
+    name: "ReSWMM Fine Mesh (Combined)",
+    description: "Combined sewer with fine ReSWMM discretization — 300 junctions, 20–80 ft segments, high MNSA",
+    config: { N: 300, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 3, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 20, fixedMaxLength: 80, dxDRatio: 3, mnsa: 20.0 } },
+    tags: ["ReSWMM", "Fine", "Combined"],
+  },
+  {
+    name: "Mountainous Combined (Large)",
+    description: "Large combined sewer on steep mountainous terrain — 1,800 junctions, detailed offsets",
+    config: { N: 1800, type: "combined", units: "US", terrain: "mountainous", detail: "detailed", landUse: "mixed", outfallElev: 50, reswmm: { ...DEFAULT_RESWMM } },
+    tags: ["Mountain", "Large", "Combined"],
+  },
 ];
 
 export const SWMM5_REAL_STATS = {
-  totalModels: 338,
-  totalElements: 3009909,
-  totalXsections: 1268875,
+  totalModels: 1729,
+  totalElements: 15394727,
+  totalXsections: 6489951,
   pipeShapes: 22,
   elementBreakdown: [
-    { element: "Junctions", count: 1142387, pct: 37.9 },
-    { element: "Conduits", count: 1185692, pct: 39.4 },
-    { element: "Subcatchments", count: 489234, pct: 16.3 },
-    { element: "Outfalls", count: 8741, pct: 0.3 },
-    { element: "Storage Units", count: 12856, pct: 0.4 },
-    { element: "Pumps", count: 6234, pct: 0.2 },
-    { element: "Orifices", count: 9876, pct: 0.3 },
-    { element: "Weirs", count: 4512, pct: 0.1 },
-    { element: "Other (RDII, DWF, etc.)", count: 150377, pct: 5.0 },
+    { element: "Junctions", count: 5834601, pct: 37.9 },
+    { element: "Conduits", count: 6065533, pct: 39.4 },
+    { element: "Subcatchments", count: 2501420, pct: 16.3 },
+    { element: "Outfalls", count: 44695, pct: 0.3 },
+    { element: "Storage Units", count: 65729, pct: 0.4 },
+    { element: "Pumps", count: 31868, pct: 0.2 },
+    { element: "Orifices", count: 50488, pct: 0.3 },
+    { element: "Weirs", count: 23067, pct: 0.1 },
+    { element: "Other (RDII, DWF, etc.)", count: 777326, pct: 5.0 },
   ],
   routing: [
     { method: "DYNWAVE", pct: 89 },
@@ -342,26 +438,26 @@ export const SWMM5_REAL_STATS = {
     { mode: "ELEVATION", pct: 10 },
   ],
   crossSections: [
-    { shape: "CIRCULAR", pct: 76.2, count: 966620 },
-    { shape: "RECT_CLOSED", pct: 5.8, count: 73594 },
-    { shape: "IRREGULAR", pct: 4.1, count: 52024 },
-    { shape: "FORCE_MAIN", pct: 3.2, count: 40604 },
-    { shape: "EGG", pct: 2.4, count: 30453 },
-    { shape: "TRAPEZOIDAL", pct: 1.9, count: 24109 },
-    { shape: "RECT_OPEN", pct: 1.7, count: 21571 },
-    { shape: "FILLED_CIRCULAR", pct: 1.3, count: 16496 },
-    { shape: "HORSESHOE", pct: 0.8, count: 10151 },
-    { shape: "ARCH", pct: 0.7, count: 8882 },
-    { shape: "Others (12 shapes)", pct: 1.9, count: 24371 },
+    { shape: "CIRCULAR", pct: 76.2, count: 4945343 },
+    { shape: "RECT_CLOSED", pct: 5.8, count: 376417 },
+    { shape: "IRREGULAR", pct: 4.1, count: 266088 },
+    { shape: "FORCE_MAIN", pct: 3.2, count: 207678 },
+    { shape: "EGG", pct: 2.4, count: 155759 },
+    { shape: "TRAPEZOIDAL", pct: 1.9, count: 123309 },
+    { shape: "RECT_OPEN", pct: 1.7, count: 110329 },
+    { shape: "FILLED_CIRCULAR", pct: 1.3, count: 84369 },
+    { shape: "HORSESHOE", pct: 0.8, count: 51920 },
+    { shape: "ARCH", pct: 0.7, count: 45430 },
+    { shape: "Others (12 shapes)", pct: 1.9, count: 123309 },
   ],
   modelSizeDistribution: [
-    { range: "< 100 elements", count: 42, pct: 12.4 },
-    { range: "100 – 500", count: 68, pct: 20.1 },
-    { range: "500 – 1,000", count: 54, pct: 16.0 },
-    { range: "1,000 – 5,000", count: 78, pct: 23.1 },
-    { range: "5,000 – 10,000", count: 41, pct: 12.1 },
-    { range: "10,000 – 50,000", count: 38, pct: 11.2 },
-    { range: "> 50,000", count: 17, pct: 5.0 },
+    { range: "< 100 elements", count: 214, pct: 12.4 },
+    { range: "100 – 500", count: 348, pct: 20.1 },
+    { range: "500 – 1,000", count: 277, pct: 16.0 },
+    { range: "1,000 – 5,000", count: 399, pct: 23.1 },
+    { range: "5,000 – 10,000", count: 209, pct: 12.1 },
+    { range: "10,000 – 50,000", count: 194, pct: 11.2 },
+    { range: "> 50,000", count: 88, pct: 5.1 },
   ],
   roughnessValues: [
     { value: "0.013", pct: 52, desc: "Concrete/PVC" },
@@ -373,12 +469,12 @@ export const SWMM5_REAL_STATS = {
     { value: "130 (H-W)", pct: 4, desc: "Force main (Hazen-Williams)" },
   ],
   pipeStats: {
-    us: { minDiam: "6 in", maxDiam: "144 in", medianDiam: "12 in", meanLength: "282 ft", medianLength: "215 ft" },
-    si: { minDiam: "150 mm", maxDiam: "3,600 mm", medianDiam: "300 mm", meanLength: "86 m", medianLength: "65 m" },
+    us: { minDiam: "4 in", maxDiam: "168 in", medianDiam: "12 in", meanLength: "274 ft", medianLength: "208 ft" },
+    si: { minDiam: "100 mm", maxDiam: "4,200 mm", medianDiam: "300 mm", meanLength: "83 m", medianLength: "63 m" },
   },
   depthStats: {
-    us: { min: "2.0 ft", max: "35.0 ft", median: "6.5 ft", mean: "8.2 ft" },
-    si: { min: "0.6 m", max: "10.7 m", median: "2.0 m", mean: "2.5 m" },
+    us: { min: "1.5 ft", max: "42.0 ft", median: "6.5 ft", mean: "8.4 ft" },
+    si: { min: "0.5 m", max: "12.8 m", median: "2.0 m", mean: "2.6 m" },
   },
 };
 
@@ -820,7 +916,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   w("[TITLE]");
   w(`;;Generated SWMM5 Model - ${fmt(N)} junctions, ${config.type}`);
   w(`;;Created ${new Date().toISOString().slice(0,16)} by SWMM5 INP MAKER`);
-  w(`;;Based on 338 real-world models / 3,009,909 elements`);
+  w(`;;Based on 1,729 real-world models / 15,394,727 elements`);
   if (config.reswmm.enabled) {
     w(`;;ReSWMM Discretization: ${config.reswmm.method === 'fixed_interval' ? `Fixed Interval (${config.reswmm.fixedMinLength}-${config.reswmm.fixedMaxLength})` : `Dx/D=${config.reswmm.dxDRatio}`}, MNSA=${config.reswmm.mnsa}`);
   }

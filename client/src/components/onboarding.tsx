@@ -8,14 +8,14 @@ const STEPS = [
   {
     icon: Droplets,
     title: "Welcome to SWMM5 INP MAKER",
-    description: "Generate realistic EPA SWMM5 input files using physics-based network synthesis. Every parameter is derived from 338 real-world models containing over 3 million elements.",
+    description: "Generate realistic EPA SWMM5 input files using physics-based network synthesis. Every parameter is derived from 1,729 real-world models containing over 15 million elements.",
     color: "#38bdf8",
     detail: "No installation needed -- everything runs right here in your browser.",
   },
   {
     icon: Sliders,
     title: "Configure Your Model",
-    description: "Set the number of junctions, model type (sanitary, stormwater, combined, and more), terrain, detail level, and land use. Or pick from 12 ready-made example presets.",
+    description: "Set the number of junctions, model type (sanitary, stormwater, combined, and more), terrain, detail level, and land use. Or pick from 28 ready-made example presets.",
     color: "#818cf8",
     detail: "The ReSWMM discretization option lets you split conduits for more accurate hydraulic modeling.",
   },
@@ -24,7 +24,7 @@ const STEPS = [
     title: "Real-Time Element Preview",
     description: "As you adjust parameters, the element cards update instantly -- showing junction counts, conduits, subcatchments, pumps, and more before you generate.",
     color: "#34d399",
-    detail: "Computed from the same ratio engine behind the 338-model statistical analysis.",
+    detail: "Computed from the same ratio engine behind the 1,729-model statistical analysis.",
   },
   {
     icon: Map,

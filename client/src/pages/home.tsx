@@ -151,13 +151,13 @@ export default function Home() {
             >
               SWMM5 INP MAKER
             </h1>
-            <p className="text-sm text-foreground mt-1.5">Force-directed network synthesis with Barnes-Hut quadtree &mdash; every parameter from 338 real models</p>
+            <p className="text-sm text-foreground mt-1.5">Force-directed network synthesis with Barnes-Hut quadtree &mdash; every parameter from 1,729 real models</p>
             <div className="inline-flex items-center gap-1.5 mt-2.5 px-3.5 py-1 rounded-full text-xs font-mono border" style={{
               background: "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.12))",
               borderColor: "rgba(56,189,248,0.3)", color: "#93c5fd"
             }}>
               <span className="w-1.5 h-1.5 rounded-full bg-chart-3 animate-pulse" />
-              3,009,909 elements | 1,268,875 cross-sections | 22 pipe shapes
+              15,394,727 elements | 6,489,951 cross-sections | 22 pipe shapes
             </div>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-end">
@@ -215,7 +215,7 @@ export default function Home() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] text-muted-foreground mt-1">12 pre-configured example models from real-world scenarios</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{EXAMPLE_PRESETS.length} pre-configured example models from real-world scenarios</p>
                   </div>
 
                   <div className="h-px bg-border" />
@@ -673,7 +673,7 @@ export default function Home() {
                     <span className="font-serif text-xl text-card-foreground">Overview</span>
                   </AccordionTrigger>
                   <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground">
-                    <p>The <strong>SWMM5 INP MAKER</strong> creates realistic synthetic EPA SWMM5 <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">.inp</code> files of any size using a physics-based force-directed network synthesis engine. Every parameter, probability, and distribution is derived from statistical analysis of <strong>338 real-world models</strong> containing <strong>3,009,909 elements</strong> and <strong>1,268,875 cross-sections</strong>.</p>
+                    <p>The <strong>SWMM5 INP MAKER</strong> creates realistic synthetic EPA SWMM5 <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">.inp</code> files of any size using a physics-based force-directed network synthesis engine. Every parameter, probability, and distribution is derived from statistical analysis of <strong>1,729 real-world models</strong> containing <strong>15,394,727 elements</strong> and <strong>6,489,951 cross-sections</strong>.</p>
                     <p className="mt-3">Instead of random placement, the generator uses a <strong>Barnes-Hut quadtree</strong> particle simulation where nodes settle along terrain flow paths via gravitational pull, inter-particle repulsion, and outfall attraction &mdash; producing naturally dendritic drainage networks.</p>
                   </AccordionContent>
                 </AccordionItem>
@@ -697,7 +697,7 @@ export default function Home() {
                     </div>
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Phase 3 &mdash; Parameter Assignment</h4>
-                      <p>DEM elevations map to the user's terrain range. Pipe diameters scale with upstream accumulation count. The 338-model rules engine assigns offsets, shapes, roughness, DWF, pump curves, and controls.</p>
+                      <p>DEM elevations map to the user's terrain range. Pipe diameters scale with upstream accumulation count. The 1,729-model rules engine assigns offsets, shapes, roughness, DWF, pump curves, and controls.</p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -780,7 +780,7 @@ export default function Home() {
 
                 <AccordionItem value="stats" className="border-border bg-card rounded-lg mb-4 border">
                   <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
-                    <span className="font-serif text-xl text-card-foreground">SWMM5 Real-World Statistics (338 Models)</span>
+                    <span className="font-serif text-xl text-card-foreground">SWMM5 Real-World Statistics (1,729 Models)</span>
                   </AccordionTrigger>
                   <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-6">
                     <div>
@@ -793,7 +793,7 @@ export default function Home() {
                             <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Elements</th>
                           </tr></thead>
                           <tbody>
-                            {[["Uploaded","11","54,883"],["Semi_Real","76","104,704"],["Large (>5MB)","79","1,717,005"],["Mid (1-5MB)","172","1,133,317"],["Total","338","3,009,909"]].map(([d,m,e]) => (
+                            {[["Uploaded","57","280,656"],["Semi_Real","389","535,555"],["Large (>5MB)","404","8,783,195"],["Mid (1-5MB)","879","5,795,321"],["Total","1,729","15,394,727"]].map(([d,m,e]) => (
                               <tr key={d} className="hover:bg-primary/5">
                                 <td className={`p-2 border border-border ${d==="Total"?"font-bold":""}`}>{d}</td>
                                 <td className="p-2 border border-border font-mono">{m}</td>
@@ -806,7 +806,7 @@ export default function Home() {
                     </div>
 
                     <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Element Breakdown (3,009,909 total)</h4>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Element Breakdown (15,394,727 total)</h4>
                       <div className="space-y-1.5">
                         {SWMM5_REAL_STATS.elementBreakdown.map(({ element, count, pct: p }) => (
                           <div key={element}>
@@ -1083,7 +1083,7 @@ export default function Home() {
         <footer className="mt-12 py-5 border-t border-border text-center text-xs text-muted-foreground">
           SWMM5 INP MAKER &middot; Robert Dickinson &middot; <a href="https://swmm5.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMM5.org</a> &middot; February 2026
           <br />
-          Rules from <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMMEnablement/1729-SWMM5-Models</a> &mdash; 338 models / 3,009,909 elements
+          Rules from <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMMEnablement/1729-SWMM5-Models</a> &mdash; 1,729 models / 15,394,727 elements
           <br />
           ReSWMM Discretization Tool &middot; Robson Leo Pachaly (2018) &middot; Vasconcelos et al. (2018)
         </footer>

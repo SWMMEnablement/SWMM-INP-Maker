@@ -1274,72 +1274,93 @@ function buildProfiles(
     upstreamOf[c.to].push({ from: c.from, conduit: c });
   }
 
+  const longestPathFrom = (start: string): string[] => {
+    const memo: Record<string, string[]> = {};
+    const inStack = new Set<string>();
+    const dfs = (node: string): string[] => {
+      if (memo[node]) return memo[node];
+      if (inStack.has(node)) return [node];
+      inStack.add(node);
+      const ups = upstreamOf[node];
+      let best: string[] = [node];
+      if (ups) {
+        for (const u of ups) {
+          if (!nodeMap[u.from]) continue;
+          const path = dfs(u.from);
+          if (path.length + 1 > best.length) {
+            best = [node, ...path];
+          }
+        }
+      }
+      inStack.delete(node);
+      memo[node] = best;
+      return best;
+    };
+    return dfs(start);
+  };
+
+  const conduitBetween = (fromNode: string, toNode: string) => {
+    const ups = upstreamOf[toNode];
+    if (!ups) return null;
+    for (const u of ups) {
+      if (u.from === fromNode) return u.conduit;
+    }
+    return null;
+  };
+
   const profiles: ProfileData[] = [];
   for (const outfall of outfalls) {
-    let current = outfall.name;
-    let station = 0;
+    const startNd = nodeMap[outfall.name];
+    if (!startNd) continue;
+
+    const path = longestPathFrom(outfall.name);
+    if (path.length < 2) continue;
+
     const pathNodes: ProfileNode[] = [];
     const pathConduits: ProfileConduit[] = [];
-    const visited = new Set<string>();
+    let station = 0;
 
-    const startNd = nodeMap[current];
-    if (!startNd) continue;
+    const nd0 = nodeMap[path[0]];
     pathNodes.push({
-      name: current,
+      name: path[0],
       station: 0,
-      invertElev: startNd.elev,
-      crownElev: startNd.elev + startNd.maxD,
-      maxDepth: startNd.maxD,
-      type: startNd.type,
+      invertElev: nd0.elev,
+      crownElev: nd0.elev + nd0.maxD,
+      maxDepth: nd0.maxD,
+      type: nd0.type,
     });
-    visited.add(current);
 
-    for (let step = 0; step < 10000; step++) {
-      const ups = upstreamOf[current];
-      if (!ups || ups.length === 0) break;
+    for (let i = 1; i < path.length; i++) {
+      const c = conduitBetween(path[i], path[i - 1]);
+      if (!c) break;
 
-      let best: typeof ups[0] | null = null;
-      let bestScore = -Infinity;
-      for (const u of ups) {
-        if (visited.has(u.from)) continue;
-        const n = nodeMap[u.from];
-        if (!n) continue;
-        const score = n.elev + u.conduit.len * 0.01;
-        if (score > bestScore) { bestScore = score; best = u; }
-      }
-      if (!best) break;
-
-      const c = best.conduit;
-      const currentNd = nodeMap[current];
-      const fromNd = nodeMap[best.from];
-      if (!fromNd || !currentNd) break;
+      const prevNd = nodeMap[path[i - 1]];
+      const curNd = nodeMap[path[i]];
+      if (!prevNd || !curNd) break;
 
       const fromStation = station;
       station += c.len;
 
       pathConduits.push({
         name: c.name,
-        fromStation: fromStation,
+        fromStation,
         toStation: station,
-        fromInvert: currentNd.elev + c.outOff,
-        toInvert: fromNd.elev + c.inOff,
+        fromInvert: prevNd.elev + c.outOff,
+        toInvert: curNd.elev + c.inOff,
         diameter: c.diam,
         shape: c.shape,
-        fromCrown: currentNd.elev + c.outOff + c.diam,
-        toCrown: fromNd.elev + c.inOff + c.diam,
+        fromCrown: prevNd.elev + c.outOff + c.diam,
+        toCrown: curNd.elev + c.inOff + c.diam,
       });
 
       pathNodes.push({
-        name: best.from,
+        name: path[i],
         station,
-        invertElev: fromNd.elev,
-        crownElev: fromNd.elev + fromNd.maxD,
-        maxDepth: fromNd.maxD,
-        type: fromNd.type,
+        invertElev: curNd.elev,
+        crownElev: curNd.elev + curNd.maxD,
+        maxDepth: curNd.maxD,
+        type: curNd.type,
       });
-
-      visited.add(best.from);
-      current = best.from;
     }
 
     if (pathNodes.length >= 2) {

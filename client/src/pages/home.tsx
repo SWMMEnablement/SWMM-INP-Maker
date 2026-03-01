@@ -16,12 +16,13 @@ import ValidationPanel from "@/components/validation-panel";
 import { validateInp, type ValidationResult } from "@/lib/inp-validator";
 import {
   type SwmmConfig, type ModelType, type TerrainType, type DetailLevel, type LandUseType,
-  type DiscretizationMethod, type GeneratedModel,
+  type DiscretizationMethod, type InfiltrationMethod, type RainfallDistribution, type GeneratedModel,
   compute, getSections, estimateSize, generateModel, fmt, pct,
   RATIOS, FLOW_UNITS, OFFSET, SHAPES, PIPE_INCHES, PIPE_WEIGHTS,
   ALL_SECTIONS, TERRAIN_LABELS, MODEL_TYPE_LABELS,
   OFFSET_COLORS, OFFSET_LABELS, SHAPE_COLORS,
-  EXAMPLE_PRESETS, SWMM5_REAL_STATS, DEFAULT_RESWMM,
+  EXAMPLE_PRESETS, SWMM5_REAL_STATS, DEFAULT_RESWMM, DEFAULT_HYDROLOGY,
+  DWF_PATTERN_OPTIONS, RAINFALL_DIST_LABELS, INFILTRATION_LABELS,
 } from "@/lib/swmm-engine";
 
 const ELEM_CARDS_META = [
@@ -64,6 +65,7 @@ export default function Home() {
     N: 1000, type: "sanitary", units: "US", terrain: "moderate",
     detail: "moderate", landUse: "mixed", outfallElev: 0,
     reswmm: { ...DEFAULT_RESWMM },
+    ...DEFAULT_HYDROLOGY,
   });
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GeneratedModel | null>(null);
@@ -323,6 +325,36 @@ export default function Home() {
 
                   <div>
                     <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
+                      <span>Outfalls</span>
+                      <span className="font-mono text-sm text-primary" data-testid="text-outfall-count">{config.numOutfalls != null ? config.numOutfalls : elements.outfalls} {config.numOutfalls == null ? "(auto)" : ""}</span>
+                    </div>
+                    <Slider
+                      min={1} max={Math.max(50, Math.ceil(config.N * 0.05))} step={1} value={[config.numOutfalls != null ? config.numOutfalls : elements.outfalls]}
+                      onValueChange={([v]) => update({ numOutfalls: v })}
+                      data-testid="slider-outfalls"
+                    />
+                    <button onClick={() => update({ numOutfalls: null })} className="text-[10px] text-muted-foreground mt-1 hover:text-primary transition-colors" data-testid="button-outfalls-auto">
+                      {config.numOutfalls != null ? "Reset to auto" : "Auto (from model type ratio)"}
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
+                      <span>Subcatchments</span>
+                      <span className="font-mono text-sm text-primary" data-testid="text-subcatch-count">{config.numSubcatchments != null ? fmt(config.numSubcatchments) : fmt(elements.subcatchments)} {config.numSubcatchments == null ? "(auto)" : ""}</span>
+                    </div>
+                    <Slider
+                      min={0} max={Math.max(config.N * 2, 100)} step={1} value={[config.numSubcatchments != null ? config.numSubcatchments : elements.subcatchments]}
+                      onValueChange={([v]) => update({ numSubcatchments: v })}
+                      data-testid="slider-subcatchments"
+                    />
+                    <button onClick={() => update({ numSubcatchments: null })} className="text-[10px] text-muted-foreground mt-1 hover:text-primary transition-colors" data-testid="button-subcatch-auto">
+                      {config.numSubcatchments != null ? "Reset to auto" : "Auto (from model type ratio)"}
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
                       <span>Outfall Elevation</span>
                       <span className="font-mono text-sm text-primary" data-testid="text-outfall-elev">{config.outfallElev.toFixed(1)} {unitLabel}</span>
                     </div>
@@ -331,6 +363,93 @@ export default function Home() {
                       onValueChange={([v]) => update({ outfallElev: v })}
                       data-testid="slider-outfall-elev"
                     />
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  <div>
+                    <label className="text-xs font-semibold block mb-2">Infiltration Method</label>
+                    <ToggleGroup
+                      testId="infiltration"
+                      value={config.infiltrationMethod}
+                      onChange={(v) => update({ infiltrationMethod: v as InfiltrationMethod })}
+                      options={Object.entries(INFILTRATION_LABELS).map(([k, v]) => ({ label: v, value: k }))}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
+                      <span>Rainfall Depth</span>
+                      <span className="font-mono text-sm text-primary" data-testid="text-rainfall-depth">{config.rainfallDepth.toFixed(1)} {config.units === "SI" ? "mm" : "in"}</span>
+                    </div>
+                    <Slider
+                      min={0.1} max={config.units === "SI" ? 200 : 10} step={0.1} value={[config.rainfallDepth]}
+                      onValueChange={([v]) => update({ rainfallDepth: v })}
+                      data-testid="slider-rainfall-depth"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold block mb-2">Rainfall Distribution</label>
+                    <Select value={config.rainfallDist} onValueChange={(v) => update({ rainfallDist: v as RainfallDistribution })}>
+                      <SelectTrigger data-testid="select-rainfall-dist"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(RAINFALL_DIST_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  <div>
+                    <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
+                      <span>DWF Node %</span>
+                      <span className="font-mono text-sm text-primary" data-testid="text-dwf-pct">{config.dwfNodePct}%</span>
+                    </div>
+                    <Slider
+                      min={0} max={100} step={1} value={[config.dwfNodePct]}
+                      onValueChange={([v]) => update({ dwfNodePct: v })}
+                      data-testid="slider-dwf-pct"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">Percentage of junctions with Dry Weather Flow (sanitary/combined only)</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold block mb-2">DWF Patterns</label>
+                    <div className="flex flex-wrap gap-1.5" data-testid="dwf-patterns">
+                      {DWF_PATTERN_OPTIONS.map((p) => (
+                        <button
+                          key={p}
+                          data-testid={`toggle-pattern-${p}`}
+                          onClick={() => {
+                            const cur = config.dwfPatterns;
+                            update({ dwfPatterns: cur.includes(p) ? cur.filter(x => x !== p) : [...cur, p] });
+                          }}
+                          className={`py-1.5 px-3 rounded-md border text-xs font-medium transition-all ${
+                            config.dwfPatterns.includes(p)
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border bg-card text-muted-foreground"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
+                      <span>Inflow Time Series %</span>
+                      <span className="font-mono text-sm text-primary" data-testid="text-inflow-pct">{config.inflowTsPct}%</span>
+                    </div>
+                    <Slider
+                      min={0} max={100} step={1} value={[config.inflowTsPct]}
+                      onValueChange={([v]) => update({ inflowTsPct: v })}
+                      data-testid="slider-inflow-pct"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">Percentage of junctions with external inflow time series</p>
                   </div>
 
                   <div className="h-px bg-border" />
@@ -590,7 +709,7 @@ export default function Home() {
                   <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3.5">Simulation Options</h2>
                   <div className="flex flex-wrap gap-2" data-testid="options-row">
                     {[
-                      ["Units", flowUnit], ["Routing", "DYNWAVE"], ["Infiltration", "HORTON"],
+                      ["Units", flowUnit], ["Routing", "DYNWAVE"], ["Infiltration", config.infiltrationMethod],
                       ["Offsets", "DEPTH"], ["Terrain", `${config.terrain} (${TERRAIN_LABELS[config.terrain]})`], ["Est. File", estSize],
                     ].map(([k, v]) => (
                       <span key={k} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs">

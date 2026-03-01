@@ -3,6 +3,8 @@ export type TerrainType = 'flat' | 'moderate' | 'hilly' | 'mountainous';
 export type DetailLevel = 'basic' | 'moderate' | 'detailed';
 export type LandUseType = 'mixed' | 'residential' | 'commercial' | 'industrial';
 export type DiscretizationMethod = 'none' | 'fixed_interval' | 'dx_d_ratio';
+export type InfiltrationMethod = 'HORTON' | 'GREEN_AMPT' | 'CURVE_NUMBER';
+export type RainfallDistribution = 'uniform' | 'triangular' | 'scs_type_ii' | 'chicago' | 'custom_front' | 'custom_rear';
 
 export interface ReswmmConfig {
   enabled: boolean;
@@ -22,6 +24,34 @@ export const DEFAULT_RESWMM: ReswmmConfig = {
   mnsa: 12.566,
 };
 
+export const DWF_PATTERN_OPTIONS = ['Diurnal', 'Monthly', 'Weekend', 'Seasonal'] as const;
+
+export const RAINFALL_DIST_LABELS: Record<RainfallDistribution, string> = {
+  uniform: 'Uniform',
+  triangular: 'Triangular',
+  scs_type_ii: 'SCS Type II',
+  chicago: 'Chicago',
+  custom_front: 'Front-Loaded',
+  custom_rear: 'Rear-Loaded',
+};
+
+export const INFILTRATION_LABELS: Record<InfiltrationMethod, string> = {
+  HORTON: 'Horton',
+  GREEN_AMPT: 'Green-Ampt',
+  CURVE_NUMBER: 'Curve Number',
+};
+
+export const DEFAULT_HYDROLOGY = {
+  numOutfalls: null as number | null,
+  numSubcatchments: null as number | null,
+  dwfNodePct: 65,
+  dwfPatterns: ['Diurnal', 'Monthly'] as string[],
+  inflowTsPct: 0,
+  rainfallDepth: 2.0,
+  rainfallDist: 'scs_type_ii' as RainfallDistribution,
+  infiltrationMethod: 'HORTON' as InfiltrationMethod,
+};
+
 export interface SwmmConfig {
   N: number;
   type: ModelType;
@@ -31,6 +61,14 @@ export interface SwmmConfig {
   landUse: LandUseType;
   outfallElev: number;
   reswmm: ReswmmConfig;
+  numOutfalls: number | null;
+  numSubcatchments: number | null;
+  dwfNodePct: number;
+  dwfPatterns: string[];
+  inflowTsPct: number;
+  rainfallDepth: number;
+  rainfallDist: RainfallDistribution;
+  infiltrationMethod: InfiltrationMethod;
 }
 
 export interface ComputedElements {
@@ -190,7 +228,7 @@ export const ALL_SECTIONS = [
   "[TITLE]","[OPTIONS]","[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]",
   "[INFILTRATION]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
   "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[LOSSES]",
-  "[CONTROLS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
+  "[CONTROLS]","[INFLOWS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
   "[CURVES]","[TIMESERIES]","[COORDINATES]","[MAP]","[REPORT]"
 ];
 
@@ -233,169 +271,169 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Small Residential Sanitary",
     description: "Typical small-town sanitary sewer — 200 junctions, flat terrain, basic detail",
-    config: { N: 200, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 200, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Quick", "Sanitary"],
   },
   {
     name: "Medium Stormwater Network",
     description: "Urban stormwater collection system — 500 junctions, moderate terrain, mixed land use",
-    config: { N: 500, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 500, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Stormwater", "Medium"],
   },
   {
     name: "Large Combined Sewer (SI)",
     description: "Full combined sewer system — 2,000 junctions, hilly terrain, detailed offsets, SI units",
-    config: { N: 2000, type: "combined", units: "SI", terrain: "hilly", detail: "detailed", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 2000, type: "combined", units: "SI", terrain: "hilly", detail: "detailed", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Large", "Combined", "SI"],
   },
   {
     name: "Pump Station Intensive",
     description: "Flat pump-heavy system — 800 junctions, many pumps and storage units, industrial land use",
-    config: { N: 800, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 800, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Pumps", "Industrial"],
   },
   {
     name: "Mountain Stormwater (SI)",
     description: "Steep mountainous stormwater — 300 junctions, high slopes, SI metric units",
-    config: { N: 300, type: "stormwater", units: "SI", terrain: "mountainous", detail: "moderate", landUse: "mixed", outfallElev: 150, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 300, type: "stormwater", units: "SI", terrain: "mountainous", detail: "moderate", landUse: "mixed", outfallElev: 150, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mountain", "SI"],
   },
   {
     name: "RDII Calibration Model",
     description: "RDII calibration setup — 400 junctions, moderate terrain, with subcatchments and hydrographs",
-    config: { N: 400, type: "rdii_calibration", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 400, type: "rdii_calibration", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["RDII", "Calibration"],
   },
   {
     name: "Commercial Combined (Detailed)",
     description: "Dense commercial combined sewer — 1,000 junctions, detailed offsets, commercial land use",
-    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 3, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 3, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Commercial", "Detailed"],
   },
   {
     name: "Weir/Orifice/Storage Intensive",
     description: "CSO/SSO control model — 600 junctions, many weirs, orifices, and storage units",
-    config: { N: 600, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 600, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["WOS", "CSO"],
   },
   {
     name: "Transport Only (Large)",
     description: "Pipe-only transport model — 1,500 junctions, no subcatchments, no DWF, flat terrain",
-    config: { N: 1500, type: "transport_only", units: "US", terrain: "flat", detail: "basic", landUse: "mixed", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 1500, type: "transport_only", units: "US", terrain: "flat", detail: "basic", landUse: "mixed", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Transport", "Large"],
   },
   {
     name: "Mega Stormwater (5,000 Junctions)",
     description: "Large-scale stormwater network — 5,000 junctions, hilly terrain, full subcatchments",
-    config: { N: 5000, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 20, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 5000, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 20, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mega", "5K"],
   },
   {
     name: "Small SI Sanitary (Metric)",
     description: "Small metric sanitary model — 100 junctions, moderate terrain, SI units",
-    config: { N: 100, type: "sanitary", units: "SI", terrain: "moderate", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 100, type: "sanitary", units: "SI", terrain: "moderate", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Small", "SI", "Quick"],
   },
   {
     name: "Industrial Pump Network",
     description: "Industrial pump-heavy network — 1,200 junctions, flat terrain, many force mains",
-    config: { N: 1200, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 1200, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Industrial", "Pumps", "Large"],
   },
   {
     name: "ReSWMM Fixed Interval (Sanitary)",
     description: "Sanitary sewer with ReSWMM fixed-interval discretization — 500 junctions, 50–200 ft segments",
-    config: { N: 500, type: "sanitary", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 50, fixedMaxLength: 200, dxDRatio: 5, mnsa: 12.566 } },
+    config: { N: 500, type: "sanitary", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 50, fixedMaxLength: 200, dxDRatio: 5, mnsa: 12.566 }, ...DEFAULT_HYDROLOGY },
     tags: ["ReSWMM", "Sanitary"],
   },
   {
     name: "ReSWMM Δx/D Ratio (Stormwater)",
     description: "Stormwater with ReSWMM Δx/D ratio discretization — 400 junctions, ratio = 5, hilly terrain",
-    config: { N: 400, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 10, reswmm: { enabled: true, method: "dx_d_ratio", fixedMinLength: 50, fixedMaxLength: 200, dxDRatio: 5, mnsa: 12.566 } },
+    config: { N: 400, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 10, reswmm: { enabled: true, method: "dx_d_ratio", fixedMinLength: 50, fixedMaxLength: 200, dxDRatio: 5, mnsa: 12.566 }, ...DEFAULT_HYDROLOGY },
     tags: ["ReSWMM", "Stormwater"],
   },
   {
     name: "Tiny Test Model",
     description: "Minimal model for quick validation — 50 junctions, flat terrain, basic detail",
-    config: { N: 50, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 50, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Tiny", "Quick"],
   },
   {
     name: "Flat Commercial Stormwater",
     description: "Commercial stormwater in flat coastal area — 750 junctions, low outfall elevation",
-    config: { N: 750, type: "stormwater", units: "US", terrain: "flat", detail: "moderate", landUse: "commercial", outfallElev: 1, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 750, type: "stormwater", units: "US", terrain: "flat", detail: "moderate", landUse: "commercial", outfallElev: 1, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Flat", "Commercial"],
   },
   {
     name: "Dense Urban Combined (SI)",
     description: "Dense urban combined sewer — 3,000 junctions, moderate terrain, detailed offsets, SI units",
-    config: { N: 3000, type: "combined", units: "SI", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 3000, type: "combined", units: "SI", terrain: "moderate", detail: "detailed", landUse: "commercial", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Dense", "Combined", "SI"],
   },
   {
     name: "Suburban Residential (Large)",
     description: "Sprawling suburban sanitary — 2,500 junctions, moderate terrain, residential land use",
-    config: { N: 2500, type: "sanitary", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 2500, type: "sanitary", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Suburban", "Large"],
   },
   {
     name: "Hilly Industrial Combined",
     description: "Industrial combined sewer on hilly terrain — 900 junctions, detailed offsets",
-    config: { N: 900, type: "combined", units: "US", terrain: "hilly", detail: "detailed", landUse: "industrial", outfallElev: 25, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 900, type: "combined", units: "US", terrain: "hilly", detail: "detailed", landUse: "industrial", outfallElev: 25, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Hilly", "Industrial"],
   },
   {
     name: "CSO Control with ReSWMM",
     description: "CSO/SSO control model with ReSWMM discretization — 700 junctions, many weirs and storage",
-    config: { N: 700, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 30, fixedMaxLength: 150, dxDRatio: 5, mnsa: 15.0 } },
+    config: { N: 700, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 30, fixedMaxLength: 150, dxDRatio: 5, mnsa: 15.0 }, ...DEFAULT_HYDROLOGY },
     tags: ["ReSWMM", "CSO", "WOS"],
   },
   {
     name: "Mountain Village (SI, Small)",
     description: "Small alpine village sanitary — 150 junctions, mountainous terrain, SI units",
-    config: { N: 150, type: "sanitary", units: "SI", terrain: "mountainous", detail: "basic", landUse: "residential", outfallElev: 200, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 150, type: "sanitary", units: "SI", terrain: "mountainous", detail: "basic", landUse: "residential", outfallElev: 200, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mountain", "SI", "Small"],
   },
   {
     name: "Transport + ReSWMM (SI, Large)",
     description: "Large pipe-only transport with ReSWMM Δx/D — 2,000 junctions, moderate terrain, SI",
-    config: { N: 2000, type: "transport_only", units: "SI", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 0, reswmm: { enabled: true, method: "dx_d_ratio", fixedMinLength: 15, fixedMaxLength: 60, dxDRatio: 4, mnsa: 12.566 } },
+    config: { N: 2000, type: "transport_only", units: "SI", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 0, reswmm: { enabled: true, method: "dx_d_ratio", fixedMinLength: 15, fixedMaxLength: 60, dxDRatio: 4, mnsa: 12.566 }, ...DEFAULT_HYDROLOGY },
     tags: ["ReSWMM", "Transport", "SI"],
   },
   {
     name: "RDII Hilly Residential",
     description: "RDII calibration on hilly terrain — 600 junctions, residential, US units",
-    config: { N: 600, type: "rdii_calibration", units: "US", terrain: "hilly", detail: "moderate", landUse: "residential", outfallElev: 15, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 600, type: "rdii_calibration", units: "US", terrain: "hilly", detail: "moderate", landUse: "residential", outfallElev: 15, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["RDII", "Hilly"],
   },
   {
     name: "Ultra-Large Stormwater (10K)",
     description: "Massive city-scale stormwater — 10,000 junctions, moderate terrain, mixed land use",
-    config: { N: 10000, type: "stormwater", units: "US", terrain: "moderate", detail: "basic", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 10000, type: "stormwater", units: "US", terrain: "moderate", detail: "basic", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mega", "10K"],
   },
   {
     name: "Flat Pump Station Chain",
     description: "Ultra-flat pump-heavy model — 500 junctions, industrial, pumps lift flow to outfall",
-    config: { N: 500, type: "pump_intensive", units: "US", terrain: "flat", detail: "moderate", landUse: "industrial", outfallElev: -2, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 500, type: "pump_intensive", units: "US", terrain: "flat", detail: "moderate", landUse: "industrial", outfallElev: -2, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Pumps", "Flat"],
   },
   {
     name: "Mixed Use Moderate (Template)",
     description: "Balanced baseline model — 1,000 junctions, moderate everything, good starting point",
-    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Template", "Balanced"],
   },
   {
     name: "ReSWMM Fine Mesh (Combined)",
     description: "Combined sewer with fine ReSWMM discretization — 300 junctions, 20–80 ft segments, high MNSA",
-    config: { N: 300, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 3, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 20, fixedMaxLength: 80, dxDRatio: 3, mnsa: 20.0 } },
+    config: { N: 300, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 3, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 20, fixedMaxLength: 80, dxDRatio: 3, mnsa: 20.0 }, ...DEFAULT_HYDROLOGY },
     tags: ["ReSWMM", "Fine", "Combined"],
   },
   {
     name: "Mountainous Combined (Large)",
     description: "Large combined sewer on steep mountainous terrain — 1,800 junctions, detailed offsets",
-    config: { N: 1800, type: "combined", units: "US", terrain: "mountainous", detail: "detailed", landUse: "mixed", outfallElev: 50, reswmm: { ...DEFAULT_RESWMM } },
+    config: { N: 1800, type: "combined", units: "US", terrain: "mountainous", detail: "detailed", landUse: "mixed", outfallElev: 50, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mountain", "Large", "Combined"],
   },
 ];
@@ -487,8 +525,8 @@ export function compute(config: SwmmConfig): ComputedElements {
   const elems: ComputedElements = {
     junctions: N,
     conduits: Math.max(N, Math.round(N * r.conduit)),
-    subcatchments: Math.round(N * r.subcatch),
-    outfalls: Math.max(1, Math.round(N * r.outfall)),
+    subcatchments: config.numSubcatchments != null ? config.numSubcatchments : Math.round(N * r.subcatch),
+    outfalls: config.numOutfalls != null ? Math.max(1, config.numOutfalls) : Math.max(1, Math.round(N * r.outfall)),
     storage: Math.max(0, Math.round(N * r.storage)),
     pumps: Math.round(N * r.pump),
     orifices: Math.round(N * r.orifice),
@@ -505,7 +543,9 @@ export function compute(config: SwmmConfig): ComputedElements {
 export function getSections(elems: ComputedElements, config: SwmmConfig): Set<string> {
   const on = new Set(["[TITLE]","[OPTIONS]","[JUNCTIONS]","[OUTFALLS]","[CONDUITS]","[XSECTIONS]","[COORDINATES]","[MAP]","[REPORT]","[LOSSES]"]);
   if (elems.subcatchments > 0) ["[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]","[INFILTRATION]","[TIMESERIES]"].forEach(s => on.add(s));
-  if (config.type==="sanitary"||config.type==="combined"||config.type==="wos_intensive") ["[DWF]","[PATTERNS]"].forEach(s => on.add(s));
+  const hasDWF = config.dwfNodePct > 0 && (config.type==="sanitary"||config.type==="combined"||config.type==="wos_intensive");
+  if (hasDWF) ["[DWF]","[PATTERNS]"].forEach(s => on.add(s));
+  if (config.inflowTsPct > 0) { on.add("[INFLOWS]"); on.add("[TIMESERIES]"); }
   if (config.type==="rdii_calibration") ["[RDII]","[HYDROGRAPHS]"].forEach(s => on.add(s));
   if (elems.pumps > 0 || elems.storage > 0) ["[STORAGE]","[PUMPS]","[CURVES]","[CONTROLS]"].forEach(s => on.add(s));
   if (elems.orifices > 0) on.add("[ORIFICES]");
@@ -816,6 +856,75 @@ function buildDendriticGraph(
   return { allNodes, edges, accumUpstream };
 }
 
+function generateRainfallProfile(dist: RainfallDistribution, totalDepth: number): [number, number][] {
+  const dt = 0.25;
+  const duration = 10;
+  const n = Math.round(duration / dt) + 1;
+  const raw: number[] = new Array(n).fill(0);
+  const peak = totalDepth / (duration * 0.3);
+
+  switch (dist) {
+    case 'uniform':
+      for (let i = 0; i < n; i++) raw[i] = totalDepth / duration;
+      break;
+    case 'triangular': {
+      const peakIdx = Math.floor(n * 0.4);
+      for (let i = 0; i < n; i++) {
+        raw[i] = i <= peakIdx ? (i / peakIdx) * peak : peak * (1 - (i - peakIdx) / (n - peakIdx));
+      }
+      break;
+    }
+    case 'scs_type_ii': {
+      const cumFracs = [0,0.011,0.022,0.035,0.048,0.063,0.08,0.098,0.12,0.147,0.181,0.235,0.283,0.387,0.663,0.735,0.772,0.799,0.82,0.838,0.854,0.868,0.88,0.891,0.90,0.906,0.913,0.92,0.926,0.932,0.938,0.944,0.95,0.956,0.961,0.966,0.971,0.976,0.981,0.986,1.0];
+      for (let i = 0; i < n; i++) {
+        const frac = i / (n - 1);
+        const ci = Math.min(cumFracs.length - 2, Math.floor(frac * (cumFracs.length - 1)));
+        const t = frac * (cumFracs.length - 1) - ci;
+        const cumVal = cumFracs[ci] * (1 - t) + cumFracs[Math.min(ci + 1, cumFracs.length - 1)] * t;
+        const nextFrac = (i + 1) / (n - 1);
+        const ni = Math.min(cumFracs.length - 2, Math.floor(nextFrac * (cumFracs.length - 1)));
+        const nt = nextFrac * (cumFracs.length - 1) - ni;
+        const nextCum = cumFracs[ni] * (1 - nt) + cumFracs[Math.min(ni + 1, cumFracs.length - 1)] * nt;
+        raw[i] = Math.max(0, (nextCum - cumVal) * totalDepth / dt);
+      }
+      break;
+    }
+    case 'chicago': {
+      const r = 0.4;
+      const peakIdx = Math.floor(n * r);
+      for (let i = 0; i < n; i++) {
+        const t = Math.abs(i - peakIdx) * dt;
+        raw[i] = peak * Math.exp(-1.5 * t);
+      }
+      break;
+    }
+    case 'custom_front':
+      for (let i = 0; i < n; i++) {
+        const frac = 1 - i / (n - 1);
+        raw[i] = frac * frac * peak * 2;
+      }
+      break;
+    case 'custom_rear':
+      for (let i = 0; i < n; i++) {
+        const frac = i / (n - 1);
+        raw[i] = frac * frac * peak * 2;
+      }
+      break;
+  }
+
+  const sumRaw = raw.reduce((a, b) => a + b, 0) * dt;
+  const scale = sumRaw > 0 ? totalDepth / sumRaw : 1;
+  const result: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const t = i * dt;
+    const v = Math.max(0, raw[i] * scale);
+    if (i === 0 || i === n - 1 || v > 0.001) {
+      result.push([t, v]);
+    }
+  }
+  return result;
+}
+
 export function generateModel(config: SwmmConfig): GeneratedModel {
   const N = config.N;
   const r = RATIOS[config.type];
@@ -825,8 +934,8 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   const shapes = SHAPES[config.type];
 
   const nConduits = Math.max(N, Math.round(N * r.conduit));
-  const nSubcatch = Math.round(N * r.subcatch);
-  const nOutfalls = Math.max(1, Math.round(N * r.outfall));
+  const nSubcatch = config.numSubcatchments != null ? config.numSubcatchments : Math.round(N * r.subcatch);
+  const nOutfalls = config.numOutfalls != null ? Math.max(1, config.numOutfalls) : Math.max(1, Math.round(N * r.outfall));
   let nStorage = Math.max(0, Math.round(N * r.storage));
   const nPumps = Math.round(N * r.pump);
   if (nPumps > 0) nStorage = Math.max(nStorage, Math.max(1, Math.floor(nPumps/3)));
@@ -923,7 +1032,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   w("");
   w("[OPTIONS]");
   w(`FLOW_UNITS           ${flowUnit}`);
-  w(`INFILTRATION         HORTON`);
+  w(`INFILTRATION         ${config.infiltrationMethod}`);
   w(`FLOW_ROUTING         DYNWAVE`);
   w(`LINK_OFFSETS         DEPTH`);
   w(`FORCE_MAIN_EQUATION  H-W`);
@@ -1131,8 +1240,16 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
 
     w("[INFILTRATION]");
-    w(";;Subcatch       MaxRate    MinRate    Decay      DryTime    MaxInfil");
-    for (let i=0; i<nSubcatch; i++) w(`S${i+1}`.padEnd(17)+`${rand(2,5).toFixed(2).padEnd(11)}${rand(0.3,1).toFixed(2).padEnd(11)}${rand(3,5).toFixed(1).padEnd(11)}7          0`);
+    if (config.infiltrationMethod === 'GREEN_AMPT') {
+      w(";;Subcatch       Suction    HydCon     IMDmax");
+      for (let i=0; i<nSubcatch; i++) w(`S${i+1}`.padEnd(17)+`${rand(3,12).toFixed(2).padEnd(11)}${rand(0.01,0.5).toFixed(3).padEnd(11)}${rand(0.2,0.45).toFixed(3)}`);
+    } else if (config.infiltrationMethod === 'CURVE_NUMBER') {
+      w(";;Subcatch       CurveNo    HydCon     DryTime");
+      for (let i=0; i<nSubcatch; i++) w(`S${i+1}`.padEnd(17)+`${Math.round(rand(50,90)).toString().padEnd(11)}${rand(0.01,0.5).toFixed(3).padEnd(11)}7`);
+    } else {
+      w(";;Subcatch       MaxRate    MinRate    Decay      DryTime    MaxInfil");
+      for (let i=0; i<nSubcatch; i++) w(`S${i+1}`.padEnd(17)+`${rand(2,5).toFixed(2).padEnd(11)}${rand(0.3,1).toFixed(2).padEnd(11)}${rand(3,5).toFixed(1).padEnd(11)}7          0`);
+    }
     w("");
   }
 
@@ -1189,35 +1306,80 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   }
   w("");
 
-  if (config.type==="sanitary"||config.type==="combined"||config.type==="wos_intensive") {
+  const dwfPct = config.dwfNodePct / 100;
+  const hasDWF = dwfPct > 0 && (config.type==="sanitary"||config.type==="combined"||config.type==="wos_intensive");
+  if (hasDWF) {
     const diurnal = [0.4,0.35,0.3,0.3,0.35,0.5,0.8,1.3,1.6,1.5,1.3,1.2,1.1,1.0,1.0,1.1,1.2,1.4,1.6,1.5,1.2,0.9,0.7,0.5];
     const monthly = [1.1,1.1,1.2,1.1,1.0,0.9,0.8,0.8,0.9,1.0,1.1,1.1];
+    const weekend = [0.6,0.5,0.4,0.35,0.35,0.4,0.6,0.9,1.2,1.4,1.5,1.5,1.4,1.3,1.2,1.1,1.0,1.1,1.3,1.5,1.4,1.2,0.9,0.7];
+    const seasonal = [0.85,0.85,0.95,1.0,1.1,1.2,1.15,1.1,1.0,0.95,0.9,0.85];
     const bflows: Record<string, number> = {MGD:0.005,CFS:0.02,GPM:5,CMS:0.001,LPS:0.5};
     const base = bflows[flowUnit]||0.01;
+    const selectedPatterns = config.dwfPatterns.length > 0 ? config.dwfPatterns : ['Diurnal', 'Monthly'];
+    const patternStr = selectedPatterns.map(p => `"${p}"`).join('  ');
     w("[DWF]");
     w(";;Node           Constituent  Baseline    Patterns");
     for (const j of junctions) {
-      if (Math.random()<0.65) w(`${j.name.padEnd(17)}FLOW         ${(base*rand(0.1,5)).toFixed(6).padEnd(12)}"Diurnal"  "Monthly"`);
+      if (Math.random() < dwfPct) w(`${j.name.padEnd(17)}FLOW         ${(base*rand(0.1,5)).toFixed(6).padEnd(12)}${patternStr}`);
     }
     w("");
     w("[PATTERNS]");
     w(";;Name           Type       Multipliers");
-    w(`Diurnal          HOURLY     ${diurnal.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
-    w(`Diurnal                     ${diurnal.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
-    w(`Diurnal                     ${diurnal.slice(12,18).map(v=>v.toFixed(2)).join(' ')}`);
-    w(`Diurnal                     ${diurnal.slice(18,24).map(v=>v.toFixed(2)).join(' ')}`);
-    w(`Monthly          MONTHLY    ${monthly.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
-    w(`Monthly                     ${monthly.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
+    if (selectedPatterns.includes('Diurnal')) {
+      w(`Diurnal          HOURLY     ${diurnal.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Diurnal                     ${diurnal.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Diurnal                     ${diurnal.slice(12,18).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Diurnal                     ${diurnal.slice(18,24).map(v=>v.toFixed(2)).join(' ')}`);
+    }
+    if (selectedPatterns.includes('Monthly')) {
+      w(`Monthly          MONTHLY    ${monthly.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Monthly                     ${monthly.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
+    }
+    if (selectedPatterns.includes('Weekend')) {
+      w(`Weekend          HOURLY     ${weekend.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Weekend                     ${weekend.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Weekend                     ${weekend.slice(12,18).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Weekend                     ${weekend.slice(18,24).map(v=>v.toFixed(2)).join(' ')}`);
+    }
+    if (selectedPatterns.includes('Seasonal')) {
+      w(`Seasonal         MONTHLY    ${seasonal.slice(0,6).map(v=>v.toFixed(2)).join(' ')}`);
+      w(`Seasonal                    ${seasonal.slice(6,12).map(v=>v.toFixed(2)).join(' ')}`);
+    }
     w("");
   }
 
-  if (nGages > 0) {
+  const hasInflows = config.inflowTsPct > 0;
+  if (nGages > 0 || hasInflows) {
     w("[TIMESERIES]");
     w(";;Name           Date       Time       Value");
-    const storm: [number,number][] = [[0,0],[2,0.1],[4,0.3],[5,0.6],[5.5,1.2],[6,2.8],[6.25,4.5],[6.5,3.2],[6.75,2],[7,1.2],[7.5,0.6],[8,0.3],[9,0.1],[10,0]];
-    for (const [h,v] of storm) {
-      const hh = Math.floor(h), mm = Math.round((h-hh)*60);
-      w(`TS_Rain          01/01/2025 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}      ${v}`);
+    if (nGages > 0) {
+      const depth = config.rainfallDepth;
+      const storm = generateRainfallProfile(config.rainfallDist, depth);
+      for (const [h,v] of storm) {
+        const hh = Math.floor(h), mm = Math.round((h-hh)*60);
+        w(`TS_Rain          01/01/2025 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}      ${v.toFixed(3)}`);
+      }
+    }
+    if (hasInflows) {
+      const inflowBase = isSI ? 0.01 : 0.5;
+      const inflowPeak = inflowBase * rand(5, 20);
+      const inflowStorm: [number,number][] = [[0,inflowBase],[2,inflowBase*2],[4,inflowBase*4],[5,inflowPeak*0.5],[6,inflowPeak],[7,inflowPeak*0.7],[8,inflowPeak*0.3],[9,inflowBase*2],[10,inflowBase]];
+      for (const [h,v] of inflowStorm) {
+        const hh = Math.floor(h), mm = Math.round((h-hh)*60);
+        w(`TS_Inflow        01/01/2025 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}      ${v.toFixed(4)}`);
+      }
+    }
+    w("");
+  }
+
+  if (hasInflows) {
+    w("[INFLOWS]");
+    w(";;Node           Constituent  TimeSeries       Type     Mfactor  Sfactor  Baseline  Pattern");
+    const inflowFrac = config.inflowTsPct / 100;
+    for (const j of junctions) {
+      if (Math.random() < inflowFrac) {
+        w(`${j.name.padEnd(17)}FLOW         TS_Inflow        FLOW     1.0      ${rand(0.5,2.0).toFixed(2).padEnd(9)}0`);
+      }
     }
     w("");
   }

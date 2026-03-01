@@ -9,10 +9,10 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - All SWMM5 model generation is performed client-side in `swmm-engine.ts`
 
 ## Key Files
-- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, all constants from 1,729 real models
+- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, rainfall profile generator, all constants from 1,729 real models
 - `client/src/lib/inp-parser.ts` — Client-side INP file parser: section detection, column mapping for 40+ SWMM5 sections, descriptive statistics, histogram data
 - `client/src/lib/inp-validator.ts` — Static INP validator with auto-repair: checks orphan nodes, adverse slopes, undefined references, zero-length conduits, missing sections, duplicate IDs, unusual values
-- `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + INP Viewer + Docs), config panel with ReSWMM params, example presets, element cards, charts, stats, download, validation panel
+- `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + INP Viewer + Docs), config panel with hydrology controls, example presets, element cards, charts, stats, download, validation panel
 - `client/src/components/validation-panel.tsx` — Validation results display: status, error/warning/fix counts, stage pipeline, collapsible details, download-fixed button
 - `client/src/components/inp-viewer.tsx` — INP file viewer: drag-and-drop upload, categorized section sidebar, sortable/searchable data tables, statistics, SVG histograms, auto-validation on load
 - `client/src/components/network-canvas.tsx` — Interactive HTML5 canvas with pan/zoom/tooltips for network preview
@@ -22,6 +22,15 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 ## Features
 - 28 example SWMM5 file presets (quick-load configurations)
 - US Customary / SI Metric unit toggle with sub-labels showing unit systems
+- Configurable hydrology parameters:
+  - Number of outfalls (manual or auto from model type ratio)
+  - Number of subcatchments (manual or auto from model type ratio)
+  - DWF node percentage (0-100%, controls how many junctions get dry weather flow)
+  - DWF flow patterns (multi-select: Diurnal, Monthly, Weekend, Seasonal)
+  - Inflow time series percentage (0-100%, external inflows on junctions)
+  - Rainfall depth (configurable total depth in inches or mm)
+  - Rainfall distribution type (Uniform, Triangular, SCS Type II, Chicago, Front-Loaded, Rear-Loaded)
+  - Infiltration method (Horton, Green-Ampt, Curve Number) — affects both [OPTIONS] and [INFILTRATION] section format
 - ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
 - Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms

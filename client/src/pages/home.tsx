@@ -379,7 +379,7 @@ export default function Home() {
 
                   <div>
                     <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
-                      <span>Rainfall Depth</span>
+                      <span>Rainfall Total</span>
                       <span className="font-mono text-sm text-primary" data-testid="text-rainfall-depth">{config.rainfallDepth.toFixed(1)} {config.units === "SI" ? "mm" : "in"}</span>
                     </div>
                     <Slider
@@ -387,6 +387,19 @@ export default function Home() {
                       onValueChange={([v]) => update({ rainfallDepth: v })}
                       data-testid="slider-rainfall-depth"
                     />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
+                      <span>Rainfall Duration</span>
+                      <span className="font-mono text-sm text-primary" data-testid="text-rainfall-duration">{config.rainfallDuration.toFixed(1)} hr</span>
+                    </div>
+                    <Slider
+                      min={0.5} max={72} step={0.5} value={[config.rainfallDuration]}
+                      onValueChange={([v]) => update({ rainfallDuration: v })}
+                      data-testid="slider-rainfall-duration"
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">Storm event length — simulation runs ~{Math.max(24, Math.ceil(config.rainfallDuration * 3))} hr total</p>
                   </div>
 
                   <div>

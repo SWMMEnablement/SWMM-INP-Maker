@@ -48,6 +48,7 @@ export const DEFAULT_HYDROLOGY = {
   dwfPatterns: ['Diurnal', 'Monthly'] as string[],
   inflowTsPct: 0,
   rainfallDepth: 2.0,
+  rainfallDuration: 6.0,
   rainfallDist: 'scs_type_ii' as RainfallDistribution,
   infiltrationMethod: 'HORTON' as InfiltrationMethod,
 };
@@ -67,6 +68,7 @@ export interface SwmmConfig {
   dwfPatterns: string[];
   inflowTsPct: number;
   rainfallDepth: number;
+  rainfallDuration: number;
   rainfallDist: RainfallDistribution;
   infiltrationMethod: InfiltrationMethod;
 }
@@ -856,9 +858,8 @@ function buildDendriticGraph(
   return { allNodes, edges, accumUpstream };
 }
 
-function generateRainfallProfile(dist: RainfallDistribution, totalDepth: number): [number, number][] {
-  const dt = 0.25;
-  const duration = 10;
+function generateRainfallProfile(dist: RainfallDistribution, totalDepth: number, duration: number): [number, number][] {
+  const dt = Math.max(0.05, duration / 40);
   const n = Math.round(duration / dt) + 1;
   const raw: number[] = new Array(n).fill(0);
   const peak = totalDepth / (duration * 0.3);
@@ -1038,10 +1039,14 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   w(`FORCE_MAIN_EQUATION  H-W`);
   w(`ALLOW_PONDING        YES`);
   w(`MIN_SLOPE            0.001`);
+  const simHours = Math.max(24, Math.ceil(config.rainfallDuration * 3));
+  const endDays = Math.floor(simHours / 24);
+  const endHH = simHours % 24;
+  const endDate = endDays === 0 ? "01/01/2025" : endDays === 1 ? "01/02/2025" : `01/${String(1 + endDays).padStart(2,'0')}/2025`;
   w(`START_DATE           01/01/2025`);
   w(`START_TIME           00:00:00`);
-  w(`END_DATE             01/02/2025`);
-  w(`END_TIME             12:00:00`);
+  w(`END_DATE             ${endDate}`);
+  w(`END_TIME             ${String(endHH).padStart(2,'0')}:00:00`);
   w(`REPORT_START_DATE    01/01/2025`);
   w(`REPORT_START_TIME    00:00:00`);
   const step = N>5000?"00:00:15":"00:00:30";
@@ -1354,7 +1359,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w(";;Name           Date       Time       Value");
     if (nGages > 0) {
       const depth = config.rainfallDepth;
-      const storm = generateRainfallProfile(config.rainfallDist, depth);
+      const storm = generateRainfallProfile(config.rainfallDist, depth, config.rainfallDuration);
       for (const [h,v] of storm) {
         const hh = Math.floor(h), mm = Math.round((h-hh)*60);
         w(`TS_Rain          01/01/2025 ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}      ${v.toFixed(3)}`);

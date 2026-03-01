@@ -23,9 +23,18 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - Comprehensive stats panel after generation
 
 ## Theme
-- Dark mode only (class="dark" on html)
-- Water engineering theme: deep navy background, sky blue primary (#38bdf8), indigo (#818cf8), emerald (#34d399)
+- Dark/light mode toggle with localStorage persistence (key: "swmm-theme")
+- ThemeProvider in `client/src/components/theme-provider.tsx` manages the "dark" class on `<html>`
+- Inline script in `client/index.html` applies stored theme before React mounts (no flash)
+- Water engineering theme: deep navy background (dark), sky blue primary (#38bdf8), indigo (#818cf8), emerald (#34d399)
 - Fonts: DM Sans (sans), Playfair Display (serif for titles), JetBrains Mono (mono)
+- Canvas components (network, profile) are theme-aware and redraw on theme change
+
+## Onboarding
+- 6-step animated walkthrough overlay for first-time visitors
+- Component: `client/src/components/onboarding.tsx`
+- State stored in localStorage key "swmm-onboarding-complete"
+- Can be re-triggered via the help (?) button in the header
 
 ## Tech Stack
 - React + TypeScript + Vite

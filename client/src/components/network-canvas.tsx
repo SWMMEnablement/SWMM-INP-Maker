@@ -1,11 +1,13 @@
 import { useRef, useEffect, useCallback } from "react";
 import type { NetData } from "@/lib/swmm-engine";
+import { useTheme } from "@/components/theme-provider";
 
 interface NetworkCanvasProps {
   netData: NetData;
 }
 
 export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
+  const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewRef = useRef({ ox: 0, oy: 0, scale: 1, dragging: false, lx: 0, ly: 0 });
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -100,7 +102,7 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
     }
 
     ctx.restore();
-  }, [netData]);
+  }, [netData, theme]);
 
   useEffect(() => {
     viewRef.current = { ox: 0, oy: 0, scale: 1, dragging: false, lx: 0, ly: 0 };
@@ -230,7 +232,7 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
         <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-sm" style={{ background: "#34d399" }} /> Conduit</span>
         <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-sm" style={{ background: "#f472b6" }} /> Has offset</span>
       </div>
-      <div className="relative rounded-lg border border-border" style={{ background: "#080c14" }}>
+      <div className="relative rounded-lg border border-border bg-[#f5f7fa] dark:bg-[#080c14]">
         <canvas
           ref={canvasRef}
           width={900}
@@ -240,8 +242,7 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
         />
         <div
           ref={tooltipRef}
-          className="hidden absolute pointer-events-none rounded-md border border-border/50 px-2.5 py-1.5 font-mono text-[11px] text-foreground z-10"
-          style={{ background: "rgba(10,14,23,0.92)" }}
+          className="hidden absolute pointer-events-none rounded-md border border-border/50 px-2.5 py-1.5 font-mono text-[11px] text-foreground z-10 bg-white/95 dark:bg-[#0a0e17]/95 backdrop-blur-lg"
         />
       </div>
       <div className="flex justify-between items-center mt-2.5">

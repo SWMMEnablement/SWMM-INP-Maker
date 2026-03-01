@@ -1,12 +1,14 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import type { ProfileData } from "@/lib/swmm-engine";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTheme } from "@/components/theme-provider";
 
 interface ProfileCanvasProps {
   profiles: ProfileData[];
 }
 
 export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
+  const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -27,7 +29,8 @@ export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
     const W = rect.width;
     const H = rect.height;
 
-    ctx.fillStyle = "#0a0e1a";
+    const isDark = document.documentElement.classList.contains("dark");
+    ctx.fillStyle = isDark ? "#0a0e1a" : "#f5f7fa";
     ctx.fillRect(0, 0, W, H);
 
     const { nodes, conduits } = profile;
@@ -59,11 +62,11 @@ export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
     const xScale = (station: number) => marginLeft + (station / maxStation) * plotW;
     const yScale = (elev: number) => marginTop + plotH - ((elev - minElev) / (maxElev - minElev)) * plotH;
 
-    ctx.strokeStyle = "rgba(56,189,248,0.08)";
+    ctx.strokeStyle = isDark ? "rgba(56,189,248,0.08)" : "rgba(56,189,248,0.15)";
     ctx.lineWidth = 0.5;
     const nGridY = 8;
     const elevStep = (maxElev - minElev) / nGridY;
-    ctx.fillStyle = "rgba(148,163,184,0.5)";
+    ctx.fillStyle = isDark ? "rgba(148,163,184,0.5)" : "rgba(30,41,59,0.6)";
     ctx.font = "10px 'JetBrains Mono', monospace";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
@@ -91,7 +94,7 @@ export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
       ctx.fillText(s.toFixed(0), x, marginTop + plotH + 6);
     }
 
-    ctx.fillStyle = "rgba(148,163,184,0.7)";
+    ctx.fillStyle = isDark ? "rgba(148,163,184,0.7)" : "rgba(30,41,59,0.7)";
     ctx.font = "11px 'DM Sans', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(`Station (${profile.unitLabel})`, marginLeft + plotW / 2, H - 8);
@@ -103,7 +106,7 @@ export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
     ctx.fillText(`Elevation (${profile.unitLabel})`, 0, 0);
     ctx.restore();
 
-    ctx.strokeStyle = "rgba(56,189,248,0.2)";
+    ctx.strokeStyle = isDark ? "rgba(56,189,248,0.2)" : "rgba(56,189,248,0.35)";
     ctx.lineWidth = 1;
     ctx.strokeRect(marginLeft, marginTop, plotW, plotH);
 
@@ -228,7 +231,7 @@ export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
       ctx.fillText(item.label, lx + 18, legendY + 5);
       lx += ctx.measureText(item.label).width + 30;
     }
-  }, [profile]);
+  }, [profile, theme]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -309,7 +312,7 @@ export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
           </Select>
         </div>
       )}
-      <div className="relative rounded-lg overflow-hidden border border-border" style={{ background: "#0a0e1a" }}>
+      <div className="relative rounded-lg overflow-hidden border border-border bg-[#f5f7fa] dark:bg-[#0a0e1a]">
         <canvas
           ref={canvasRef}
           className="w-full"
@@ -320,13 +323,7 @@ export default function ProfileCanvas({ profiles }: ProfileCanvasProps) {
         />
         <div
           ref={tooltipRef}
-          className="absolute pointer-events-none hidden rounded-lg border px-3 py-2 text-[11px] leading-snug font-mono z-20"
-          style={{
-            background: "rgba(10,14,26,0.95)",
-            borderColor: "rgba(56,189,248,0.3)",
-            color: "#94a3b8",
-            backdropFilter: "blur(8px)",
-          }}
+          className="absolute pointer-events-none hidden rounded-lg border px-3 py-2 text-[11px] leading-snug font-mono z-20 text-[#334155] dark:text-[#94a3b8] bg-white/95 dark:bg-[#0a0e1a]/95 border-[rgba(56,189,248,0.3)] backdrop-blur-lg"
         />
       </div>
     </div>

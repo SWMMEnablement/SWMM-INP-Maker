@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Droplets, Download, Copy, Check, ChevronDown, Loader2 } from "lucide-react";
+import { Droplets, Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -9,6 +9,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from "@/hooks/use-toast";
 import NetworkCanvas from "@/components/network-canvas";
 import ProfileCanvas from "@/components/profile-canvas";
+import Onboarding, { useOnboarding } from "@/components/onboarding";
+import { useTheme } from "@/components/theme-provider";
 import {
   type SwmmConfig, type ModelType, type TerrainType, type DetailLevel, type LandUseType,
   type DiscretizationMethod, type GeneratedModel,
@@ -53,6 +55,8 @@ function ToggleGroup({ options, value, onChange, testId }: { options: { label: s
 
 export default function Home() {
   const { toast } = useToast();
+  const { theme, toggle: toggleTheme } = useTheme();
+  const { showOnboarding, dismissOnboarding, resetOnboarding } = useOnboarding();
   const [config, setConfig] = useState<SwmmConfig>({
     N: 1000, type: "sanitary", units: "US", terrain: "moderate",
     detail: "moderate", landUse: "mixed", outfallElev: 0,
@@ -133,7 +137,7 @@ export default function Home() {
           }}>
             <Droplets className="w-9 h-9 text-white" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1
               className="font-serif text-4xl sm:text-5xl font-bold tracking-tight bg-clip-text text-transparent animate-shimmer"
               style={{
@@ -152,6 +156,24 @@ export default function Home() {
               <span className="w-1.5 h-1.5 rounded-full bg-chart-3 animate-pulse" />
               3,009,909 elements | 1,268,875 cross-sections | 22 pipe shapes
             </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-end">
+            <button
+              onClick={resetOnboarding}
+              className="p-2 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all"
+              title="Show tour"
+              data-testid="button-show-tour"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              data-testid="button-toggle-theme"
+            >
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
           </div>
         </header>
 
@@ -1047,6 +1069,8 @@ export default function Home() {
           ReSWMM Discretization Tool &middot; Robson Leo Pachaly (2018) &middot; Vasconcelos et al. (2018)
         </footer>
       </div>
+
+      {showOnboarding && <Onboarding onComplete={dismissOnboarding} />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Droplets, Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, HelpCircle, FileSearch } from "lucide-react";
+import { Droplets, Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, HelpCircle, FileSearch, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -12,6 +12,8 @@ import ProfileCanvas from "@/components/profile-canvas";
 import InpViewer from "@/components/inp-viewer";
 import Onboarding, { useOnboarding } from "@/components/onboarding";
 import { useTheme } from "@/components/theme-provider";
+import ValidationPanel from "@/components/validation-panel";
+import { validateInp, type ValidationResult } from "@/lib/inp-validator";
 import {
   type SwmmConfig, type ModelType, type TerrainType, type DetailLevel, type LandUseType,
   type DiscretizationMethod, type GeneratedModel,
@@ -68,6 +70,7 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("generator");
   const [viewerInpText, setViewerInpText] = useState<{ text: string; name: string } | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
 
   const elements = useMemo(() => compute(config), [config]);
   const sections = useMemo(() => getSections(elements, config), [elements, config]);
@@ -89,11 +92,17 @@ export default function Home() {
 
   const handleGenerate = useCallback(() => {
     setGenerating(true);
+    setValidation(null);
     setTimeout(() => {
       try {
         const model = generateModel(config);
         setResult(model);
-        toast({ title: "Model generated", description: `${fmt(model.stats.totalElements)} elements, ${model.stats.fileSize}` });
+        const vResult = validateInp(model.inpText, true);
+        setValidation(vResult);
+        const desc = vResult.valid
+          ? `${fmt(model.stats.totalElements)} elements, ${model.stats.fileSize} — all checks passed`
+          : `${fmt(model.stats.totalElements)} elements — ${vResult.errors.length} errors, ${vResult.warnings.length} warnings`;
+        toast({ title: "Model generated", description: desc });
       } catch (err: unknown) {
         toast({ title: "Generation failed", description: (err as Error).message, variant: "destructive" });
       } finally {
@@ -123,6 +132,17 @@ export default function Home() {
       toast({ title: "Copy failed", description: "Use Download instead", variant: "destructive" });
     }
   }, [result, toast]);
+
+  const handleDownloadFixed = useCallback(() => {
+    if (!validation?.fixedInp || !result) return;
+    const blob = new Blob([validation.fixedInp], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = result.stats.fileName.replace(".inp", "_fixed.inp");
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }, [validation, result]);
 
   const s = result?.stats;
 
@@ -246,12 +266,26 @@ export default function Home() {
 
                   <div>
                     <label className="text-xs font-semibold block mb-2">Units</label>
-                    <ToggleGroup
-                      testId="units"
-                      value={config.units}
-                      onChange={(v) => update({ units: v as "US" | "SI" })}
-                      options={[{ label: "US Customary", value: "US" }, { label: "SI Metric", value: "SI" }]}
-                    />
+                    <div className="flex gap-1.5" data-testid="units">
+                      {[
+                        { value: "US", label: "US Customary", sub: "ft, in, MGD/CFS" },
+                        { value: "SI", label: "SI Metric", sub: "m, mm, LPS/CMS" },
+                      ].map((o) => (
+                        <button
+                          key={o.value}
+                          data-testid={`toggle-units-${o.value}`}
+                          onClick={() => update({ units: o.value as "US" | "SI" })}
+                          className={`flex-1 py-2.5 px-2 rounded-md border text-center transition-all ${
+                            config.units === o.value
+                              ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
+                              : "border-border bg-card text-muted-foreground hover:border-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <div className="text-xs font-bold">{o.label}</div>
+                          <div className="text-[10px] font-mono opacity-70 mt-0.5">{o.sub}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -432,6 +466,13 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+
+                  {validation && result && !generating && (
+                    <ValidationPanel
+                      result={validation}
+                      onDownloadFixed={validation.fixedInp ? handleDownloadFixed : undefined}
+                    />
+                  )}
 
                   {s && (
                     <div data-testid="stats-panel">
@@ -675,6 +716,7 @@ export default function Home() {
                   <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground">
                     <p>The <strong>SWMM5 INP MAKER</strong> creates realistic synthetic EPA SWMM5 <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">.inp</code> files of any size using a physics-based force-directed network synthesis engine. Every parameter, probability, and distribution is derived from statistical analysis of <strong>1,729 real-world models</strong> containing <strong>15,394,727 elements</strong> and <strong>6,489,951 cross-sections</strong>.</p>
                     <p className="mt-3">Instead of random placement, the generator uses a <strong>Barnes-Hut quadtree</strong> particle simulation where nodes settle along terrain flow paths via gravitational pull, inter-particle repulsion, and outfall attraction &mdash; producing naturally dendritic drainage networks.</p>
+                    <p className="mt-3">Every generated file is automatically validated by a built-in <strong>static analysis engine</strong> that checks for orphan nodes, adverse slopes, undefined references, zero-length conduits, and more &mdash; with auto-repair applied before download.</p>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -698,6 +740,62 @@ export default function Home() {
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Phase 3 &mdash; Parameter Assignment</h4>
                       <p>DEM elevations map to the user's terrain range. Pipe diameters scale with upstream accumulation count. The 1,729-model rules engine assigns offsets, shapes, roughness, DWF, pump curves, and controls.</p>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="validation" className="border-border bg-card rounded-lg mb-4 border">
+                  <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
+                    <span className="font-serif text-xl text-card-foreground">INP Validation &amp; Auto-Repair</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-4">
+                    <p>Every generated <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">.inp</code> file is automatically validated before download. The built-in <strong>static analysis engine</strong> catches the most common causes of SWMM5 simulation failures without requiring a full engine run.</p>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">What Gets Checked</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Check</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Severity</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Auto-Fix</th>
+                          </tr></thead>
+                          <tbody>
+                            {[
+                              ["All referenced nodes exist","Error","--"],
+                              ["Outfall present","Error","--"],
+                              ["OPTIONS section present","Error","--"],
+                              ["No zero-length conduits","Error","Set min 10 ft/m"],
+                              ["No zero/negative max depth","Error","Set default 4 ft"],
+                              ["Adverse slopes (downstream > upstream)","Warning","Lower downstream invert"],
+                              ["Very flat slopes (< 0.01%)","Warning","--"],
+                              ["Undefined curve references","Error","--"],
+                              ["Undefined pattern references","Warning","--"],
+                              ["Orphan/disconnected nodes","Warning","--"],
+                              ["Duplicate element IDs","Error","--"],
+                              ["Unusual Manning's n values","Warning","Reset to 0.013"],
+                              ["Unusual invert elevations","Warning","--"],
+                            ].map(([c,s,f]) => (
+                              <tr key={c} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border">{c}</td>
+                                <td className={`p-2 border border-border font-medium ${s==="Error" ? "text-red-400" : "text-amber-400"}`}>{s}</td>
+                                <td className="p-2 border border-border font-mono text-muted-foreground">{f}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Validation Pipeline</h4>
+                      <ol className="list-decimal pl-5 space-y-1.5">
+                        <li><strong>Static Analysis</strong> &mdash; Parses the INP and checks all cross-references, slope consistency, depth values, and section completeness.</li>
+                        <li><strong>Auto-Repair</strong> &mdash; Fixable issues (zero depths, adverse slopes, unusual roughness) are automatically corrected. The fixed INP is available as a separate download.</li>
+                        <li><strong>Engine Validation</strong> &mdash; (Future) Embed WASM SWMM 5.2.4 for full simulation validation with continuity error reporting.</li>
+                      </ol>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">INP Viewer Validation</h4>
+                      <p>The INP Viewer tab also includes a <strong>Validate</strong> button that runs the same static analysis on any uploaded <code className="font-mono text-xs bg-muted px-1.5 rounded text-chart-3">.inp</code> file &mdash; useful for checking third-party models before simulation.</p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -744,7 +842,7 @@ export default function Home() {
 
                 <AccordionItem value="offsets" className="border-border bg-card rounded-lg mb-4 border">
                   <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
-                    <span className="font-serif text-xl text-card-foreground">Offset Algorithm (1.2M conduits)</span>
+                    <span className="font-serif text-xl text-card-foreground">Offset Algorithm (6M conduits)</span>
                   </AccordionTrigger>
                   <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground">
                     <div className="overflow-x-auto">
@@ -913,7 +1011,7 @@ export default function Home() {
                     </div>
 
                     <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Cross-Section Shape Distribution (1,268,875 total)</h4>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">Cross-Section Shape Distribution (6,489,951 total)</h4>
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs border-collapse">
                           <thead><tr className="bg-muted">
@@ -1069,8 +1167,8 @@ export default function Home() {
                   </AccordionTrigger>
                   <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground">
                     <p><strong>SWMM5 INP MAKER Author:</strong> Robert Dickinson &mdash; <a href="https://swmm5.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMM5.org</a> &mdash; February 2026</p>
-                    <p className="mt-2"><strong>Data:</strong> <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMMEnablement/1729-SWMM5-Models</a></p>
-                    <p className="mt-2"><strong>Algorithms:</strong> Barnes-Hut (Barnes &amp; Hut, 1986) &middot; fBm terrain (Perlin) &middot; Steepest-descent dendritic construction</p>
+                    <p className="mt-2"><strong>Data:</strong> <a href="https://github.com/SWMMEnablement/1729-SWMM5-Models" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">SWMMEnablement/1729-SWMM5-Models</a> &mdash; 1,729 real-world models, 15,394,727 elements, 6,489,951 cross-sections</p>
+                    <p className="mt-2"><strong>Algorithms:</strong> Barnes-Hut (Barnes &amp; Hut, 1986) &middot; fBm terrain (Perlin) &middot; Steepest-descent dendritic construction &middot; Static INP validation with auto-repair</p>
                     <p className="mt-4 pt-3 border-t border-border"><strong>ReSWMM &mdash; SWMM Conduit Discretization Tool:</strong> Robson Leo Pachaly (<a href="mailto:robsonleopachaly@yahoo.com.br" className="text-primary hover:underline">robsonleopachaly@yahoo.com.br</a>), started April 2018 &mdash; VB.NET (Windows Forms). Discretizes long conduits using CFL-based analysis and Fixed Interval or &Delta;x/D methods for improved SWMM dynamic wave stability.</p>
                     <p className="mt-2"><strong>Reference:</strong> Vasconcelos, J. G. et al. (2018) &mdash; Conservative time step recommendation (10% of standard CFL value) used in ReSWMM analysis.</p>
                   </AccordionContent>

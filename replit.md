@@ -9,20 +9,24 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - All SWMM5 model generation is performed client-side in `swmm-engine.ts`
 
 ## Key Files
-- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, all constants from 338 real models
+- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, all constants from 1,729 real models
 - `client/src/lib/inp-parser.ts` — Client-side INP file parser: section detection, column mapping for 40+ SWMM5 sections, descriptive statistics, histogram data
-- `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + INP Viewer + Docs), config panel with ReSWMM params, example presets, element cards, charts, stats, download
-- `client/src/components/inp-viewer.tsx` — INP file viewer: drag-and-drop upload, categorized section sidebar, sortable/searchable data tables, statistics, SVG histograms
+- `client/src/lib/inp-validator.ts` — Static INP validator with auto-repair: checks orphan nodes, adverse slopes, undefined references, zero-length conduits, missing sections, duplicate IDs, unusual values
+- `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + INP Viewer + Docs), config panel with ReSWMM params, example presets, element cards, charts, stats, download, validation panel
+- `client/src/components/validation-panel.tsx` — Validation results display: status, error/warning/fix counts, stage pipeline, collapsible details, download-fixed button
+- `client/src/components/inp-viewer.tsx` — INP file viewer: drag-and-drop upload, categorized section sidebar, sortable/searchable data tables, statistics, SVG histograms, auto-validation on load
 - `client/src/components/network-canvas.tsx` — Interactive HTML5 canvas with pan/zoom/tooltips for network preview
 - `client/src/components/profile-canvas.tsx` — Longitudinal profile canvas showing invert/crown elevations from outfall to upstream
 - `client/src/App.tsx` — Router setup (single page at `/`)
 
 ## Features
-- 12 example SWMM5 file presets (quick-load configurations)
+- 28 example SWMM5 file presets (quick-load configurations)
+- US Customary / SI Metric unit toggle with sub-labels showing unit systems
 - ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
-- Longitudinal profile view (outfall → upstream, invert + crown lines, tooltips)
+- Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms
-- SWMM5 real-world statistics from 338 models in docs tab
+- Static INP validation with auto-repair: runs automatically after generation and on file upload in viewer
+- SWMM5 real-world statistics from 1,729 models (15.4M elements) in docs tab
 - Comprehensive stats panel after generation
 
 ## Theme

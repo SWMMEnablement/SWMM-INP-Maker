@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download } from "lucide-react";
+import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import {
   type ParsedInpFile, type ParsedSection, type SectionStats,
   parseInpFile, computeSectionStats, getNumericColumns, formatFileSize,
 } from "@/lib/inp-parser";
+import { validateInp, type ValidationResult } from "@/lib/inp-validator";
+import ValidationPanelComponent from "@/components/validation-panel";
 
 const SECTION_ICONS: Record<string, string> = {
   TITLE: "📄", OPTIONS: "⚙️", RAINGAGES: "🌧️",
@@ -228,6 +230,8 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
   const [chartCol, setChartCol] = useState<number>(0);
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [dragOver, setDragOver] = useState(false);
+  const [viewerValidation, setViewerValidation] = useState<ValidationResult | null>(null);
+  const [rawInpText, setRawInpText] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadText = useCallback((text: string, name: string) => {
@@ -238,6 +242,9 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
     setSortCol(null);
     setSearchTerm("");
     setExpandedCats(new Set(Object.keys(SECTION_CATEGORIES)));
+    setRawInpText(text);
+    const v = validateInp(text, true);
+    setViewerValidation(v);
   }, []);
 
   useEffect(() => {
@@ -383,6 +390,19 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
           <Button
             variant="outline"
             size="sm"
+            onClick={() => {
+              if (rawInpText) {
+                const v = validateInp(rawInpText, true);
+                setViewerValidation(v);
+              }
+            }}
+            data-testid="button-validate-viewer"
+          >
+            <Shield className="w-3.5 h-3.5 mr-1" /> Re-validate
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => fileInputRef.current?.click()}
             data-testid="button-open-another"
           >
@@ -397,6 +417,10 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
           />
         </div>
       </div>
+
+      {viewerValidation && (
+        <ValidationPanelComponent result={viewerValidation} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">
         <Card className="border-border bg-card overflow-hidden lg:sticky lg:top-6">

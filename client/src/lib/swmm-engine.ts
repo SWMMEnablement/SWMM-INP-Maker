@@ -1,10 +1,16 @@
+import { generateHortonStrahler, generateLSystem, generateSpaceColonization, generateMST } from './generators';
+import { RAIN_CANVAS_CATALOG, rainCanvasToSwmmTimeseries, mapLegacyDistribution, getPatternName } from './rain-canvas';
+export { RAIN_CANVAS_CATALOG } from './rain-canvas';
+
 export type ModelType = 'sanitary' | 'stormwater' | 'combined' | 'transport_only' | 'rdii_calibration' | 'pump_intensive' | 'wos_intensive';
 export type TerrainType = 'flat' | 'moderate' | 'hilly' | 'mountainous';
 export type DetailLevel = 'basic' | 'moderate' | 'detailed';
 export type LandUseType = 'mixed' | 'residential' | 'commercial' | 'industrial';
 export type DiscretizationMethod = 'none' | 'fixed_interval' | 'dx_d_ratio';
 export type InfiltrationMethod = 'HORTON' | 'GREEN_AMPT' | 'CURVE_NUMBER';
-export type RainfallDistribution = 'uniform' | 'triangular' | 'scs_type_ii' | 'chicago' | 'custom_front' | 'custom_rear';
+export type RainfallDistribution = string;
+export type GenerationMethod = 'force_directed' | 'horton_strahler' | 'l_system' | 'space_colonization' | 'mst';
+export type LSystemVariant = 'dendritic' | 'grid' | 'radial';
 
 export interface ReswmmConfig {
   enabled: boolean;
@@ -26,19 +32,28 @@ export const DEFAULT_RESWMM: ReswmmConfig = {
 
 export const DWF_PATTERN_OPTIONS = ['Diurnal', 'Monthly', 'Weekend', 'Seasonal'] as const;
 
-export const RAINFALL_DIST_LABELS: Record<RainfallDistribution, string> = {
-  uniform: 'Uniform',
-  triangular: 'Triangular',
-  scs_type_ii: 'SCS Type II',
-  chicago: 'Chicago',
-  custom_front: 'Front-Loaded',
-  custom_rear: 'Rear-Loaded',
-};
+export const RAINFALL_DIST_LABELS: Record<string, string> = Object.fromEntries(
+  RAIN_CANVAS_CATALOG.flatMap(c => c.patterns.map(p => [p.id, p.name]))
+);
 
 export const INFILTRATION_LABELS: Record<InfiltrationMethod, string> = {
   HORTON: 'Horton',
   GREEN_AMPT: 'Green-Ampt',
   CURVE_NUMBER: 'Curve Number',
+};
+
+export const GENERATION_METHOD_LABELS: Record<GenerationMethod, string> = {
+  force_directed: 'Force-Directed (Barnes-Hut)',
+  horton_strahler: 'Horton-Strahler Branching',
+  l_system: 'L-System Grammar',
+  space_colonization: 'Space Colonization',
+  mst: 'Minimum Spanning Tree',
+};
+
+export const L_SYSTEM_VARIANT_LABELS: Record<LSystemVariant, string> = {
+  dendritic: 'Dendritic',
+  grid: 'Grid',
+  radial: 'Radial',
 };
 
 export const DEFAULT_HYDROLOGY = {
@@ -49,8 +64,10 @@ export const DEFAULT_HYDROLOGY = {
   inflowTsPct: 0,
   rainfallDepth: 2.0,
   rainfallDuration: 6.0,
-  rainfallDist: 'scs_type_ii' as RainfallDistribution,
+  rainfallDist: 'scs-type-ii' as RainfallDistribution,
   infiltrationMethod: 'HORTON' as InfiltrationMethod,
+  generationMethod: 'force_directed' as GenerationMethod,
+  lSystemVariant: 'dendritic' as LSystemVariant,
 };
 
 export interface SwmmConfig {
@@ -71,6 +88,8 @@ export interface SwmmConfig {
   rainfallDuration: number;
   rainfallDist: RainfallDistribution;
   infiltrationMethod: InfiltrationMethod;
+  generationMethod: GenerationMethod;
+  lSystemVariant: LSystemVariant;
 }
 
 export interface ComputedElements {
@@ -419,6 +438,36 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
     description: "Ultra-flat pump-heavy model — 500 junctions, industrial, pumps lift flow to outfall",
     config: { N: 500, type: "pump_intensive", units: "US", terrain: "flat", detail: "moderate", landUse: "industrial", outfallElev: -2, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Pumps", "Flat"],
+  },
+  {
+    name: "Horton-Strahler Branching (Medium)",
+    description: "Recursive branching network using Horton-Strahler ordering — 400 junctions, hilly terrain",
+    config: { N: 400, type: "stormwater", units: "US", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, generationMethod: 'horton_strahler' as GenerationMethod },
+    tags: ["Horton-Strahler", "Branching"],
+  },
+  {
+    name: "L-System Dendritic (Small)",
+    description: "L-System grammar-based dendritic network — 200 junctions, moderate terrain",
+    config: { N: 200, type: "sanitary", units: "US", terrain: "moderate", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, generationMethod: 'l_system' as GenerationMethod, lSystemVariant: 'dendritic' as LSystemVariant },
+    tags: ["L-System", "Dendritic"],
+  },
+  {
+    name: "L-System Grid Pattern",
+    description: "L-System grammar with grid variant — 300 junctions, flat terrain, commercial",
+    config: { N: 300, type: "combined", units: "US", terrain: "flat", detail: "moderate", landUse: "commercial", outfallElev: 2, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, generationMethod: 'l_system' as GenerationMethod, lSystemVariant: 'grid' as LSystemVariant },
+    tags: ["L-System", "Grid"],
+  },
+  {
+    name: "Space Colonization (Large)",
+    description: "Organic branching via space colonization — 800 junctions, moderate terrain, mixed land use",
+    config: { N: 800, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, generationMethod: 'space_colonization' as GenerationMethod },
+    tags: ["Space Colonization", "Organic"],
+  },
+  {
+    name: "Minimum Spanning Tree (MST)",
+    description: "MST-based network with Poisson disk sampling — 500 junctions, hilly terrain, SI units",
+    config: { N: 500, type: "combined", units: "SI", terrain: "hilly", detail: "moderate", landUse: "mixed", outfallElev: 15, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, generationMethod: 'mst' as GenerationMethod },
+    tags: ["MST", "SI"],
   },
   {
     name: "Mixed Use Moderate (Template)",
@@ -859,71 +908,9 @@ function buildDendriticGraph(
 }
 
 function generateRainfallProfile(dist: RainfallDistribution, totalDepth: number, duration: number): [number, number][] {
-  const dt = Math.max(0.05, duration / 40);
-  const n = Math.round(duration / dt) + 1;
-  const raw: number[] = new Array(n).fill(0);
-  const peak = totalDepth / (duration * 0.3);
-
-  switch (dist) {
-    case 'uniform':
-      for (let i = 0; i < n; i++) raw[i] = totalDepth / duration;
-      break;
-    case 'triangular': {
-      const peakIdx = Math.floor(n * 0.4);
-      for (let i = 0; i < n; i++) {
-        raw[i] = i <= peakIdx ? (i / peakIdx) * peak : peak * (1 - (i - peakIdx) / (n - peakIdx));
-      }
-      break;
-    }
-    case 'scs_type_ii': {
-      const cumFracs = [0,0.011,0.022,0.035,0.048,0.063,0.08,0.098,0.12,0.147,0.181,0.235,0.283,0.387,0.663,0.735,0.772,0.799,0.82,0.838,0.854,0.868,0.88,0.891,0.90,0.906,0.913,0.92,0.926,0.932,0.938,0.944,0.95,0.956,0.961,0.966,0.971,0.976,0.981,0.986,1.0];
-      for (let i = 0; i < n; i++) {
-        const frac = i / (n - 1);
-        const ci = Math.min(cumFracs.length - 2, Math.floor(frac * (cumFracs.length - 1)));
-        const t = frac * (cumFracs.length - 1) - ci;
-        const cumVal = cumFracs[ci] * (1 - t) + cumFracs[Math.min(ci + 1, cumFracs.length - 1)] * t;
-        const nextFrac = (i + 1) / (n - 1);
-        const ni = Math.min(cumFracs.length - 2, Math.floor(nextFrac * (cumFracs.length - 1)));
-        const nt = nextFrac * (cumFracs.length - 1) - ni;
-        const nextCum = cumFracs[ni] * (1 - nt) + cumFracs[Math.min(ni + 1, cumFracs.length - 1)] * nt;
-        raw[i] = Math.max(0, (nextCum - cumVal) * totalDepth / dt);
-      }
-      break;
-    }
-    case 'chicago': {
-      const r = 0.4;
-      const peakIdx = Math.floor(n * r);
-      for (let i = 0; i < n; i++) {
-        const t = Math.abs(i - peakIdx) * dt;
-        raw[i] = peak * Math.exp(-1.5 * t);
-      }
-      break;
-    }
-    case 'custom_front':
-      for (let i = 0; i < n; i++) {
-        const frac = 1 - i / (n - 1);
-        raw[i] = frac * frac * peak * 2;
-      }
-      break;
-    case 'custom_rear':
-      for (let i = 0; i < n; i++) {
-        const frac = i / (n - 1);
-        raw[i] = frac * frac * peak * 2;
-      }
-      break;
-  }
-
-  const sumRaw = raw.reduce((a, b) => a + b, 0) * dt;
-  const scale = sumRaw > 0 ? totalDepth / sumRaw : 1;
-  const result: [number, number][] = [];
-  for (let i = 0; i < n; i++) {
-    const t = i * dt;
-    const v = Math.max(0, raw[i] * scale);
-    if (i === 0 || i === n - 1 || v > 0.001) {
-      result.push([t, v]);
-    }
-  }
-  return result;
+  const patternId = mapLegacyDistribution(dist);
+  const timestep = Math.max(5, Math.round(duration * 60 / 40));
+  return rainCanvasToSwmmTimeseries(patternId, totalDepth, duration, timestep);
 }
 
 export function generateModel(config: SwmmConfig): GeneratedModel {
@@ -970,8 +957,30 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   }
 
   const dem = new TerrainDEM(domain, domain, config.terrain, outfallPositions, Math.random()*999);
-  const simResult = runParticleSimulation(N, dem, domain, outfallPositions, config.terrain);
-  const graph = buildDendriticGraph(simResult.junctionParticles, simResult.outfallParticles, dem, domain);
+  const elevFn = (x: number, y: number) => dem.elevationAt(x, y);
+
+  let graph: { allNodes: { x: number; y: number; name: string; type: string; idx: number; elev: number; }[]; edges: { from: { x: number; y: number; name: string; type: string; idx: number; elev: number; }; to: { x: number; y: number; name: string; type: string; idx: number; elev: number; }; length: number; }[]; accumUpstream: Record<string, number> };
+
+  switch (config.generationMethod) {
+    case 'horton_strahler':
+      graph = generateHortonStrahler(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'l_system':
+      graph = generateLSystem(N, nOutfalls, domain, outfallPositions, elevFn, config.lSystemVariant);
+      break;
+    case 'space_colonization':
+      graph = generateSpaceColonization(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'mst':
+      graph = generateMST(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'force_directed':
+    default: {
+      const simResult = runParticleSimulation(N, dem, domain, outfallPositions, config.terrain);
+      graph = buildDendriticGraph(simResult.junctionParticles, simResult.outfallParticles, dem, domain);
+      break;
+    }
+  }
 
   const elevRange = eHi - eLo;
   let demMin = Infinity, demMax = -Infinity;
@@ -1272,7 +1281,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
         const startup = +(su.maxD*0.6).toFixed(2);
         const shutoff = +(su.maxD*0.15).toFixed(2);
         pumps.push({name:`PMP${pi}`, from:su.name, to:tgt, curve:`PC${pi}`, startup, shutoff, maxD:su.maxD});
-        w(`${"PMP"+pi}`.padEnd(17)+`${su.name.padEnd(17)}${tgt.padEnd(17)}${"PC"+pi}`.padEnd(16)+`ON      ${startup.toFixed(2).padEnd(8)}${shutoff.toFixed(2)}`);
+        w(`PMP${pi}`.padEnd(17)+su.name.padEnd(17)+tgt.padEnd(17)+`PC${pi}`.padEnd(17)+`ON`.padEnd(9)+startup.toFixed(2).padEnd(9)+shutoff.toFixed(2));
       }
     }
     w("");

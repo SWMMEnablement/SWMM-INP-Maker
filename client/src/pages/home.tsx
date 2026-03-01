@@ -3,7 +3,7 @@ import { Droplets, Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, HelpC
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
@@ -16,13 +16,16 @@ import ValidationPanel from "@/components/validation-panel";
 import { validateInp, type ValidationResult } from "@/lib/inp-validator";
 import {
   type SwmmConfig, type ModelType, type TerrainType, type DetailLevel, type LandUseType,
-  type DiscretizationMethod, type InfiltrationMethod, type RainfallDistribution, type GeneratedModel,
+  type DiscretizationMethod, type InfiltrationMethod, type RainfallDistribution,
+  type GenerationMethod, type LSystemVariant, type GeneratedModel,
   compute, getSections, estimateSize, generateModel, fmt, pct,
   RATIOS, FLOW_UNITS, OFFSET, SHAPES, PIPE_INCHES, PIPE_WEIGHTS,
   ALL_SECTIONS, TERRAIN_LABELS, MODEL_TYPE_LABELS,
   OFFSET_COLORS, OFFSET_LABELS, SHAPE_COLORS,
   EXAMPLE_PRESETS, SWMM5_REAL_STATS, DEFAULT_RESWMM, DEFAULT_HYDROLOGY,
   DWF_PATTERN_OPTIONS, RAINFALL_DIST_LABELS, INFILTRATION_LABELS,
+  GENERATION_METHOD_LABELS, L_SYSTEM_VARIANT_LABELS,
+  RAIN_CANVAS_CATALOG,
 } from "@/lib/swmm-engine";
 
 const ELEM_CARDS_META = [
@@ -215,6 +218,31 @@ export default function Home() {
                 <div className="px-5 py-3.5 border-b border-border text-xs font-semibold uppercase tracking-widest text-muted-foreground">Configuration</div>
                 <div className="p-5 space-y-5">
                   <div>
+                    <label className="text-xs font-semibold block mb-2">Generation Method</label>
+                    <Select value={config.generationMethod} onValueChange={(v) => update({ generationMethod: v as GenerationMethod })}>
+                      <SelectTrigger data-testid="select-gen-method"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(GENERATION_METHOD_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {config.generationMethod === 'l_system' && (
+                      <div className="mt-2.5">
+                        <label className="text-[10px] font-semibold block mb-1.5 text-muted-foreground">L-System Variant</label>
+                        <ToggleGroup
+                          testId="lsystem-variant"
+                          value={config.lSystemVariant}
+                          onChange={(v) => update({ lSystemVariant: v as LSystemVariant })}
+                          options={Object.entries(L_SYSTEM_VARIANT_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  <div>
                     <label className="text-xs font-semibold block mb-2">Example Files</label>
                     <Select onValueChange={(v) => {
                       const preset = EXAMPLE_PRESETS[parseInt(v)];
@@ -405,13 +433,22 @@ export default function Home() {
                   <div>
                     <label className="text-xs font-semibold block mb-2">Rainfall Distribution</label>
                     <Select value={config.rainfallDist} onValueChange={(v) => update({ rainfallDist: v as RainfallDistribution })}>
-                      <SelectTrigger data-testid="select-rainfall-dist"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(RAINFALL_DIST_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v}</SelectItem>
+                      <SelectTrigger data-testid="select-rainfall-dist"><SelectValue placeholder="Select pattern..." /></SelectTrigger>
+                      <SelectContent className="max-h-[320px]">
+                        {RAIN_CANVAS_CATALOG.map((cat) => (
+                          <SelectGroup key={cat.label}>
+                            <SelectLabel className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{cat.label}</SelectLabel>
+                            {cat.patterns.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                <span>{p.name}</span>
+                                <span className="text-[10px] text-muted-foreground ml-2">{p.region}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-[10px] text-muted-foreground mt-1">Powered by Rain Canvas Studio — 34 rainfall patterns across 8 categories</p>
                   </div>
 
                   <div className="h-px bg-border" />

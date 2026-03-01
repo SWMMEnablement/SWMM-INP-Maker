@@ -9,7 +9,9 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - All SWMM5 model generation is performed client-side in `swmm-engine.ts`
 
 ## Key Files
-- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, rainfall profile generator, all constants from 1,729 real models
+- `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, rainfall profile generator, 5 generation methods, all constants from 1,729 real models
+- `client/src/lib/generators.ts` — 4 alternative network generation algorithms: Horton-Strahler recursive branching, L-System grammar (3 variants), Space Colonization, Minimum Spanning Tree (Prim's)
+- `client/src/lib/rain-canvas.ts` — Rain Canvas Studio integration: 34 rainfall patterns across 8 categories (SCS/NRCS, Huff, Chicago, Alternating Block, Uniform/Triangular, Regional US, International, Historical), all with local computation fallback
 - `client/src/lib/inp-parser.ts` — Client-side INP file parser: section detection, column mapping for 40+ SWMM5 sections, descriptive statistics, histogram data
 - `client/src/lib/inp-validator.ts` — Static INP validator with auto-repair: checks orphan nodes, adverse slopes, undefined references, zero-length conduits, missing sections, duplicate IDs, unusual values
 - `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + INP Viewer + Docs), config panel with hydrology controls, example presets, element cards, charts, stats, download, validation panel
@@ -20,7 +22,8 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - `client/src/App.tsx` — Router setup (single page at `/`)
 
 ## Features
-- 28 example SWMM5 file presets (quick-load configurations)
+- 5 network generation methods: Force-Directed (Barnes-Hut), Horton-Strahler Branching, L-System Grammar (Dendritic/Grid/Radial variants), Space Colonization, Minimum Spanning Tree
+- 33 example SWMM5 file presets (quick-load configurations)
 - US Customary / SI Metric unit toggle with sub-labels showing unit systems
 - Configurable hydrology parameters:
   - Number of outfalls (manual or auto from model type ratio)
@@ -29,7 +32,7 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
   - DWF flow patterns (multi-select: Diurnal, Monthly, Weekend, Seasonal)
   - Inflow time series percentage (0-100%, external inflows on junctions)
   - Rainfall depth (configurable total depth in inches or mm)
-  - Rainfall distribution type (Uniform, Triangular, SCS Type II, Chicago, Front-Loaded, Rear-Loaded)
+  - Rainfall distribution (34 patterns via Rain Canvas Studio: SCS I/IA/II/III, Huff Q1-Q4, Chicago, Alternating Block, Triangular, Regional US, International, Historical)
   - Infiltration method (Horton, Green-Ampt, Curve Number) — affects both [OPTIONS] and [INFILTRATION] section format
 - ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
 - Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)

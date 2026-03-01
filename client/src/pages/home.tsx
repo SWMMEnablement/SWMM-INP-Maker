@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Droplets, Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, HelpCircle } from "lucide-react";
+import { Droplets, Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, HelpCircle, FileSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useToast } from "@/hooks/use-toast";
 import NetworkCanvas from "@/components/network-canvas";
 import ProfileCanvas from "@/components/profile-canvas";
+import InpViewer from "@/components/inp-viewer";
 import Onboarding, { useOnboarding } from "@/components/onboarding";
 import { useTheme } from "@/components/theme-provider";
 import {
@@ -65,6 +66,8 @@ export default function Home() {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GeneratedModel | null>(null);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState("generator");
+  const [viewerInpText, setViewerInpText] = useState<{ text: string; name: string } | null>(null);
 
   const elements = useMemo(() => compute(config), [config]);
   const sections = useMemo(() => getSections(elements, config), [elements, config]);
@@ -177,9 +180,10 @@ export default function Home() {
           </div>
         </header>
 
-        <Tabs defaultValue="generator" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start h-auto p-0 gap-1 mb-8">
             <TabsTrigger value="generator" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none px-6 py-2.5 text-sm font-semibold" data-testid="tab-generator">Generator</TabsTrigger>
+            <TabsTrigger value="viewer" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none px-6 py-2.5 text-sm font-semibold" data-testid="tab-viewer"><FileSearch className="w-3.5 h-3.5 mr-1.5 inline-block" />INP Viewer</TabsTrigger>
             <TabsTrigger value="docs" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none px-6 py-2.5 text-sm font-semibold" data-testid="tab-docs">App Docs</TabsTrigger>
           </TabsList>
 
@@ -413,6 +417,17 @@ export default function Home() {
                           {copied ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
                           {copied ? "Copied!" : "Copy to Clipboard"}
                         </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => {
+                            setViewerInpText({ text: result.inpText, name: result.stats.fileName });
+                            setActiveTab("viewer");
+                          }}
+                          data-testid="button-view-in-viewer"
+                        >
+                          <FileSearch className="w-4 h-4 mr-2" /> View in INP Viewer
+                        </Button>
                         <p className="text-[11px] text-muted-foreground font-mono" data-testid="text-file-stats">{result.stats.fileSize} | {fmt(result.stats.lineCount)} lines | {fmt(result.stats.totalElements)} total elements</p>
                       </div>
                     )}
@@ -644,6 +659,10 @@ export default function Home() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="viewer">
+            <InpViewer initialInp={viewerInpText} onConsumeInitial={() => setViewerInpText(null)} />
           </TabsContent>
 
           <TabsContent value="docs">

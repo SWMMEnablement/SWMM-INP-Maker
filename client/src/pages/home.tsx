@@ -172,16 +172,58 @@ export default function Home() {
           }}>
             {theme === "uf" ? (
               <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="UF Gators">
-                <text x="50" y="68" textAnchor="middle" fontFamily="serif" fontWeight="bold" fontSize="52" fill="white" stroke="white" strokeWidth="1">UF</text>
+                <ellipse cx="50" cy="48" rx="38" ry="28" fill="#2d6b1e" />
+                <ellipse cx="50" cy="52" rx="34" ry="18" fill="#1a4a12" />
+                <path d="M16 42 Q20 30 32 28 Q26 24 30 18 Q34 22 36 28 L42 26 Q40 20 44 14 Q48 20 46 26 L50 25 Q50 18 54 12 Q58 18 54 26 L58 26 Q56 20 60 14 Q64 20 62 26 L68 28 Q66 22 70 18 Q74 24 68 28 Q80 30 84 42" fill="none" stroke="#4a8b3a" strokeWidth="2.5" strokeLinecap="round" />
+                <ellipse cx="36" cy="40" rx="6" ry="7" fill="#c8e6a0" />
+                <ellipse cx="64" cy="40" rx="6" ry="7" fill="#c8e6a0" />
+                <ellipse cx="36" cy="42" rx="3" ry="4" fill="#1a1a1a" />
+                <ellipse cx="64" cy="42" rx="3" ry="4" fill="#1a1a1a" />
+                <path d="M28 56 Q50 68 72 56" fill="none" stroke="#1a4a12" strokeWidth="2" />
+                <path d="M32 56 L34 60 M40 58 L42 62 M48 59 L50 63 M56 58 L58 62 M64 56 L66 60" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M22 54 Q18 58 14 56 Q16 52 22 54Z" fill="#2d6b1e" />
+                <path d="M78 54 Q82 58 86 56 Q84 52 78 54Z" fill="#2d6b1e" />
               </svg>
             ) : theme === "osu" ? (
               <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Oregon State Beavers">
-                <circle cx="50" cy="50" r="38" fill="none" stroke="white" strokeWidth="8" />
-                <text x="50" y="67" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" fontSize="42" fill="white">O</text>
+                <ellipse cx="50" cy="52" rx="30" ry="32" fill="#8B5E3C" />
+                <ellipse cx="50" cy="56" rx="22" ry="18" fill="#A0724A" />
+                <ellipse cx="36" cy="42" rx="8" ry="9" fill="#D4A574" />
+                <ellipse cx="64" cy="42" rx="8" ry="9" fill="#D4A574" />
+                <circle cx="36" cy="42" r="4" fill="#1a1a1a" />
+                <circle cx="64" cy="42" r="4" fill="#1a1a1a" />
+                <circle cx="34" cy="40" r="1.5" fill="white" />
+                <circle cx="62" cy="40" r="1.5" fill="white" />
+                <ellipse cx="50" cy="52" rx="7" ry="5" fill="#3d2b1f" />
+                <circle cx="47" cy="51" r="1.5" fill="#D4A574" />
+                <circle cx="53" cy="51" r="1.5" fill="#D4A574" />
+                <rect x="44" y="60" width="5" height="8" rx="1" fill="white" stroke="#8B5E3C" strokeWidth="0.5" />
+                <rect x="51" y="60" width="5" height="8" rx="1" fill="white" stroke="#8B5E3C" strokeWidth="0.5" />
+                <path d="M44 64 L56 64" stroke="#ccc" strokeWidth="0.5" />
+                <ellipse cx="30" cy="30" rx="10" ry="6" fill="#8B5E3C" transform="rotate(-20 30 30)" />
+                <ellipse cx="70" cy="30" rx="10" ry="6" fill="#8B5E3C" transform="rotate(20 70 30)" />
+                <path d="M20 78 Q30 82 40 76 Q50 84 60 76 Q70 82 80 78" fill="none" stroke="#8B5E3C" strokeWidth="3" strokeLinecap="round" />
               </svg>
             ) : theme === "auburn" ? (
               <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Auburn Tigers">
-                <text x="50" y="68" textAnchor="middle" fontFamily="serif" fontWeight="bold" fontSize="46" fill="white" stroke="white" strokeWidth="1">AU</text>
+                <ellipse cx="50" cy="50" rx="34" ry="30" fill="#E87A2C" />
+                <ellipse cx="50" cy="54" rx="26" ry="16" fill="#F5A623" />
+                <path d="M20 46 Q16 30 24 18 Q30 28 28 40Z" fill="#E87A2C" stroke="#c06010" strokeWidth="1" />
+                <path d="M80 46 Q84 30 76 18 Q70 28 72 40Z" fill="#E87A2C" stroke="#c06010" strokeWidth="1" />
+                <ellipse cx="38" cy="44" rx="7" ry="8" fill="#F5D78E" />
+                <ellipse cx="62" cy="44" rx="7" ry="8" fill="#F5D78E" />
+                <ellipse cx="38" cy="45" rx="3.5" ry="5" fill="#2a5c1e" />
+                <ellipse cx="62" cy="45" rx="3.5" ry="5" fill="#2a5c1e" />
+                <circle cx="37" cy="43" r="1.5" fill="white" />
+                <circle cx="61" cy="43" r="1.5" fill="white" />
+                <ellipse cx="50" cy="55" rx="5" ry="3" fill="#c06010" />
+                <path d="M30 50 Q26 48 22 50" stroke="#1a1a1a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M70 50 Q74 48 78 50" stroke="#1a1a1a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M32 50 Q28 52 24 50" stroke="#1a1a1a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M68 50 Q72 52 76 50" stroke="#1a1a1a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M40 62 Q50 68 60 62" fill="none" stroke="#c06010" strokeWidth="1.5" />
+                <path d="M24 38 L20 34 M26 34 L22 30 M28 36 L24 32" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" />
+                <path d="M76 38 L80 34 M74 34 L78 30 M72 36 L76 32" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" />
               </svg>
             ) : (
               <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Water molecule">

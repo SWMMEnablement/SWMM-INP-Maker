@@ -175,7 +175,7 @@ export default function Home() {
                 <text x="50" y="68" textAnchor="middle" fontFamily="serif" fontWeight="bold" fontSize="52" fill="white" stroke="white" strokeWidth="1">UF</text>
               </svg>
             ) : theme === "osu" ? (
-              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="OSU Buckeyes">
+              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Oregon State Beavers">
                 <circle cx="50" cy="50" r="38" fill="none" stroke="white" strokeWidth="8" />
                 <text x="50" y="67" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" fontSize="42" fill="white">O</text>
               </svg>

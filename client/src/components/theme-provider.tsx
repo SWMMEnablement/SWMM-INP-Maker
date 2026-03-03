@@ -7,7 +7,7 @@ export const THEME_LABELS: Record<Theme, string> = {
   dark: "Dark",
   uf: "UF Gators",
   epa: "EPA",
-  osu: "OSU Buckeyes",
+  osu: "Oregon State Beavers",
   auburn: "Auburn Tigers",
 };
 

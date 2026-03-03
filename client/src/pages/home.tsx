@@ -176,7 +176,13 @@ export default function Home() {
             >
               SWMM5 INP MAKER
             </h1>
-            <p className="text-sm text-foreground mt-1.5">Force-directed network synthesis with Barnes-Hut quadtree &mdash; every parameter from 1,729 real models</p>
+            <p className="text-sm text-foreground mt-1.5">
+              <span title="Nodes repel via Coulomb forces while edges attract via Hooke springs — produces spatially realistic pipe layouts that mimic gravity-fed collection systems" className="border-b border-dotted border-muted-foreground/40 cursor-help">Force-directed network synthesis</span>
+              {" with "}
+              <span title="O(N log N) approximation of N-body repulsion: recursively subdivides space into quadrants, treating distant node clusters as single masses — enables 10,000+ junction networks in real time" className="border-b border-dotted border-muted-foreground/40 cursor-help">Barnes-Hut quadtree</span>
+              {" — every parameter from "}
+              <span title="Exposed parameters calibrated against 1,729 validated EPA-SWMM models spanning 23 countries, 15.4M elements, and 6.5M cross-sections — diameters, slopes, roughness, infiltration, and DWF patterns all drawn from real-world distributions" className="border-b border-dotted border-muted-foreground/40 cursor-help">1,729 real models</span>
+            </p>
             <div className="inline-flex items-center gap-1.5 mt-2.5 px-3.5 py-1 rounded-full text-xs font-mono border" style={{
               background: "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.12))",
               borderColor: "rgba(56,189,248,0.3)", color: "#93c5fd"

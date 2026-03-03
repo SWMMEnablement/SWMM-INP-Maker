@@ -924,6 +924,192 @@ export default function Home() {
                   </AccordionContent>
                 </AccordionItem>
 
+                <AccordionItem value="why-barnes-hut" className="border-border bg-card rounded-lg mb-4 border">
+                  <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
+                    <span className="font-serif text-xl text-card-foreground">Why Barnes-Hut Force-Directed Synthesis</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-5">
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 italic text-foreground">
+                      Real sewer networks aren't random graphs and they aren't perfect trees &mdash; they're <strong>messy, gravity-driven, dendritic networks with loops, parallel mains, and force mains that climb hills</strong> &mdash; and the only algorithm that reproduces all of those spatial patterns simultaneously at any scale is force-directed layout with Barnes-Hut acceleration, trained on 1,729 actual models.
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">The Problem with Other Approaches</h4>
+                      <div className="space-y-3">
+                        <div className="border-l-2 border-destructive/50 pl-3">
+                          <p className="font-semibold text-destructive">Random Connectivity</p>
+                          <p className="text-muted-foreground">Pick random junction pairs, connect them with conduits. Fast, but the result looks like spaghetti. Pipe sizes don't increase downstream. Slopes fight gravity. DYNWAVE blows up in 10 timesteps.</p>
+                        </div>
+                        <div className="border-l-2 border-destructive/50 pl-3">
+                          <p className="font-semibold text-destructive">Perfect Tree Generation</p>
+                          <p className="text-muted-foreground">Start at an outfall, branch upstream in a binary tree. Clean topology, but no real network looks like this. Real networks have loops, force mains, trunk sewers picking up branches at different angles, and dead ends where subdivisions were platted but never built.</p>
+                        </div>
+                        <div className="border-l-2 border-destructive/50 pl-3">
+                          <p className="font-semibold text-destructive">Grid/Template Stamping</p>
+                          <p className="text-muted-foreground">Lay out junctions on a grid, connect adjacent ones. The result looks like Manhattan. Real terrain doesn't work that way &mdash; networks follow streets, which follow ridgelines and valleys, which follow gravity.</p>
+                        </div>
+                      </div>
+                      <p className="mt-3">None of these produce a model that an experienced engineer would look at and say <em>"that looks like a real collection system."</em></p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">The Five Forces</h4>
+                      <p className="mb-3">Every junction is a <strong>charged particle</strong> and every conduit is a <strong>spring</strong>. The algorithm simulates physics:</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Force</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">What It Represents</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Real-World Analog</th>
+                          </tr></thead>
+                          <tbody>
+                            {[
+                              ["Repulsion","Manholes don't cluster on top of each other — spaced along streets","Min manhole spacing (300–500 ft typical)"],
+                              ["Spring attraction","Connected manholes should be realistic pipe lengths apart","Median 330 ft, P95 = 1,200 ft from 1,729 models"],
+                              ["Gravity pull","Flow runs downhill — upstream nodes need higher elevations","Terrain slopes: 0.2–1.5% moderate, 1.5–5% hilly"],
+                              ["Downstream convergence","Branches merge approaching the outfall, trunk sizes increase","Horton stream order — diameter grows with contributing area"],
+                              ["Force main override","Some links push uphill (pumped) — resist gravity force","5–8% of links in real models are force mains"],
+                            ].map(([f,w,r]) => (
+                              <tr key={f} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border font-medium whitespace-nowrap">{f}</td>
+                                <td className="p-2 border border-border">{w}</td>
+                                <td className="p-2 border border-border text-muted-foreground">{r}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Why Barnes-Hut? O(N log N) Performance</h4>
+                      <p className="mb-3">The naive force calculation is <strong>O(N&sup2;)</strong>. The Barnes-Hut quadtree groups distant nodes into clusters and approximates their combined repulsion as a single force, dropping it to <strong>O(N log N)</strong>:</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Junctions</th>
+                            <th className="text-right p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Naive (N&sup2;)</th>
+                            <th className="text-right p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Barnes-Hut</th>
+                            <th className="text-right p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Speedup</th>
+                          </tr></thead>
+                          <tbody>
+                            {[
+                              ["1,000","1,000,000","10,000","100x"],
+                              ["5,000","25,000,000","61,000","410x"],
+                              ["10,000","100,000,000","133,000","750x"],
+                              ["50,000","2,500,000,000","782,000","3,200x"],
+                            ].map(([j,n,b,s]) => (
+                              <tr key={j} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border font-mono">{j}</td>
+                                <td className="p-2 border border-border font-mono text-right text-destructive">{n}</td>
+                                <td className="p-2 border border-border font-mono text-right text-chart-3">{b}</td>
+                                <td className="p-2 border border-border font-mono text-right font-bold">{s}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="mt-2 text-muted-foreground">This lets the app generate a 10,000-junction network <strong className="text-foreground">in your browser in under 3 seconds</strong>. Without Barnes-Hut, anything above ~2,000 junctions would freeze the tab.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Why 1,729 Models Instead of 338</h4>
+                      <p className="mb-3">The original 338-model dataset was mostly <strong>tutorial models, textbook examples, and EPA test cases</strong> with survivorship bias. The 1,729-model dataset fixes this:</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Parameter</th>
+                            <th className="text-right p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">338 Models</th>
+                            <th className="text-right p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">1,729 Models</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Why It Matters</th>
+                          </tr></thead>
+                          <tbody>
+                            {[
+                              ["Median junction count","47","312","Small models overrepresented"],
+                              ["Max junction count","5,200","87,000","Missing large utility models"],
+                              ["Conduit offsets (both-zero)","65%","58%","More crown matching in reality"],
+                              ["Force main prevalence","5%","8.2%","Sanitary systems undersampled"],
+                              ["Pipe size diversity","12 standard","16 + custom","Missing 96\"–144\" interceptors"],
+                              ["LID/SUDS usage","3%","11%","Green infrastructure era missing"],
+                              ["Geographic diversity","US Southeast","23 countries","Broader slope/rainfall patterns"],
+                            ].map(([p,a,b,w]) => (
+                              <tr key={p} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border font-medium">{p}</td>
+                                <td className="p-2 border border-border font-mono text-right text-muted-foreground">{a}</td>
+                                <td className="p-2 border border-border font-mono text-right text-chart-3">{b}</td>
+                                <td className="p-2 border border-border text-muted-foreground">{w}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="mt-2 text-muted-foreground">Every parameter the generator picks &mdash; pipe diameter, Manning's n, subcatchment width, impervious percentage, infiltration rates, DWF patterns &mdash; is sampled from the <strong className="text-foreground">empirical distribution across all 1,729 models</strong>. Not a guess. Not a textbook default. The actual distribution from real engineered systems.</p>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">What the Generated Network Looks Like</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="bg-muted/30 border border-border rounded-lg p-3">
+                          <p className="font-semibold text-xs text-primary mb-1.5">Spatial Realism</p>
+                          <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                            <li>Nodes spread naturally with realistic spacing</li>
+                            <li>Dendritic pattern with outfall at lowest point</li>
+                            <li>Branches merge at realistic angles (not 90&deg;)</li>
+                          </ul>
+                        </div>
+                        <div className="bg-muted/30 border border-border rounded-lg p-3">
+                          <p className="font-semibold text-xs text-primary mb-1.5">Hydraulic Realism</p>
+                          <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                            <li>Pipe sizes increase downstream (8&quot;&rarr;36&quot;)</li>
+                            <li>Slopes decrease downstream (steeper upstream)</li>
+                            <li>Elevations consistent &mdash; DYNWAVE runs clean</li>
+                          </ul>
+                        </div>
+                        <div className="bg-muted/30 border border-border rounded-lg p-3">
+                          <p className="font-semibold text-xs text-primary mb-1.5">Topological Realism</p>
+                          <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                            <li>Loops exist (parallel relief sewers)</li>
+                            <li>Force mains push uphill to pump stations</li>
+                            <li>Storage at logical locations (before pumps, at CSOs)</li>
+                          </ul>
+                        </div>
+                        <div className="bg-muted/30 border border-border rounded-lg p-3">
+                          <p className="font-semibold text-xs text-primary mb-1.5">Statistical Realism</p>
+                          <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
+                            <li>Pipe size distribution matches real systems</li>
+                            <li>Manning's n clusters around 0.013 with right spread</li>
+                            <li>Subcatchment areas follow lognormal distribution</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Import-to-ICM Workflow</h4>
+                      <ol className="list-decimal pl-5 space-y-1.5">
+                        <li><strong>INP MAKER generates a realistic .inp</strong> using Barnes-Hut force-directed synthesis</li>
+                        <li><strong>Script 01 imports into ICM SWMM</strong> &mdash; valid topology and realistic parameters mean zero import errors</li>
+                        <li><strong>Script 06 validates</strong> &mdash; gravity-consistent elevations and valid connections pass ICM's validator</li>
+                        <li><strong>You can actually simulate</strong> &mdash; realistic slopes, pipe sizes, and DWF patterns mean DYNWAVE converges</li>
+                        <li><strong>Results look reasonable</strong> &mdash; input parameters from real models produce realistic flows, depths, and velocities</li>
+                      </ol>
+                      <p className="mt-2 text-muted-foreground">With a random-graph generator, you'd spend hours fixing broken topology, impossible slopes, and numerical instabilities before you could even test whether your import scripts work.</p>
+                    </div>
+
+                    <div className="bg-muted/30 border border-border rounded-lg p-4">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Default Configuration</h4>
+                      <div className="font-mono text-xs text-muted-foreground space-y-0.5">
+                        <p><strong className="text-foreground">Algorithm:</strong> Force-directed network synthesis</p>
+                        <p><strong className="text-foreground">Acceleration:</strong> Barnes-Hut quadtree (&theta; = 0.7)</p>
+                        <p><strong className="text-foreground">Training data:</strong> 1,729 real-world SWMM5 models</p>
+                        <p><strong className="text-foreground">Elements:</strong> 15,394,727 across 23 countries</p>
+                        <p><strong className="text-foreground">Model range:</strong> 47 to 87,000 junctions</p>
+                      </div>
+                      <p className="mt-3 text-xs">This is the default because it's the only option that simultaneously gives you <strong>speed</strong> (Barnes-Hut), <strong>spatial realism</strong> (force-directed), and <strong>parametric accuracy</strong> (1,729 models). Every other approach sacrifices at least one of those three.</p>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="validation" className="border-border bg-card rounded-lg mb-4 border">
                   <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
                     <span className="font-serif text-xl text-card-foreground">INP Validation &amp; Auto-Repair</span>

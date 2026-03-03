@@ -276,6 +276,43 @@
   --chart-5: 30 80% 55%;
 }
 
+.theme-auburn {
+  --background: 213 55% 5%;
+  --foreground: 25 20% 85%;
+  --border: 213 40% 16%;
+  --card: 213 40% 9%;
+  --card-foreground: 25 25% 92%;
+  --card-border: 213 35% 14%;
+  --sidebar: 213 45% 7%;
+  --sidebar-foreground: 25 20% 85%;
+  --sidebar-border: 213 40% 14%;
+  --sidebar-primary: 24 90% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 213 35% 14%;
+  --sidebar-accent-foreground: 25 20% 88%;
+  --sidebar-ring: 24 90% 48%;
+  --popover: 213 40% 11%;
+  --popover-foreground: 25 20% 88%;
+  --popover-border: 213 40% 18%;
+  --primary: 24 90% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 213 30% 16%;
+  --secondary-foreground: 25 20% 88%;
+  --muted: 213 25% 13%;
+  --muted-foreground: 213 20% 53%;
+  --accent: 213 25% 13%;
+  --accent-foreground: 25 20% 88%;
+  --destructive: 0 84% 45%;
+  --destructive-foreground: 0 84% 98%;
+  --input: 213 40% 25%;
+  --ring: 24 90% 48%;
+  --chart-1: 24 90% 52%;
+  --chart-2: 213 80% 40%;
+  --chart-3: 35 100% 55%;
+  --chart-4: 180 60% 45%;
+  --chart-5: 300 60% 55%;
+}
+
 @layer base {
   * {
     @apply border-border;

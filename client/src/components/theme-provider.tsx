@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 
-export type Theme = "light" | "dark" | "uf" | "epa" | "osu";
+export type Theme = "light" | "dark" | "uf" | "epa" | "osu" | "auburn";
 
 export const THEME_LABELS: Record<Theme, string> = {
   light: "Light",
@@ -8,6 +8,7 @@ export const THEME_LABELS: Record<Theme, string> = {
   uf: "UF Gators",
   epa: "EPA",
   osu: "OSU Buckeyes",
+  auburn: "Auburn Tigers",
 };
 
 interface ThemeContextValue {
@@ -16,7 +17,7 @@ interface ThemeContextValue {
   toggle: () => void;
 }
 
-const THEME_ORDER: Theme[] = ["dark", "light", "uf", "epa", "osu"];
+const THEME_ORDER: Theme[] = ["dark", "light", "uf", "epa", "osu", "auburn"];
 
 const ThemeContext = createContext<ThemeContextValue>({ theme: "dark", setTheme: () => {}, toggle: () => {} });
 
@@ -26,7 +27,7 @@ export function useTheme() {
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  root.classList.remove("dark", "theme-uf", "theme-epa", "theme-osu");
+  root.classList.remove("dark", "theme-uf", "theme-epa", "theme-osu", "theme-auburn");
   if (theme === "dark") {
     root.classList.add("dark");
   } else if (theme === "uf") {
@@ -35,6 +36,8 @@ function applyTheme(theme: Theme) {
     root.classList.add("dark", "theme-epa");
   } else if (theme === "osu") {
     root.classList.add("dark", "theme-osu");
+  } else if (theme === "auburn") {
+    root.classList.add("dark", "theme-auburn");
   }
 }
 

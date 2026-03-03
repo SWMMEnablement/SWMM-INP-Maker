@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Droplets, Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code } from "lucide-react";
+import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -161,10 +161,40 @@ export default function Home() {
       <div className="relative z-10 max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
         <header className="flex flex-col sm:flex-row sm:items-end gap-5 pb-6 mb-8 border-b-2" style={{ borderImage: "linear-gradient(90deg, #38bdf8, #818cf8, #34d399, transparent) 1" }}>
           <div className="w-16 h-16 rounded-2xl grid place-items-center flex-shrink-0" style={{
-            background: "linear-gradient(135deg, #38bdf8, #818cf8, #34d399)",
-            boxShadow: "0 6px 28px rgba(56,189,248,0.35), 0 0 60px rgba(129,140,248,0.15)"
+            background: theme === "uf" ? "linear-gradient(135deg, #FA4616, #0021A5)"
+              : theme === "osu" ? "linear-gradient(135deg, #BB0000, #666)"
+              : theme === "auburn" ? "linear-gradient(135deg, #DD550C, #0C2340)"
+              : "linear-gradient(135deg, #38bdf8, #818cf8, #34d399)",
+            boxShadow: theme === "uf" ? "0 6px 28px rgba(250,70,22,0.35)"
+              : theme === "osu" ? "0 6px 28px rgba(187,0,0,0.35)"
+              : theme === "auburn" ? "0 6px 28px rgba(221,85,12,0.35)"
+              : "0 6px 28px rgba(56,189,248,0.35), 0 0 60px rgba(129,140,248,0.15)"
           }}>
-            <Droplets className="w-9 h-9 text-white" />
+            {theme === "uf" ? (
+              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="UF Gators">
+                <text x="50" y="68" textAnchor="middle" fontFamily="serif" fontWeight="bold" fontSize="52" fill="white" stroke="white" strokeWidth="1">UF</text>
+              </svg>
+            ) : theme === "osu" ? (
+              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="OSU Buckeyes">
+                <circle cx="50" cy="50" r="38" fill="none" stroke="white" strokeWidth="8" />
+                <text x="50" y="67" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" fontSize="42" fill="white">O</text>
+              </svg>
+            ) : theme === "auburn" ? (
+              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Auburn Tigers">
+                <text x="50" y="68" textAnchor="middle" fontFamily="serif" fontWeight="bold" fontSize="46" fill="white" stroke="white" strokeWidth="1">AU</text>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Water molecule">
+                <circle cx="50" cy="38" r="14" fill="white" opacity="0.95" />
+                <circle cx="30" cy="66" r="10" fill="white" opacity="0.8" />
+                <circle cx="70" cy="66" r="10" fill="white" opacity="0.8" />
+                <line x1="42" y1="48" x2="34" y2="60" stroke="white" strokeWidth="3" opacity="0.7" />
+                <line x1="58" y1="48" x2="66" y2="60" stroke="white" strokeWidth="3" opacity="0.7" />
+                <text x="50" y="42" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" fontSize="12" fill="#38bdf8">O</text>
+                <text x="30" y="70" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" fontSize="10" fill="#818cf8">H</text>
+                <text x="70" y="70" textAnchor="middle" fontFamily="sans-serif" fontWeight="bold" fontSize="10" fill="#818cf8">H</text>
+              </svg>
+            )}
           </div>
           <div className="flex-1">
             <h1

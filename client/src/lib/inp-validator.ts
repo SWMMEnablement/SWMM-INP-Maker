@@ -130,6 +130,7 @@ function staticAnalysis(inpContent: string): ValidationIssue[] {
 
   let hasOutfall = false;
   let hasOptions = false;
+  let routingModel = "";
   let lineNumber = 0;
 
   for (const line of lines) {
@@ -146,6 +147,11 @@ function staticAnalysis(inpContent: string): ValidationIssue[] {
     const parts = trimmed.split(/\s+/);
 
     switch (currentSection) {
+      case "[OPTIONS]":
+        if (parts.length >= 2 && parts[0].toUpperCase() === "FLOW_ROUTING") {
+          routingModel = parts[1].toUpperCase();
+        }
+        break;
       case "[JUNCTIONS]":
         if (parts.length >= 2) {
           definedNodes.add(parts[0]);
@@ -257,9 +263,12 @@ function staticAnalysis(inpContent: string): ValidationIssue[] {
   }
 
   if (!hasOutfall) {
+    const isKinematic = routingModel === "KINWAVE";
     issues.push({
-      source: "static", severity: "error",
-      message: "No outfall defined — model cannot run without at least one outfall",
+      source: "static", severity: isKinematic ? "warning" : "error",
+      message: isKinematic
+        ? "No outfall defined — not required for kinematic wave routing, but recommended"
+        : "No outfall defined — model cannot run without at least one outfall",
       fixable: false,
     });
   }

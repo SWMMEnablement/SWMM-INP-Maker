@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download, Shield } from "lucide-react";
+import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download, Shield, Network, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
 } from "@/lib/inp-parser";
 import { validateInp, type ValidationResult } from "@/lib/inp-validator";
 import ValidationPanelComponent from "@/components/validation-panel";
+import { useTheme } from "@/components/theme-provider";
 
 const SECTION_ICONS: Record<string, string> = {
   TITLE: "📄", OPTIONS: "⚙️", RAINGAGES: "🌧️",
@@ -212,6 +213,674 @@ function StatsTable({ stats, section }: { stats: SectionStats[]; section: Parsed
   );
 }
 
+interface InpNetNode {
+  name: string;
+  type: 'junction' | 'outfall' | 'storage';
+  x: number;
+  y: number;
+  elev: number;
+  maxDepth: number;
+}
+
+interface InpNetLink {
+  name: string;
+  from: string;
+  to: string;
+  isPump?: boolean;
+}
+
+interface InpProfileNode {
+  name: string;
+  station: number;
+  invertElev: number;
+  crownElev: number;
+  maxDepth: number;
+  type: 'junction' | 'outfall' | 'storage';
+}
+
+interface InpProfileConduit {
+  name: string;
+  fromStation: number;
+  toStation: number;
+  fromInvert: number;
+  toInvert: number;
+  diameter: number;
+  fromCrown: number;
+  toCrown: number;
+}
+
+interface InpProfile {
+  outfallName: string;
+  nodes: InpProfileNode[];
+  conduits: InpProfileConduit[];
+}
+
+function extractNetworkData(parsed: ParsedInpFile) {
+  const nodes: Record<string, InpNetNode> = {};
+  const links: InpNetLink[] = [];
+  const coords: Record<string, { x: number; y: number }> = {};
+
+  const coordSec = parsed.sections.find(s => s.name === "COORDINATES");
+  if (coordSec) {
+    for (const row of coordSec.rows) {
+      if (row.length >= 3) {
+        const x = parseFloat(row[1]);
+        const y = parseFloat(row[2]);
+        if (!isNaN(x) && !isNaN(y)) coords[row[0]] = { x, y };
+      }
+    }
+  }
+
+  const juncSec = parsed.sections.find(s => s.name === "JUNCTIONS");
+  if (juncSec) {
+    for (const row of juncSec.rows) {
+      if (row.length >= 2) {
+        const elev = parseFloat(row[1]) || 0;
+        const maxD = parseFloat(row[2]) || 4;
+        const c = coords[row[0]];
+        nodes[row[0]] = { name: row[0], type: 'junction', x: c?.x ?? 0, y: c?.y ?? 0, elev, maxDepth: maxD };
+      }
+    }
+  }
+
+  const outSec = parsed.sections.find(s => s.name === "OUTFALLS");
+  if (outSec) {
+    for (const row of outSec.rows) {
+      if (row.length >= 2) {
+        const elev = parseFloat(row[1]) || 0;
+        const c = coords[row[0]];
+        nodes[row[0]] = { name: row[0], type: 'outfall', x: c?.x ?? 0, y: c?.y ?? 0, elev, maxDepth: 0 };
+      }
+    }
+  }
+
+  const stoSec = parsed.sections.find(s => s.name === "STORAGE");
+  if (stoSec) {
+    for (const row of stoSec.rows) {
+      if (row.length >= 2) {
+        const elev = parseFloat(row[1]) || 0;
+        const maxD = parseFloat(row[2]) || 6;
+        const c = coords[row[0]];
+        nodes[row[0]] = { name: row[0], type: 'storage', x: c?.x ?? 0, y: c?.y ?? 0, elev, maxDepth: maxD };
+      }
+    }
+  }
+
+  const condSec = parsed.sections.find(s => s.name === "CONDUITS");
+  if (condSec) {
+    for (const row of condSec.rows) {
+      if (row.length >= 3) {
+        links.push({ name: row[0], from: row[1], to: row[2] });
+      }
+    }
+  }
+
+  const pumpSec = parsed.sections.find(s => s.name === "PUMPS");
+  if (pumpSec) {
+    for (const row of pumpSec.rows) {
+      if (row.length >= 3) {
+        links.push({ name: row[0], from: row[1], to: row[2], isPump: true });
+      }
+    }
+  }
+
+  const xsecMap: Record<string, number> = {};
+  const xsSec = parsed.sections.find(s => s.name === "XSECTIONS");
+  if (xsSec) {
+    for (const row of xsSec.rows) {
+      if (row.length >= 3) {
+        xsecMap[row[0]] = parseFloat(row[2]) || 1;
+      }
+    }
+  }
+
+  const hasCoords = Object.keys(coords).length > 0;
+
+  return { nodes, links, xsecMap, hasCoords };
+}
+
+function buildProfilesFromParsed(parsed: ParsedInpFile): InpProfile[] {
+  const { nodes, links, xsecMap } = extractNetworkData(parsed);
+
+  const adjDown: Record<string, { link: string; to: string }[]> = {};
+  const adjUp: Record<string, { link: string; from: string }[]> = {};
+  const condLengths: Record<string, number> = {};
+  const condOffsets: Record<string, { inOff: number; outOff: number }> = {};
+
+  const condSec = parsed.sections.find(s => s.name === "CONDUITS");
+  if (condSec) {
+    for (const row of condSec.rows) {
+      if (row.length >= 4) {
+        const len = parseFloat(row[3]) || 100;
+        condLengths[row[0]] = len;
+        const inOff = parseFloat(row[5]) || 0;
+        const outOff = parseFloat(row[6]) || 0;
+        condOffsets[row[0]] = { inOff, outOff };
+        if (!adjDown[row[1]]) adjDown[row[1]] = [];
+        adjDown[row[1]].push({ link: row[0], to: row[2] });
+        if (!adjUp[row[2]]) adjUp[row[2]] = [];
+        adjUp[row[2]].push({ link: row[0], from: row[1] });
+      }
+    }
+  }
+
+  const outfalls = Object.values(nodes).filter(n => n.type === 'outfall');
+  if (outfalls.length === 0) return [];
+
+  const profiles: InpProfile[] = [];
+
+  for (const outfall of outfalls) {
+    let current = outfall.name;
+    const visited = new Set<string>();
+    const path: { node: string; link: string }[] = [];
+
+    visited.add(current);
+    while (true) {
+      const ups = adjUp[current];
+      if (!ups || ups.length === 0) break;
+      let best: { link: string; from: string } | null = null;
+      let bestElev = -Infinity;
+      for (const u of ups) {
+        if (visited.has(u.from)) continue;
+        const n = nodes[u.from];
+        if (n && n.elev > bestElev) { bestElev = n.elev; best = u; }
+      }
+      if (!best) break;
+      path.push({ node: best.from, link: best.link });
+      visited.add(best.from);
+      current = best.from;
+    }
+
+    if (path.length === 0) continue;
+
+    const profileNodes: InpProfileNode[] = [];
+    const profileConduits: InpProfileConduit[] = [];
+    let station = 0;
+
+    const outNode = nodes[outfall.name];
+    profileNodes.push({
+      name: outfall.name,
+      station: 0,
+      invertElev: outNode.elev,
+      crownElev: outNode.elev + (outNode.maxDepth || 4),
+      maxDepth: outNode.maxDepth || 4,
+      type: 'outfall',
+    });
+
+    for (const step of path) {
+      const linkLen = condLengths[step.link] || 100;
+      const diam = xsecMap[step.link] || 1;
+      const n = nodes[step.node];
+      if (!n) continue;
+
+      const prevStation = station;
+      station += linkLen;
+
+      const prevNode = profileNodes[profileNodes.length - 1];
+      const off = condOffsets[step.link] || { inOff: 0, outOff: 0 };
+
+      profileConduits.push({
+        name: step.link,
+        fromStation: prevStation,
+        toStation: station,
+        fromInvert: prevNode.invertElev + off.outOff,
+        toInvert: n.elev + off.inOff,
+        diameter: diam,
+        fromCrown: prevNode.invertElev + off.outOff + diam,
+        toCrown: n.elev + off.inOff + diam,
+      });
+
+      profileNodes.push({
+        name: n.name,
+        station,
+        invertElev: n.elev,
+        crownElev: n.elev + n.maxDepth,
+        maxDepth: n.maxDepth,
+        type: n.type,
+      });
+    }
+
+    profiles.push({ outfallName: outfall.name, nodes: profileNodes, conduits: profileConduits });
+  }
+
+  profiles.sort((a, b) => b.nodes.length - a.nodes.length);
+  return profiles;
+}
+
+function ViewerNetworkCanvas({ parsed }: { parsed: ParsedInpFile }) {
+  const { theme } = useTheme();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const viewRef = useRef({ ox: 0, oy: 0, scale: 1, dragging: false, lx: 0, ly: 0 });
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  const netInfo = useMemo(() => extractNetworkData(parsed), [parsed]);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const W = canvas.width, H = canvas.height;
+    const { nodes, links, hasCoords } = netInfo;
+    const view = viewRef.current;
+
+    ctx.clearRect(0, 0, W, H);
+    const isDark = document.documentElement.classList.contains("dark");
+    ctx.fillStyle = isDark ? "#080c14" : "#f5f7fa";
+    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+
+    const nodeArr = Object.values(nodes);
+    if (nodeArr.length === 0 || !hasCoords) {
+      ctx.fillStyle = isDark ? "#94a3b8" : "#475569";
+      ctx.font = "14px 'DM Sans', sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(hasCoords ? "No nodes found" : "No [COORDINATES] section in this file", W / 2, H / 2);
+      ctx.restore();
+      return;
+    }
+
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    for (const n of nodeArr) {
+      if (n.x < xMin) xMin = n.x; if (n.x > xMax) xMax = n.x;
+      if (n.y < yMin) yMin = n.y; if (n.y > yMax) yMax = n.y;
+    }
+    const pad = 40;
+    const dataW = (xMax - xMin) || 1;
+    const dataH = (yMax - yMin) || 1;
+    const fitScale = Math.min((W - pad * 2) / dataW, (H - pad * 2) / dataH);
+    const totalScale = fitScale * view.scale;
+    const cx = W / 2 + view.ox, cy = H / 2 + view.oy;
+    const dataCx = (xMin + xMax) / 2, dataCy = (yMin + yMax) / 2;
+
+    ctx.translate(cx, cy);
+    ctx.scale(totalScale, -totalScale);
+    ctx.translate(-dataCx, -dataCy);
+
+    for (const l of links) {
+      const a = nodes[l.from], b = nodes[l.to];
+      if (!a || !b) continue;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = l.isPump ? "#818cf8" : "#34d399";
+      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = (l.isPump ? 2 : 1.2) / totalScale;
+      if (l.isPump) { ctx.setLineDash([6 / totalScale, 4 / totalScale]); }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+
+    for (const n of nodeArr) {
+      const r = Math.max(2, 4 / totalScale);
+      ctx.beginPath();
+      if (n.type === "outfall") {
+        ctx.moveTo(n.x, n.y - r * 1.5);
+        ctx.lineTo(n.x - r * 1.3, n.y + r);
+        ctx.lineTo(n.x + r * 1.3, n.y + r);
+        ctx.closePath();
+        ctx.fillStyle = "#ef4444";
+      } else if (n.type === "storage") {
+        ctx.rect(n.x - r, n.y - r, r * 2, r * 2);
+        ctx.fillStyle = "#fb923c";
+      } else {
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = "#38bdf8";
+      }
+      ctx.fill();
+    }
+
+    if (nodeArr.length < 5000) {
+      ctx.save();
+      ctx.scale(1, -1);
+      const labelSize = Math.max(8, 11 / totalScale);
+      ctx.font = `600 ${labelSize}px 'JetBrains Mono', monospace`;
+      for (const n of nodeArr) {
+        if (n.type === "outfall" || n.type === "storage") {
+          ctx.fillStyle = n.type === "outfall" ? "#ef4444" : "#fb923c";
+          ctx.fillText(n.name, n.x + 6 / totalScale, -n.y - 4 / totalScale);
+        }
+      }
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }, [netInfo, theme]);
+
+  useEffect(() => {
+    viewRef.current = { ox: 0, oy: 0, scale: 1, dragging: false, lx: 0, ly: 0 };
+    draw();
+  }, [draw]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      viewRef.current.dragging = true;
+      viewRef.current.lx = e.clientX;
+      viewRef.current.ly = e.clientY;
+      canvas.style.cursor = "grabbing";
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      const view = viewRef.current;
+      if (view.dragging) {
+        view.ox += e.clientX - view.lx;
+        view.oy += e.clientY - view.ly;
+        view.lx = e.clientX;
+        view.ly = e.clientY;
+        draw();
+      }
+
+      if (!netInfo.hasCoords || view.dragging) {
+        if (tooltipRef.current) tooltipRef.current.style.display = "none";
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const nodeArr = Object.values(netInfo.nodes);
+      let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+      for (const n of nodeArr) {
+        if (n.x < xMin) xMin = n.x; if (n.x > xMax) xMax = n.x;
+        if (n.y < yMin) yMin = n.y; if (n.y > yMax) yMax = n.y;
+      }
+      const pad = 40, W = canvas.width, H = canvas.height;
+      const dataW = (xMax - xMin) || 1, dataH = (yMax - yMin) || 1;
+      const fitScale = Math.min((W - pad * 2) / dataW, (H - pad * 2) / dataH);
+      const totalScale = fitScale * viewRef.current.scale;
+      const cxc = W / 2 + viewRef.current.ox, cyc = H / 2 + viewRef.current.oy;
+      const dataCx = (xMin + xMax) / 2, dataCy = (yMin + yMax) / 2;
+      const dx = (mx - cxc) / totalScale + dataCx;
+      const dy = -((my - cyc) / totalScale) + dataCy;
+
+      let best: InpNetNode | null = null, bestDist = Infinity;
+      const hitR = 15 / totalScale;
+      for (const n of nodeArr) {
+        const d = Math.hypot(n.x - dx, n.y - dy);
+        if (d < hitR && d < bestDist) { best = n; bestDist = d; }
+      }
+      const tip = tooltipRef.current;
+      if (tip && best) {
+        tip.innerHTML = `<strong style="color:${best.type === 'outfall' ? '#ef4444' : best.type === 'storage' ? '#fb923c' : '#38bdf8'}">${best.name}</strong> (${best.type})<br/>Elev: ${best.elev.toFixed(2)}`;
+        tip.style.display = "block";
+        tip.style.left = (e.clientX - rect.left + 12) + "px";
+        tip.style.top = (e.clientY - rect.top - 10) + "px";
+      } else if (tip) {
+        tip.style.display = "none";
+      }
+    };
+    const onMouseUp = () => { viewRef.current.dragging = false; canvas.style.cursor = "grab"; };
+    const onMouseLeave = () => { viewRef.current.dragging = false; canvas.style.cursor = "grab"; if (tooltipRef.current) tooltipRef.current.style.display = "none"; };
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      viewRef.current.scale *= e.deltaY < 0 ? 1.12 : 0.89;
+      viewRef.current.scale = Math.max(0.1, Math.min(20, viewRef.current.scale));
+      draw();
+    };
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    canvas.addEventListener("mousemove", onMouseMove);
+    canvas.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("mouseleave", onMouseLeave);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener("mousedown", onMouseDown);
+      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("mouseleave", onMouseLeave);
+      canvas.removeEventListener("wheel", onWheel);
+    };
+  }, [netInfo, draw]);
+
+  const nodeCount = Object.keys(netInfo.nodes).length;
+  const juncCount = Object.values(netInfo.nodes).filter(n => n.type === 'junction').length;
+  const outCount = Object.values(netInfo.nodes).filter(n => n.type === 'outfall').length;
+
+  return (
+    <div data-testid="viewer-network">
+      <div className="flex gap-2.5 mb-3 flex-wrap text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#38bdf8" }} /> Junction</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#ef4444" }} /> Outfall</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#fb923c" }} /> Storage</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#818cf8" }} /> Pump link</span>
+        <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-sm" style={{ background: "#34d399" }} /> Conduit</span>
+      </div>
+      <div className="relative rounded-lg border border-border bg-[#f5f7fa] dark:bg-[#080c14]">
+        <canvas ref={canvasRef} width={900} height={500} className="w-full block cursor-grab" data-testid="canvas-viewer-network" />
+        <div ref={tooltipRef} className="hidden absolute pointer-events-none rounded-md border border-border/50 px-2.5 py-1.5 font-mono text-[11px] text-foreground z-10 bg-white/95 dark:bg-[#0a0e17]/95 backdrop-blur-lg" />
+      </div>
+      <div className="flex justify-between items-center mt-2">
+        <span className="text-[11px] text-muted-foreground font-mono" data-testid="text-viewer-network-stats">
+          {juncCount} junctions | {outCount} outfalls | {netInfo.links.length} links | {nodeCount} total nodes
+        </span>
+        <div className="flex gap-1.5">
+          <button onClick={() => { viewRef.current.scale *= 1.2; viewRef.current.scale = Math.min(20, viewRef.current.scale); draw(); }}
+            className="w-7 h-7 rounded-md border border-border bg-card text-foreground text-sm grid place-items-center transition-colors hover:border-primary hover:text-primary"
+            data-testid="button-viewer-zoom-in">+</button>
+          <button onClick={() => { viewRef.current.scale *= 0.8; viewRef.current.scale = Math.max(0.1, viewRef.current.scale); draw(); }}
+            className="w-7 h-7 rounded-md border border-border bg-card text-foreground text-sm grid place-items-center transition-colors hover:border-primary hover:text-primary"
+            data-testid="button-viewer-zoom-out">-</button>
+          <button onClick={() => { viewRef.current = { ox: 0, oy: 0, scale: 1, dragging: false, lx: 0, ly: 0 }; draw(); }}
+            className="w-7 h-7 rounded-md border border-border bg-card text-foreground text-sm grid place-items-center transition-colors hover:border-primary hover:text-primary"
+            data-testid="button-viewer-zoom-reset">&#8634;</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ViewerProfileCanvas({ parsed }: { parsed: ParsedInpFile }) {
+  const { theme } = useTheme();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  const profiles = useMemo(() => buildProfilesFromParsed(parsed), [parsed]);
+  const profile = profiles[selectedIdx] || profiles[0];
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !profile || profile.nodes.length < 2) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+
+    const isDark = document.documentElement.classList.contains("dark");
+    ctx.fillStyle = isDark ? "#0a0e1a" : "#f5f7fa";
+    ctx.fillRect(0, 0, W, H);
+
+    const { nodes, conduits } = profile;
+    const maxStation = nodes[nodes.length - 1].station;
+    let minElev = Infinity, maxElev = -Infinity;
+    for (const n of nodes) {
+      if (n.invertElev < minElev) minElev = n.invertElev;
+      if (n.crownElev > maxElev) maxElev = n.crownElev;
+    }
+    for (const c of conduits) {
+      if (c.fromInvert < minElev) minElev = c.fromInvert;
+      if (c.toInvert < minElev) minElev = c.toInvert;
+      if (c.fromCrown > maxElev) maxElev = c.fromCrown;
+      if (c.toCrown > maxElev) maxElev = c.toCrown;
+    }
+    const elevPad = (maxElev - minElev) * 0.15 || 1;
+    minElev -= elevPad; maxElev += elevPad;
+
+    const ml = 70, mr = 30, mt = 30, mb = 50;
+    const plotW = W - ml - mr, plotH = H - mt - mb;
+    const xScale = (s: number) => ml + (s / maxStation) * plotW;
+    const yScale = (e: number) => mt + plotH - ((e - minElev) / (maxElev - minElev)) * plotH;
+
+    ctx.strokeStyle = isDark ? "rgba(56,189,248,0.08)" : "rgba(56,189,248,0.15)";
+    ctx.lineWidth = 0.5;
+    const nGridY = 8;
+    const elevStep = (maxElev - minElev) / nGridY;
+    ctx.fillStyle = isDark ? "rgba(148,163,184,0.5)" : "rgba(30,41,59,0.6)";
+    ctx.font = "10px 'JetBrains Mono', monospace";
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let i = 0; i <= nGridY; i++) {
+      const elev = minElev + i * elevStep;
+      const y = yScale(elev);
+      ctx.beginPath(); ctx.moveTo(ml, y); ctx.lineTo(W - mr, y); ctx.stroke();
+      ctx.fillText(elev.toFixed(1), ml - 8, y);
+    }
+    const nGridX = Math.min(10, nodes.length);
+    const stationStep = maxStation / nGridX;
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let i = 0; i <= nGridX; i++) {
+      const s = i * stationStep;
+      const x = xScale(s);
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, mt + plotH); ctx.stroke();
+      ctx.fillText(s.toFixed(0), x, mt + plotH + 6);
+    }
+
+    ctx.fillStyle = isDark ? "rgba(148,163,184,0.7)" : "rgba(30,41,59,0.7)";
+    ctx.font = "11px 'DM Sans', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Station", ml + plotW / 2, H - 8);
+    ctx.save();
+    ctx.translate(14, mt + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText("Elevation", 0, 0);
+    ctx.restore();
+
+    ctx.strokeStyle = isDark ? "rgba(56,189,248,0.2)" : "rgba(56,189,248,0.35)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ml, mt, plotW, plotH);
+
+    for (const c of conduits) {
+      const x1 = xScale(c.fromStation), x2 = xScale(c.toStation);
+      ctx.fillStyle = "rgba(52,211,153,0.08)";
+      ctx.beginPath();
+      ctx.moveTo(x1, yScale(c.fromCrown));
+      ctx.lineTo(x2, yScale(c.toCrown));
+      ctx.lineTo(x2, yScale(c.toInvert));
+      ctx.lineTo(x1, yScale(c.fromInvert));
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#34d399"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x1, yScale(c.fromCrown)); ctx.lineTo(x2, yScale(c.toCrown)); ctx.stroke();
+      ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x1, yScale(c.fromInvert)); ctx.lineTo(x2, yScale(c.toInvert)); ctx.stroke();
+      if (x2 - x1 > 40) {
+        ctx.fillStyle = "rgba(148,163,184,0.5)";
+        ctx.font = "9px 'JetBrains Mono', monospace";
+        ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+        ctx.fillText(`${c.diameter.toFixed(2)}`, (x1 + x2) / 2, (yScale(c.fromInvert) + yScale(c.toInvert)) / 2 - 3);
+      }
+    }
+
+    for (const n of nodes) {
+      const x = xScale(n.station);
+      const yInv = yScale(n.invertElev), yCrown = yScale(n.crownElev);
+      ctx.strokeStyle = "rgba(148,163,184,0.15)"; ctx.lineWidth = 0.5;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(x, yCrown); ctx.lineTo(x, yInv); ctx.stroke();
+      ctx.setLineDash([]);
+      if (n.type === "outfall") {
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath(); ctx.moveTo(x - 6, yInv); ctx.lineTo(x + 6, yInv); ctx.lineTo(x, yInv + 8); ctx.closePath(); ctx.fill();
+      } else if (n.type === "storage") {
+        ctx.fillStyle = "#fb923c"; ctx.fillRect(x - 4, yInv - 4, 8, 8);
+      } else {
+        ctx.fillStyle = "#38bdf8"; ctx.beginPath(); ctx.arc(x, yInv, 3.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = "#818cf8"; ctx.beginPath(); ctx.arc(x, yCrown, 2, 0, Math.PI * 2); ctx.fill();
+    }
+
+    ctx.fillStyle = "#38bdf8"; ctx.font = "bold 11px 'DM Sans', sans-serif";
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText(`Profile: ${profile.outfallName} → upstream (${nodes.length} nodes, ${conduits.length} conduits)`, ml + 8, mt + 6);
+
+    const legendY = mt + 22;
+    const items = [
+      { color: "#38bdf8", label: "Invert", shape: "line" as const },
+      { color: "#34d399", label: "Crown", shape: "line" as const },
+      { color: "#ef4444", label: "Outfall", shape: "tri" as const },
+      { color: "#38bdf8", label: "Junction", shape: "circle" as const },
+    ];
+    let lx = ml + 8;
+    ctx.font = "9px 'DM Sans', sans-serif";
+    for (const item of items) {
+      if (item.shape === "line") {
+        ctx.strokeStyle = item.color; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(lx, legendY + 5); ctx.lineTo(lx + 14, legendY + 5); ctx.stroke();
+      } else if (item.shape === "circle") {
+        ctx.fillStyle = item.color; ctx.beginPath(); ctx.arc(lx + 7, legendY + 5, 3, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.fillStyle = item.color; ctx.beginPath(); ctx.moveTo(lx + 2, legendY + 2); ctx.lineTo(lx + 12, legendY + 2); ctx.lineTo(lx + 7, legendY + 9); ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle = "rgba(148,163,184,0.7)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(item.label, lx + 18, legendY + 5);
+      lx += ctx.measureText(item.label).width + 30;
+    }
+  }, [profile, theme]);
+
+  useEffect(() => { draw(); }, [draw]);
+  useEffect(() => { const h = () => draw(); window.addEventListener("resize", h); return () => window.removeEventListener("resize", h); }, [draw]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const tooltip = tooltipRef.current;
+    if (!canvas || !tooltip || !profile || profile.nodes.length < 2) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const { nodes } = profile;
+    const maxStation = nodes[nodes.length - 1].station;
+    const W = rect.width;
+    const ml = 70, mr = 30, plotW = W - ml - mr;
+    const xScale = (s: number) => ml + (s / maxStation) * plotW;
+    let closest: InpProfileNode | null = null, closestDist = Infinity;
+    for (const n of nodes) {
+      const d = Math.abs(mx - xScale(n.station));
+      if (d < closestDist && d < 30) { closestDist = d; closest = n; }
+    }
+    if (closest) {
+      tooltip.style.display = "block";
+      tooltip.style.left = `${Math.min(mx + 12, W - 160)}px`;
+      tooltip.style.top = `${Math.max(e.clientY - rect.top - 60, 5)}px`;
+      tooltip.innerHTML = `<div style="font-weight:600;color:#38bdf8;margin-bottom:3px">${closest.name} (${closest.type})</div><div>Invert: <span style="color:#38bdf8">${closest.invertElev.toFixed(3)}</span></div><div>Crown: <span style="color:#34d399">${closest.crownElev.toFixed(3)}</span></div><div>Depth: <span style="color:#818cf8">${closest.maxDepth.toFixed(2)}</span></div><div>Station: <span style="color:#fb923c">${closest.station.toFixed(1)}</span></div>`;
+    } else {
+      tooltip.style.display = "none";
+    }
+  }, [profile]);
+
+  if (profiles.length === 0) return <div className="text-sm text-muted-foreground p-4">No outfall-to-upstream path found. Requires [JUNCTIONS], [OUTFALLS], [CONDUITS], and elevation data.</div>;
+
+  return (
+    <div data-testid="viewer-profile">
+      {profiles.length > 1 && (
+        <div className="flex items-center gap-3 mb-3">
+          <label className="text-xs font-semibold text-muted-foreground">Outfall Profile</label>
+          <Select value={String(selectedIdx)} onValueChange={(v) => setSelectedIdx(parseInt(v))}>
+            <SelectTrigger className="w-[260px]" data-testid="select-viewer-profile">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {profiles.map((p, i) => (
+                <SelectItem key={i} value={String(i)}>{p.outfallName} ({p.nodes.length} nodes)</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="relative rounded-lg overflow-hidden border border-border bg-[#f5f7fa] dark:bg-[#0a0e1a]">
+        <canvas ref={canvasRef} className="w-full" style={{ height: 340 }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => { if (tooltipRef.current) tooltipRef.current.style.display = "none"; }}
+          data-testid="canvas-viewer-profile" />
+        <div ref={tooltipRef} className="absolute pointer-events-none hidden rounded-lg border px-3 py-2 text-[11px] leading-snug font-mono z-20 text-[#334155] dark:text-[#94a3b8] bg-white/95 dark:bg-[#0a0e1a]/95 border-[rgba(56,189,248,0.3)] backdrop-blur-lg" />
+      </div>
+    </div>
+  );
+}
+
 const PAGE_SIZE = 50;
 
 interface InpViewerProps {
@@ -226,7 +895,7 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
   const [page, setPage] = useState(0);
   const [sortCol, setSortCol] = useState<number | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
-  const [viewMode, setViewMode] = useState<"table" | "stats" | "chart">("table");
+  const [viewMode, setViewMode] = useState<"table" | "stats" | "chart" | "network" | "profile">("table");
   const [chartCol, setChartCol] = useState<number>(0);
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [dragOver, setDragOver] = useState(false);
@@ -420,6 +1089,39 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
 
       {viewerValidation && (
         <ValidationPanelComponent result={viewerValidation} />
+      )}
+
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          variant={viewMode === "network" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode(viewMode === "network" ? "table" : "network")}
+          className="text-xs"
+          data-testid="button-view-network"
+        >
+          <Network className="w-3.5 h-3.5 mr-1" /> Network Map
+        </Button>
+        <Button
+          variant={viewMode === "profile" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode(viewMode === "profile" ? "table" : "profile")}
+          className="text-xs"
+          data-testid="button-view-profile"
+        >
+          <TrendingDown className="w-3.5 h-3.5 mr-1" /> Profile / HGL
+        </Button>
+      </div>
+
+      {viewMode === "network" && (
+        <Card className="border-border bg-card p-4">
+          <ViewerNetworkCanvas parsed={parsed} />
+        </Card>
+      )}
+
+      {viewMode === "profile" && (
+        <Card className="border-border bg-card p-4">
+          <ViewerProfileCanvas parsed={parsed} />
+        </Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 items-start">

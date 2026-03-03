@@ -165,6 +165,117 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
+.theme-uf {
+  --background: 24 30% 5%;
+  --foreground: 30 20% 85%;
+  --border: 24 25% 16%;
+  --card: 24 25% 9%;
+  --card-foreground: 30 25% 92%;
+  --card-border: 24 22% 14%;
+  --sidebar: 24 28% 7%;
+  --sidebar-foreground: 30 20% 85%;
+  --sidebar-border: 24 25% 14%;
+  --sidebar-primary: 16 95% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 24 22% 14%;
+  --sidebar-accent-foreground: 30 20% 88%;
+  --sidebar-ring: 16 95% 53%;
+  --popover: 24 25% 11%;
+  --popover-foreground: 30 20% 88%;
+  --popover-border: 24 25% 18%;
+  --primary: 16 95% 53%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 24 20% 16%;
+  --secondary-foreground: 30 20% 88%;
+  --muted: 24 18% 13%;
+  --muted-foreground: 24 18% 53%;
+  --accent: 24 18% 13%;
+  --accent-foreground: 30 20% 88%;
+  --destructive: 0 84% 45%;
+  --destructive-foreground: 0 84% 98%;
+  --input: 24 25% 25%;
+  --ring: 16 95% 53%;
+  --chart-1: 16 95% 53%;
+  --chart-2: 224 100% 40%;
+  --chart-3: 35 100% 50%;
+  --chart-4: 200 80% 50%;
+  --chart-5: 330 80% 55%;
+}
+
+.theme-epa {
+  --background: 210 35% 5%;
+  --foreground: 200 20% 85%;
+  --border: 210 28% 16%;
+  --card: 210 28% 9%;
+  --card-foreground: 200 25% 92%;
+  --card-border: 210 24% 14%;
+  --sidebar: 210 30% 7%;
+  --sidebar-foreground: 200 20% 85%;
+  --sidebar-border: 210 28% 14%;
+  --sidebar-primary: 150 55% 38%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 210 24% 14%;
+  --sidebar-accent-foreground: 200 20% 88%;
+  --sidebar-ring: 150 55% 38%;
+  --popover: 210 28% 11%;
+  --popover-foreground: 200 20% 88%;
+  --popover-border: 210 28% 18%;
+  --primary: 150 55% 38%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 22% 16%;
+  --secondary-foreground: 200 20% 88%;
+  --muted: 210 18% 13%;
+  --muted-foreground: 210 18% 53%;
+  --accent: 210 18% 13%;
+  --accent-foreground: 200 20% 88%;
+  --destructive: 0 84% 45%;
+  --destructive-foreground: 0 84% 98%;
+  --input: 210 28% 25%;
+  --ring: 150 55% 38%;
+  --chart-1: 150 55% 45%;
+  --chart-2: 216 100% 45%;
+  --chart-3: 180 60% 45%;
+  --chart-4: 40 90% 55%;
+  --chart-5: 280 60% 55%;
+}
+
+.theme-osu {
+  --background: 0 20% 5%;
+  --foreground: 0 8% 85%;
+  --border: 0 15% 16%;
+  --card: 0 15% 9%;
+  --card-foreground: 0 10% 92%;
+  --card-border: 0 12% 14%;
+  --sidebar: 0 18% 7%;
+  --sidebar-foreground: 0 8% 85%;
+  --sidebar-border: 0 15% 14%;
+  --sidebar-primary: 0 100% 37%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 12% 14%;
+  --sidebar-accent-foreground: 0 8% 88%;
+  --sidebar-ring: 0 100% 37%;
+  --popover: 0 15% 11%;
+  --popover-foreground: 0 8% 88%;
+  --popover-border: 0 15% 18%;
+  --primary: 0 100% 37%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 10% 16%;
+  --secondary-foreground: 0 8% 88%;
+  --muted: 0 8% 13%;
+  --muted-foreground: 0 8% 53%;
+  --accent: 0 8% 13%;
+  --accent-foreground: 0 8% 88%;
+  --destructive: 30 100% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 0 15% 25%;
+  --ring: 0 100% 37%;
+  --chart-1: 0 100% 45%;
+  --chart-2: 0 0% 45%;
+  --chart-3: 0 85% 60%;
+  --chart-4: 210 30% 55%;
+  --chart-5: 30 80% 55%;
+}
+
 @layer base {
   * {
     @apply border-border;

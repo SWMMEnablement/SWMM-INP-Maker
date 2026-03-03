@@ -1,0 +1,70 @@
+What I'd Like to Understand Better
+
+1. "Physics-based force-directed network synthesis" — what exactly is the physics?
+Is this a force-directed graph layout algorithm (like spring-electric) that positions nodes spatially so the network looks realistic (no overlapping pipes, realistic branching angles)? Or does "physics-based" mean it's applying hydraulic design rules (minimum slopes, velocity constraints, increasing pipe sizes downstream)?
+
+2. The ReSWMM Discretization toggle — what does it do?
+The credits mention Robson Leo Pachaly (2018) and Vasconcelos et al. (2018). I know ReSWMM is a tool for subdividing long conduits to improve SWMM's numerical stability with DYNWAVE routing. When this toggle is on, does the generator automatically split conduits that exceed some length threshold? What threshold? Does it add intermediate junctions?
+
+3. Zero subcatchments for sanitary sewer — is that intentional?
+The screenshot shows 0 subcatchments. For a sanitary sewer model this makes sense (dry weather flow comes from [DWF] patterns, not rainfall-runoff). But:
+
+
+
+
+
+If I switch to "Combined Sewer" or "Storm Sewer" model type, does it generate subcatchments?
+
+
+
+Can I manually override the subcatchment count?
+
+4. The element ratios — are they fixed or model-type-dependent?
+For 1,000 junctions: 1,030 conduits (1.03:1 ratio), 20 storage nodes (2%), 10 pumps (1%), 5 orifices, 1 weir, 2 outfalls. Are these ratios:
+
+
+
+
+
+Fixed formulas?
+
+
+
+Sampled from the statistical distributions of the 338 models?
+
+
+
+Different for storm vs. sanitary vs. combined systems?
+
+5. Detail Level (Basic / Moderate / Detailed) — what changes?
+Does "Basic" mean fewer INP sections and simpler parameters, while "Detailed" adds things like LID controls, RDII, snowpacks, water quality? Or does it affect the spatial complexity (more bends, more parallel paths)?
+
+6. Terrain-to-elevation translation
+"Moderate" terrain says 0.2–1.5% slopes. How does the generator assign actual invert elevations to the 1,000 junctions? Does it:
+
+
+
+
+
+Place the outfall at 0.0 ft and work upstream with random slopes in that range?
+
+
+
+Generate a DEM-like surface first, then place nodes on it?
+
+
+
+Follow a tree structure where each upstream branch gets progressively higher?
+
+7. The 12 example presets — what are they?
+The dropdown says "12 pre-configured example models from real-world scenarios." Are these specific cities, specific model sizes, or specific use cases (like "small sanitary," "large combined with LIDs," "mountain terrain storm sewer")?
+
+8. The INP Viewer tab
+What does it show? Can you view the generated .inp as text, or does it render the network visually (like a map), or both?
+
+9. How the generated file connects back to the migration workflow
+This is the bridge question. If I generate a 1,000-junction sanitary sewer .inp from this app, then use Script 01 to import it into ICM SWMM — has anyone tested that roundtrip? Are there any known issues with the generated files that cause ICM import problems (like missing required fields, or coordinate systems that ICM doesn't recognize)?
+
+What Would Make the App Even More Useful for the Migration Workflow
+
+If the INP MAKER could optionally generate a validation report alongside the .inp file (section counts, parameter ranges, a checksum), then Script 06 could compare against that report automatically after import. That would close the loop between generation and QA.

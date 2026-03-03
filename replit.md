@@ -42,10 +42,13 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - Comprehensive stats panel after generation
 
 ## Theme
-- Dark/light mode toggle with localStorage persistence (key: "swmm-theme")
-- ThemeProvider in `client/src/components/theme-provider.tsx` manages the "dark" class on `<html>`
+- 5 themes: Light, Dark, UF Gators, EPA, OSU Buckeyes — selectable via dropdown in header
+- localStorage persistence (key: "swmm-theme"), values: "light" | "dark" | "uf" | "epa" | "osu"
+- ThemeProvider in `client/src/components/theme-provider.tsx` manages theme classes on `<html>`
+- Branded themes (uf/epa/osu) extend dark mode with `.dark` class + `.theme-uf`/`.theme-epa`/`.theme-osu` CSS overrides
+- CSS variable blocks in `client/src/index.css`: `.theme-uf` (Orange #FA4616 primary), `.theme-epa` (Green #2E8540 primary), `.theme-osu` (Scarlet #BB0000 primary)
 - Inline script in `client/index.html` applies stored theme before React mounts (no flash)
-- Water engineering theme: deep navy background (dark), sky blue primary (#38bdf8), indigo (#818cf8), emerald (#34d399)
+- Base water engineering theme: deep navy background (dark), sky blue primary (#38bdf8)
 - Fonts: DM Sans (sans), Playfair Display (serif for titles), JetBrains Mono (mono)
 - Canvas components (network, profile) are theme-aware and redraw on theme change
 

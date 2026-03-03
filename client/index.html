@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <script>
-      (function(){var t=localStorage.getItem("swmm-theme");if(t==="light"){}else{document.documentElement.classList.add("dark")}})();
+      (function(){var t=localStorage.getItem("swmm-theme")||"dark";var r=document.documentElement;if(t==="dark"){r.classList.add("dark")}else if(t==="uf"){r.classList.add("dark","theme-uf")}else if(t==="epa"){r.classList.add("dark","theme-epa")}else if(t==="osu"){r.classList.add("dark","theme-osu")}})();
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />

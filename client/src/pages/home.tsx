@@ -160,7 +160,7 @@ export default function Home() {
 
       <div className="relative z-10 max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
         <header className="flex flex-col sm:flex-row sm:items-end gap-5 pb-6 mb-8 border-b-2" style={{ borderImage: "linear-gradient(90deg, #38bdf8, #818cf8, #34d399, transparent) 1" }}>
-          <div className="w-16 h-16 rounded-2xl grid place-items-center flex-shrink-0" style={{
+          <div className="w-20 h-20 rounded-2xl grid place-items-center flex-shrink-0" style={{
             background: theme === "uf" ? "linear-gradient(135deg, #FA4616, #0021A5)"
               : theme === "osu" ? "linear-gradient(135deg, #BB0000, #666)"
               : theme === "auburn" ? "linear-gradient(135deg, #DD550C, #0C2340)"
@@ -171,7 +171,7 @@ export default function Home() {
               : "0 6px 28px rgba(56,189,248,0.35), 0 0 60px rgba(129,140,248,0.15)"
           }}>
             {theme === "uf" ? (
-              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="UF Gators">
+              <svg viewBox="0 0 100 100" className="w-14 h-14" aria-label="UF Gators">
                 <ellipse cx="50" cy="48" rx="38" ry="28" fill="#2d6b1e" />
                 <ellipse cx="50" cy="52" rx="34" ry="18" fill="#1a4a12" />
                 <path d="M16 42 Q20 30 32 28 Q26 24 30 18 Q34 22 36 28 L42 26 Q40 20 44 14 Q48 20 46 26 L50 25 Q50 18 54 12 Q58 18 54 26 L58 26 Q56 20 60 14 Q64 20 62 26 L68 28 Q66 22 70 18 Q74 24 68 28 Q80 30 84 42" fill="none" stroke="#4a8b3a" strokeWidth="2.5" strokeLinecap="round" />
@@ -185,7 +185,7 @@ export default function Home() {
                 <path d="M78 54 Q82 58 86 56 Q84 52 78 54Z" fill="#2d6b1e" />
               </svg>
             ) : theme === "osu" ? (
-              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Oregon State Beavers">
+              <svg viewBox="0 0 100 100" className="w-14 h-14" aria-label="Oregon State Beavers">
                 <ellipse cx="50" cy="52" rx="30" ry="32" fill="#8B5E3C" />
                 <ellipse cx="50" cy="56" rx="22" ry="18" fill="#A0724A" />
                 <ellipse cx="36" cy="42" rx="8" ry="9" fill="#D4A574" />
@@ -205,7 +205,7 @@ export default function Home() {
                 <path d="M20 78 Q30 82 40 76 Q50 84 60 76 Q70 82 80 78" fill="none" stroke="#8B5E3C" strokeWidth="3" strokeLinecap="round" />
               </svg>
             ) : theme === "auburn" ? (
-              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Auburn Tigers">
+              <svg viewBox="0 0 100 100" className="w-14 h-14" aria-label="Auburn Tigers">
                 <ellipse cx="50" cy="50" rx="34" ry="30" fill="#E87A2C" />
                 <ellipse cx="50" cy="54" rx="26" ry="16" fill="#F5A623" />
                 <path d="M20 46 Q16 30 24 18 Q30 28 28 40Z" fill="#E87A2C" stroke="#c06010" strokeWidth="1" />
@@ -226,7 +226,7 @@ export default function Home() {
                 <path d="M76 38 L80 34 M74 34 L78 30 M72 36 L76 32" stroke="#1a1a1a" strokeWidth="2" strokeLinecap="round" />
               </svg>
             ) : (
-              <svg viewBox="0 0 100 100" className="w-10 h-10" aria-label="Water molecule">
+              <svg viewBox="0 0 100 100" className="w-14 h-14" aria-label="Water molecule">
                 <circle cx="50" cy="38" r="14" fill="white" opacity="0.95" />
                 <circle cx="30" cy="66" r="10" fill="white" opacity="0.8" />
                 <circle cx="70" cy="66" r="10" fill="white" opacity="0.8" />

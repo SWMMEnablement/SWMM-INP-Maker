@@ -75,6 +75,8 @@ export default function Home() {
   const [reswmmDescOpen, setReswmmDescOpen] = useState(false);
   const [result, setResult] = useState<GeneratedModel | null>(null);
   const [resultConfig, setResultConfig] = useState<SwmmConfig | null>(null);
+  const [allMethodResults, setAllMethodResults] = useState<{ method: string; label: string; model: GeneratedModel }[] | null>(null);
+  const [generatingAll, setGeneratingAll] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("generator");
   const [viewerInpText, setViewerInpText] = useState<{ text: string; name: string } | null>(null);
@@ -97,6 +99,36 @@ export default function Home() {
   const updateReswmm = useCallback((partial: Partial<SwmmConfig['reswmm']>) => {
     setConfig(prev => ({ ...prev, reswmm: { ...prev.reswmm, ...partial } }));
   }, []);
+
+  const ALL_METHODS: { method: GenerationMethod; label: string; variant?: LSystemVariant }[] = [
+    { method: 'force_directed', label: 'Force-Directed (Barnes-Hut)' },
+    { method: 'horton_strahler', label: 'Horton-Strahler' },
+    { method: 'l_system', label: 'L-System (Dendritic)', variant: 'dendritic' },
+    { method: 'l_system', label: 'L-System (Grid)', variant: 'grid' },
+    { method: 'l_system', label: 'L-System (Radial)', variant: 'radial' },
+    { method: 'space_colonization', label: 'Space Colonization' },
+    { method: 'mst', label: 'Minimum Spanning Tree' },
+  ];
+
+  const handleGenerateAll = useCallback(() => {
+    setGeneratingAll(true);
+    setAllMethodResults(null);
+    setTimeout(() => {
+      const results: { method: string; label: string; model: GeneratedModel }[] = [];
+      for (const m of ALL_METHODS) {
+        try {
+          const cfg = { ...config, generationMethod: m.method, lSystemVariant: m.variant || config.lSystemVariant };
+          const model = generateModel(cfg);
+          results.push({ method: m.method + (m.variant ? `_${m.variant}` : ''), label: m.label, model });
+        } catch {
+          // skip failed methods
+        }
+      }
+      setAllMethodResults(results);
+      toast({ title: "All methods generated", description: `${results.length} of ${ALL_METHODS.length} methods succeeded` });
+      setGeneratingAll(false);
+    }, 50);
+  }, [config, toast]);
 
   const handleGenerate = useCallback(() => {
     setGenerating(true);
@@ -843,15 +875,26 @@ export default function Home() {
                     )}
                   </div>
 
-                  <Button
-                    onClick={handleGenerate}
-                    disabled={generating}
-                    className="w-full text-base font-bold py-6"
-                    style={{ background: "linear-gradient(135deg, #38bdf8, #818cf8)" }}
-                    data-testid="button-generate"
-                  >
-                    {generating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : "Generate INP File"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleGenerate}
+                      disabled={generating || generatingAll}
+                      className="flex-1 text-base font-bold py-6"
+                      style={{ background: "linear-gradient(135deg, #38bdf8, #818cf8)" }}
+                      data-testid="button-generate"
+                    >
+                      {generating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : "Generate INP File"}
+                    </Button>
+                    <Button
+                      onClick={handleGenerateAll}
+                      disabled={generating || generatingAll}
+                      variant="outline"
+                      className="py-6 text-xs font-semibold whitespace-nowrap"
+                      data-testid="button-generate-all"
+                    >
+                      {generatingAll ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> All...</> : "All Methods"}
+                    </Button>
+                  </div>
 
                   <div className={`rounded-lg border p-5 text-center transition-colors ${result ? "border-chart-3" : "border-border"}`} data-testid="download-area">
                     {!result && !generating && (
@@ -1123,6 +1166,61 @@ export default function Home() {
                       Longitudinal Profile <span className="font-normal normal-case tracking-normal">&mdash; outfall to upstream, invert &amp; crown elevations</span>
                     </h2>
                     <ProfileCanvas profiles={result.profiles} />
+                  </Card>
+                )}
+
+                {allMethodResults && allMethodResults.length > 0 && (
+                  <Card className="p-5 border-border bg-card" data-testid="all-methods-grid">
+                    <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+                      All Generation Methods <span className="font-normal normal-case tracking-normal">&mdash; {allMethodResults.length} methods compared with {fmt(config.N)} junctions</span>
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {allMethodResults.map((r) => (
+                        <div key={r.method} className="border border-border rounded-lg overflow-hidden" data-testid={`method-card-${r.method}`}>
+                          <div className="p-3 bg-muted/30 border-b border-border">
+                            <h3 className="text-sm font-semibold text-card-foreground">{r.label}</h3>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {fmt(r.model.stats.totalElements)} elements &middot; {fmt(r.model.stats.junctions)} junctions &middot; {fmt(r.model.stats.conduits)} conduits
+                            </p>
+                          </div>
+                          <div className="h-[250px]">
+                            <NetworkCanvas netData={r.model.netData} />
+                          </div>
+                          <div className="p-2 bg-muted/20 border-t border-border flex gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[10px] h-7 flex-1"
+                              onClick={() => {
+                                setResult(r.model);
+                                setResultConfig({ ...config });
+                                const vResult = validateInp(r.model.inpText, true);
+                                setValidation(vResult);
+                              }}
+                              data-testid={`select-method-${r.method}`}
+                            >
+                              Use This
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[10px] h-7 flex-1"
+                              onClick={() => {
+                                const blob = new Blob([r.model.inpText], { type: "text/plain" });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url; a.download = r.model.stats.fileName;
+                                document.body.appendChild(a); a.click();
+                                document.body.removeChild(a);
+                                setTimeout(() => URL.revokeObjectURL(url), 3000);
+                              }}
+                            >
+                              <Download className="w-3 h-3 mr-1" /> Download
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </Card>
                 )}
               </div>

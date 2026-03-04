@@ -992,6 +992,31 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     }
   }
 
+  const connectedOutfalls = new Set<string>();
+  for (const e of graph.edges) {
+    if (e.to.type === 'outfall') connectedOutfalls.add(e.to.name);
+    if (e.from.type === 'outfall') connectedOutfalls.add(e.from.name);
+  }
+  const junctionNodes = graph.allNodes.filter(n => n.type === 'junction');
+  for (const outNode of graph.allNodes) {
+    if (outNode.type !== 'outfall') continue;
+    if (connectedOutfalls.has(outNode.name)) continue;
+    if (junctionNodes.length === 0) continue;
+    let closest = junctionNodes[0], closestDist = Infinity;
+    for (const j of junctionNodes) {
+      const d = Math.hypot(j.x - outNode.x, j.y - outNode.y);
+      if (d < closestDist) { closestDist = d; closest = j; }
+    }
+    graph.edges.push({ from: closest, to: outNode, length: Math.max(1, closestDist) });
+    connectedOutfalls.add(outNode.name);
+    const countUp2 = (name: string): number => {
+      let c = 0;
+      for (const e2 of graph.edges) { if (e2.to.name === name) c += 1 + countUp2(e2.from.name); }
+      return c;
+    };
+    graph.accumUpstream[outNode.name] = countUp2(outNode.name);
+  }
+
   const elevRange = eHi - eLo;
   let demMin = Infinity, demMax = -Infinity;
   for (const n of graph.allNodes) {

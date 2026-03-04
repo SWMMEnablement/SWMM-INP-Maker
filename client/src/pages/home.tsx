@@ -1184,9 +1184,35 @@ export default function Home() {
 
                 {allMethodResults && allMethodResults.length > 0 && (
                   <Card className="p-5 border-border bg-card" data-testid="all-methods-grid">
-                    <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-                      All Generation Methods <span className="font-normal normal-case tracking-normal">&mdash; {allMethodResults.length} methods compared with {fmt(config.N)} junctions</span>
-                    </h2>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        All Generation Methods <span className="font-normal normal-case tracking-normal">&mdash; {allMethodResults.length} methods compared with {fmt(config.N)} junctions</span>
+                      </h2>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 shrink-0"
+                        data-testid="button-download-all-inp"
+                        onClick={async () => {
+                          const JSZip = (await import('jszip')).default;
+                          const zip = new JSZip();
+                          for (const r of allMethodResults) {
+                            zip.file(r.model.stats.fileName.replace('.inp', `_${r.method}.inp`), r.model.inpText);
+                          }
+                          const blob = await zip.generateAsync({ type: 'blob' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `swmm5_all_methods_${allMethodResults.length}.zip`;
+                          document.body.appendChild(a); a.click();
+                          document.body.removeChild(a);
+                          setTimeout(() => URL.revokeObjectURL(url), 3000);
+                          toast({ title: "Downloaded", description: `ZIP with ${allMethodResults.length} INP files` });
+                        }}
+                      >
+                        <Download className="w-3 h-3 mr-1" /> Download All (.zip)
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {allMethodResults.map((r) => (
                         <div key={r.method} className="border border-border rounded-lg overflow-hidden" data-testid={`method-card-${r.method}`}>

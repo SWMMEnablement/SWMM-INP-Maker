@@ -142,9 +142,17 @@ export interface NetLink {
   isPump?: boolean;
 }
 
+export interface NetPolygon {
+  name: string;
+  vertices: { x: number; y: number }[];
+  color: string;
+  outlet: string;
+}
+
 export interface NetData {
   nodes: Record<string, NetNode>;
   links: NetLink[];
+  polygons: NetPolygon[];
   domain: number;
 }
 
@@ -266,7 +274,7 @@ export const ALL_SECTIONS = [
   "[INFILTRATION]","[AQUIFERS]","[GROUNDWATER]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
   "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[TRANSECTS]","[LOSSES]",
   "[CONTROLS]","[INFLOWS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
-  "[CURVES]","[TIMESERIES]","[COORDINATES]","[MAP]","[REPORT]"
+  "[CURVES]","[TIMESERIES]","[COORDINATES]","[Polygons]","[MAP]","[REPORT]"
 ];
 
 export const TERRAIN_LABELS: Record<string, string> = { flat:"0.1-0.5%", moderate:"0.2-1.5%", hilly:"0.5-3.0%", mountainous:"1-8%" };
@@ -337,6 +345,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Mountain Stormwater (SI)",
     description: "Steep mountainous stormwater — 300 junctions, high slopes, SI metric units",
+    rationale: "Mountainous terrain generates steep conduit slopes and large elevation drops, testing SWMM's ability to handle supercritical flow and high-velocity conditions.",
     config: { N: 300, type: "stormwater", units: "SI", terrain: "mountainous", detail: "moderate", landUse: "mixed", outfallElev: 150, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mountain", "SI"],
   },
@@ -381,6 +390,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Industrial Pump Network",
     description: "Industrial pump-heavy network — 1,200 junctions, flat terrain, many force mains",
+    rationale: "Large flat industrial layout maximizes pump stations and force mains, useful for testing pressure-pipe routing and Hazen-Williams head loss calculations.",
     config: { N: 1200, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Industrial", "Pumps", "Large"],
   },
@@ -455,6 +465,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Ultra-Large Stormwater (10K)",
     description: "Massive city-scale stormwater — 10,000 junctions, moderate terrain, mixed land use",
+    rationale: "Tests generator performance and SWMM solver limits at city scale; basic detail keeps file size manageable while still producing a realistic 10,000-node network.",
     config: { N: 10000, type: "stormwater", units: "US", terrain: "moderate", detail: "basic", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mega", "10K"],
   },
@@ -619,7 +630,7 @@ export function compute(config: SwmmConfig): ComputedElements {
 
 export function getSections(elems: ComputedElements, config: SwmmConfig): Set<string> {
   const on = new Set(["[TITLE]","[OPTIONS]","[JUNCTIONS]","[OUTFALLS]","[CONDUITS]","[XSECTIONS]","[COORDINATES]","[MAP]","[REPORT]","[LOSSES]"]);
-  if (elems.subcatchments > 0) ["[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]","[INFILTRATION]","[TIMESERIES]"].forEach(s => on.add(s));
+  if (elems.subcatchments > 0) ["[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]","[INFILTRATION]","[TIMESERIES]","[Polygons]"].forEach(s => on.add(s));
   const hasDWF = config.dwfNodePct > 0 && (config.type==="sanitary"||config.type==="combined"||config.type==="wos_intensive");
   if (hasDWF) ["[DWF]","[PATTERNS]"].forEach(s => on.add(s));
   if (config.inflowTsPct > 0) { on.add("[INFLOWS]"); on.add("[TIMESERIES]"); }
@@ -937,6 +948,68 @@ function generateRainfallProfile(dist: RainfallDistribution, totalDepth: number,
   const patternId = mapLegacyDistribution(dist);
   const timestep = Math.max(5, Math.round(duration * 60 / 40));
   return rainCanvasToSwmmTimeseries(patternId, totalDepth, duration, timestep);
+}
+
+interface VoronoiCell {
+  site: { x: number; y: number; name: string };
+  vertices: { x: number; y: number }[];
+}
+
+function computeVoronoiCells(
+  sites: { x: number; y: number; name: string }[],
+  clipMinX: number, clipMinY: number, clipMaxX: number, clipMaxY: number
+): VoronoiCell[] {
+  if (sites.length === 0) return [];
+
+  const cells: VoronoiCell[] = [];
+  const nAngles = 36;
+
+  for (const site of sites) {
+    const angles: { angle: number; dist: number; x: number; y: number }[] = [];
+
+    for (let a = 0; a < nAngles; a++) {
+      const angle = (2 * Math.PI * a) / nAngles;
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+
+      let minDist = Infinity;
+
+      const clipDists: number[] = [];
+      if (dx > 0) clipDists.push((clipMaxX - site.x) / dx);
+      if (dx < 0) clipDists.push((clipMinX - site.x) / dx);
+      if (dy > 0) clipDists.push((clipMaxY - site.y) / dy);
+      if (dy < 0) clipDists.push((clipMinY - site.y) / dy);
+      for (const cd of clipDists) {
+        if (cd > 0 && cd < minDist) minDist = cd;
+      }
+
+      for (const other of sites) {
+        if (other === site) continue;
+        const mx = (site.x + other.x) / 2;
+        const my = (site.y + other.y) / 2;
+        const nx = other.x - site.x;
+        const ny = other.y - site.y;
+        const denom = dx * nx + dy * ny;
+        if (denom <= 0) continue;
+        const t = ((mx - site.x) * nx + (my - site.y) * ny) / denom;
+        if (t > 0 && t < minDist) minDist = t;
+      }
+
+      if (minDist === Infinity) minDist = Math.max(clipMaxX - clipMinX, clipMaxY - clipMinY);
+      const vx = site.x + dx * minDist;
+      const vy = site.y + dy * minDist;
+      angles.push({ angle, dist: minDist, x: vx, y: vy });
+    }
+
+    const vertices = angles.map(a => ({
+      x: Math.max(clipMinX, Math.min(clipMaxX, a.x)),
+      y: Math.max(clipMinY, Math.min(clipMaxY, a.y))
+    }));
+
+    cells.push({ site, vertices });
+  }
+
+  return cells;
 }
 
 export function generateModel(config: SwmmConfig): GeneratedModel {
@@ -1380,6 +1453,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   }
   w("");
 
+  const subcatchData: { name: string; outlet: string; jx: number; jy: number }[] = [];
   if (nSubcatch > 0) {
     w("[SUBCATCHMENTS]");
     w(";;Name           Raingage         Outlet           Area     %Imperv  Width    Slope");
@@ -1390,13 +1464,15 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     for (let i=0; i<nSubcatch; i++) {
       const name = `S${i+1}`;
       const gage = `RG${(i%nGages)+1}`;
-      const outlet = junctions[i%N].name;
+      const junc = junctions[i%N];
+      const outlet = junc.name;
       let area = tri(0.5,100,5); if(isSI) area/=2.471;
       const imperv = rand(impR[0],impR[1]);
       const areaFt = area*(isSI?10764:43560);
       const width = Math.sqrt(areaFt)*rand(0.5,1.2);
       const slope = rand(slR[0],slR[1]);
       w(`${name.padEnd(17)}${gage.padEnd(17)}${outlet.padEnd(17)}${area.toFixed(3).padEnd(9)}${imperv.toFixed(1).padEnd(9)}${width.toFixed(1).padEnd(9)}${slope.toFixed(2)}`);
+      subcatchData.push({ name, outlet, jx: junc.x, jy: junc.y });
     }
     w("");
 
@@ -1608,6 +1684,40 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   }
   w("");
 
+  const voronoiCells: VoronoiCell[] = [];
+  if (subcatchData.length > 0) {
+    const uniqueSites = new Map<string, { x: number; y: number; name: string }>();
+    for (const sc of subcatchData) {
+      if (!uniqueSites.has(sc.outlet)) {
+        uniqueSites.set(sc.outlet, { x: sc.jx, y: sc.jy, name: sc.name });
+      }
+    }
+    const siteArray = Array.from(uniqueSites.values());
+    const maxVoronoiSites = 500;
+    const cells = siteArray.length <= maxVoronoiSites
+      ? computeVoronoiCells(siteArray, 0, 0, domain, domain)
+      : computeVoronoiCells(siteArray.slice(0, maxVoronoiSites), 0, 0, domain, domain);
+
+    const cellByOutlet = new Map<string, VoronoiCell>();
+    for (let ci = 0; ci < cells.length; ci++) {
+      const outletName = Array.from(uniqueSites.keys())[ci];
+      cellByOutlet.set(outletName, cells[ci]);
+    }
+
+    w("[Polygons]");
+    w(";;Subcatch       X-Coord        Y-Coord");
+    for (const sc of subcatchData) {
+      const cell = cellByOutlet.get(sc.outlet);
+      if (cell) {
+        for (const v of cell.vertices) {
+          w(`${sc.name.padEnd(17)}${v.x.toFixed(1).padEnd(15)}${v.y.toFixed(1)}`);
+        }
+        voronoiCells.push({ site: { x: sc.jx, y: sc.jy, name: sc.name }, vertices: cell.vertices });
+      }
+    }
+    w("");
+  }
+
   w("[MAP]");
   w(`DIMENSIONS  0  0  ${Math.round(domain+200)}  ${Math.round(domain+200)}`);
   w(`Units       ${isSI?"Meters":"Feet"}`);
@@ -1680,6 +1790,15 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     });
   }
 
+  const POLY_COLORS = ['#38bdf8','#34d399','#f472b6','#fb923c','#818cf8','#facc15','#a78bfa','#f87171','#2dd4bf','#e879f9','#84cc16','#06b6d4'];
+  const scOutletMap = new Map(subcatchData.map(sc => [sc.name, sc.outlet]));
+  const netPolygons: NetPolygon[] = voronoiCells.map((cell, i) => ({
+    name: cell.site.name,
+    vertices: cell.vertices,
+    color: POLY_COLORS[i % POLY_COLORS.length],
+    outlet: scOutletMap.get(cell.site.name) || '',
+  }));
+
   return {
     inpText,
     stats: {
@@ -1725,7 +1844,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       reswmmSplitLinks,
       reswmmMNSA: config.reswmm.mnsa,
     },
-    netData: { nodes: netNodes, links: netLinks, domain },
+    netData: { nodes: netNodes, links: netLinks, polygons: netPolygons, domain },
     profiles: buildProfiles(junctions, outfalls, storages, conduits, unitLabel),
   };
 }

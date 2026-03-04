@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from "react";
-import type { NetData } from "@/lib/swmm-engine";
+import type { NetData, NetPolygon } from "@/lib/swmm-engine";
 import { useTheme } from "@/components/theme-provider";
 
 interface NetworkCanvasProps {
@@ -46,6 +46,26 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
     ctx.translate(cx, cy);
     ctx.scale(totalScale, -totalScale);
     ctx.translate(-dataCx, -dataCy);
+
+    if (netData.polygons && netData.polygons.length > 0) {
+      for (const poly of netData.polygons) {
+        if (poly.vertices.length < 3) continue;
+        ctx.beginPath();
+        ctx.moveTo(poly.vertices[0].x, poly.vertices[0].y);
+        for (let vi = 1; vi < poly.vertices.length; vi++) {
+          ctx.lineTo(poly.vertices[vi].x, poly.vertices[vi].y);
+        }
+        ctx.closePath();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = poly.color;
+        ctx.fill();
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = poly.color;
+        ctx.lineWidth = 1 / totalScale;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
 
     for (const l of links) {
       const a = nodes[l.from], b = nodes[l.to];
@@ -221,6 +241,7 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
   const nOffsets = netData.links.filter(l => l.hasOffset).length;
   const nPumps = netData.links.filter(l => l.isPump).length;
   const nodeCount = Object.keys(netData.nodes).length;
+  const nPolygons = netData.polygons?.length || 0;
 
   return (
     <div data-testid="network-preview">
@@ -231,6 +252,7 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: "#818cf8" }} /> Pump link</span>
         <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-sm" style={{ background: "#34d399" }} /> Conduit</span>
         <span className="flex items-center gap-1.5"><span className="w-4 h-[3px] rounded-sm" style={{ background: "#f472b6" }} /> Has offset</span>
+        {nPolygons > 0 && <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border" style={{ background: "rgba(52,211,153,0.15)", borderColor: "rgba(52,211,153,0.4)" }} /> Subcatchment</span>}
       </div>
       <div className="relative rounded-lg border border-border bg-[#f5f7fa] dark:bg-[#080c14]">
         <canvas
@@ -247,7 +269,7 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
       </div>
       <div className="flex justify-between items-center mt-2.5">
         <span className="text-[11px] text-muted-foreground font-mono" data-testid="text-network-stats">
-          {nodeCount} nodes | {netData.links.length} links | {nOffsets} with offsets | {nPumps} pump links
+          {nodeCount} nodes | {netData.links.length} links | {nOffsets} with offsets | {nPumps} pump links{nPolygons > 0 ? ` | ${nPolygons} polygons` : ''}
         </span>
         <div className="flex gap-1.5">
           <button

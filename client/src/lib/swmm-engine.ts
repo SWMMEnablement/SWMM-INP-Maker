@@ -1215,7 +1215,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   w("");
 
   w("[XSECTIONS]");
-  w(";;Link           Shape        Geom1       Geom2       Geom3       Geom4       Barrels");
+  w(";;Link           Shape            Geom1       Geom2       Geom3       Geom4       Barrels");
   for (const c of conduits) {
     let g1 = c.diam, g2 = 0, g3 = 0, g4 = 0;
     if (c.shape === "EGG") g1 = c.diam * 1.5;
@@ -1223,7 +1223,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     else if (c.shape === "RECT_OPEN") { g2 = c.diam * rand(1, 3); }
     else if (c.shape === "TRAPEZOIDAL") { g2 = c.diam * 2; g3 = 2; g4 = 2; }
     else if (c.shape.includes("FILLED")) { g2 = +(c.diam * rand(0.1, 0.3)).toFixed(3); }
-    w(`${c.name.padEnd(17)}${c.shape.padEnd(13)}${g1.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
+    w(`${c.name.padEnd(17)}${c.shape.padEnd(17)}${g1.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
   }
   w("");
 

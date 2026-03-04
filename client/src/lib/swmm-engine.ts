@@ -188,6 +188,7 @@ export interface GenerationStats {
   reswmmOrigConduits: number;
   reswmmNewConduits: number;
   reswmmNewJunctions: number;
+  reswmmSplitLinks: number;
   reswmmMNSA: number;
 }
 
@@ -1210,6 +1211,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
 
   const reswmmOrigConduits = conduits.length;
   let reswmmNewJunctions = 0;
+  let reswmmSplitLinks = 0;
   if (config.reswmm.enabled && config.reswmm.method !== 'none') {
     const rCfg = config.reswmm;
     const discretized: ConduitData[] = [];
@@ -1225,6 +1227,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
         discretized.push(c);
         continue;
       }
+      reswmmSplitLinks++;
       const segLen = +(c.len / nSeg).toFixed(2);
       const fromNode = nodeLookup[c.from];
       const toNode = nodeLookup[c.to];
@@ -1719,6 +1722,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       reswmmOrigConduits,
       reswmmNewConduits: conduits.length - reswmmOrigConduits,
       reswmmNewJunctions,
+      reswmmSplitLinks,
       reswmmMNSA: config.reswmm.mnsa,
     },
     netData: { nodes: netNodes, links: netLinks, domain },

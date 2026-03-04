@@ -284,6 +284,7 @@ export default function Home() {
       lines.push(`|-----------|-------|`);
       lines.push(`| Method | ${s.reswmmMethod} |`);
       lines.push(`| Original Conduits | ${fmt(s.reswmmOrigConduits)} |`);
+      lines.push(`| Links Split by ReSWMM | ${fmt(s.reswmmSplitLinks)} |`);
       lines.push(`| New Conduits (after split) | ${fmt(s.reswmmNewConduits)} |`);
       lines.push(`| New Junctions (added) | ${fmt(s.reswmmNewJunctions)} |`);
       lines.push(`| MNSA | ${s.reswmmMNSA.toFixed(3)} |`);
@@ -1027,6 +1028,7 @@ export default function Home() {
                           {[
                             ["Method", s.reswmmMethod],
                             ["Original conduits", fmt(s.reswmmOrigConduits)],
+                            ["Links split by ReSWMM", fmt(s.reswmmSplitLinks)],
                             ["New conduit segments", fmt(s.reswmmNewConduits)],
                             ["New intermediate junctions", fmt(s.reswmmNewJunctions)],
                             ["Final conduits", fmt(s.conduits)],

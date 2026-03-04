@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code } from "lucide-react";
+import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -73,6 +73,7 @@ export default function Home() {
   const [generating, setGenerating] = useState(false);
   const [reswmmDescOpen, setReswmmDescOpen] = useState(false);
   const [result, setResult] = useState<GeneratedModel | null>(null);
+  const [resultConfig, setResultConfig] = useState<SwmmConfig | null>(null);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("generator");
   const [viewerInpText, setViewerInpText] = useState<{ text: string; name: string } | null>(null);
@@ -103,6 +104,7 @@ export default function Home() {
       try {
         const model = generateModel(config);
         setResult(model);
+        setResultConfig({ ...config });
         const vResult = validateInp(model.inpText, true);
         setValidation(vResult);
         const desc = vResult.valid
@@ -149,6 +151,120 @@ export default function Home() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 3000);
   }, [validation, result]);
+
+  const handleDownloadReport = useCallback(() => {
+    if (!result || !resultConfig) return;
+    const s = result.stats;
+    const c = resultConfig;
+    const now = new Date();
+    const timestamp = now.toISOString().replace('T', ' ').slice(0, 19);
+    const lines: string[] = [];
+    lines.push(`# SWMM5 INP MAKER — Generation Report`);
+    lines.push('');
+    lines.push(`**Generated:** ${timestamp}`);
+    lines.push(`**File:** ${s.fileName}`);
+    lines.push(`**Size:** ${s.fileSize} | ${fmt(s.lineCount)} lines`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('## Configuration Summary');
+    lines.push('');
+    lines.push(`| Parameter | Value |`);
+    lines.push(`|-----------|-------|`);
+    lines.push(`| Model Type | ${MODEL_TYPE_LABELS[c.type] || c.type} |`);
+    lines.push(`| Units | ${c.units === 'US' ? 'US Customary' : 'SI Metric'} |`);
+    lines.push(`| Flow Units | ${FLOW_UNITS[c.units][c.type]} |`);
+    lines.push(`| Terrain | ${c.terrain} (${TERRAIN_LABELS[c.terrain]}) |`);
+    lines.push(`| Detail Level | ${c.detail} |`);
+    lines.push(`| Land Use | ${c.landUse} |`);
+    lines.push(`| Outfall Elevation | ${c.outfallElev} ${c.units === 'SI' ? 'm' : 'ft'} |`);
+    lines.push(`| Generation Method | ${GENERATION_METHOD_LABELS[c.generationMethod] || c.generationMethod || 'force_directed'} |`);
+    if (c.generationMethod === 'l_system') {
+      lines.push(`| L-System Variant | ${L_SYSTEM_VARIANT_LABELS[c.lSystemVariant] || c.lSystemVariant} |`);
+    }
+    lines.push(`| Infiltration | ${INFILTRATION_LABELS[c.infiltrationMethod] || c.infiltrationMethod} |`);
+    lines.push(`| DWF Node Coverage | ${c.dwfNodePct}% |`);
+    lines.push(`| DWF Patterns | ${c.dwfPatterns.join(', ')} |`);
+    lines.push(`| Rainfall Depth | ${c.rainfallDepth} ${c.units === 'SI' ? 'mm' : 'in'} |`);
+    lines.push(`| Rainfall Duration | ${c.rainfallDuration} hr |`);
+    lines.push('');
+    lines.push('## Element Counts');
+    lines.push('');
+    lines.push(`| Element | Count |`);
+    lines.push(`|---------|-------|`);
+    lines.push(`| Junctions | ${fmt(s.junctions)} |`);
+    lines.push(`| Conduits | ${fmt(s.conduits)} |`);
+    lines.push(`| Subcatchments | ${fmt(s.subcatchments)} |`);
+    lines.push(`| Outfalls | ${fmt(s.outfalls)} |`);
+    lines.push(`| Storage | ${fmt(s.storage)} |`);
+    lines.push(`| Pumps | ${fmt(s.pumps)} |`);
+    lines.push(`| Orifices | ${fmt(s.orifices)} |`);
+    lines.push(`| Weirs | ${fmt(s.weirs)} |`);
+    lines.push(`| **Total** | **${fmt(s.totalElements)}** |`);
+    lines.push('');
+    lines.push('## Elevation & Depth Statistics');
+    lines.push('');
+    lines.push(`| Stat | Min | Max | Mean |`);
+    lines.push(`|------|-----|-----|------|`);
+    lines.push(`| Elevation (${s.unitLabel}) | ${s.elevMin.toFixed(2)} | ${s.elevMax.toFixed(2)} | ${s.elevMean.toFixed(2)} |`);
+    lines.push(`| Max Depth (${s.unitLabel}) | ${s.depthMin.toFixed(2)} | ${s.depthMax.toFixed(2)} | ${s.depthMean.toFixed(2)} |`);
+    lines.push('');
+    lines.push('## Conduit Geometry Statistics');
+    lines.push('');
+    lines.push(`| Stat | Min | Max | Mean |`);
+    lines.push(`|------|-----|-----|------|`);
+    lines.push(`| Diameter (${s.diamLabel}) | ${s.diamMin.toFixed(2)} | ${s.diamMax.toFixed(2)} | ${s.diamMean.toFixed(2)} |`);
+    lines.push(`| Length (${s.unitLabel}) | ${s.lenMin.toFixed(1)} | ${s.lenMax.toFixed(1)} | ${s.lenMean.toFixed(1)} |`);
+    lines.push(`| Slope (%) | ${s.slopeMin.toFixed(3)} | ${s.slopeMax.toFixed(3)} | ${s.slopeMean.toFixed(3)} |`);
+    lines.push('');
+    lines.push('## Offset Patterns');
+    lines.push('');
+    lines.push(`| Pattern | Percentage |`);
+    lines.push(`|---------|------------|`);
+    lines.push(`| Both Zero | ${pct(s.bothZeroPct / 100)} |`);
+    lines.push(`| Outlet Offset (Crown Match) | ${pct(s.outletOffset / s.conduits)} |`);
+    lines.push(`| Inlet Offset (Drop) | ${pct(s.inletOffset / s.conduits)} |`);
+    lines.push('');
+    lines.push('## Cross-Section Distribution');
+    lines.push('');
+    if (s.shapeDistribution) {
+      lines.push(`${s.shapeDistribution}`);
+    }
+    lines.push('');
+    if (s.reswmmEnabled) {
+      lines.push('## ReSWMM Discretization');
+      lines.push('');
+      lines.push(`| Parameter | Value |`);
+      lines.push(`|-----------|-------|`);
+      lines.push(`| Method | ${s.reswmmMethod} |`);
+      lines.push(`| Original Conduits | ${fmt(s.reswmmOrigConduits)} |`);
+      lines.push(`| New Conduits (after split) | ${fmt(s.reswmmNewConduits)} |`);
+      lines.push(`| New Junctions (added) | ${fmt(s.reswmmNewJunctions)} |`);
+      lines.push(`| MNSA | ${s.reswmmMNSA.toFixed(3)} |`);
+      lines.push('');
+    }
+    lines.push('## File Metadata');
+    lines.push('');
+    lines.push(`- **File Name:** ${s.fileName}`);
+    lines.push(`- **File Size:** ${s.fileSize}`);
+    lines.push(`- **Line Count:** ${fmt(s.lineCount)}`);
+    lines.push(`- **Total Elements:** ${fmt(s.totalElements)}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('*Generated by SWMM5 INP MAKER — Force-directed network synthesis with Barnes-Hut quadtree*');
+
+    const reportText = lines.join('\n');
+    const blob = new Blob([reportText], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = s.fileName.replace('.inp', '') + '_report.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }, [result, resultConfig]);
 
   const s = result?.stats;
 
@@ -342,9 +458,14 @@ export default function Home() {
                       <SelectContent>
                         {EXAMPLE_PRESETS.map((p, i) => (
                           <SelectItem key={i} value={String(i)}>
-                            <div className="flex items-center gap-2">
-                              <span>{p.name}</span>
-                              <span className="text-[10px] text-muted-foreground ml-auto">{fmt(p.config.N)} jn</span>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <span>{p.name}</span>
+                                <span className="text-[10px] text-muted-foreground ml-auto">{fmt(p.config.N)} jn</span>
+                              </div>
+                              {p.rationale && (
+                                <span className="text-[10px] text-muted-foreground leading-tight mt-0.5">{p.rationale}</span>
+                              )}
                             </div>
                           </SelectItem>
                         ))}
@@ -732,6 +853,9 @@ export default function Home() {
                           data-testid="button-view-in-viewer"
                         >
                           <FileSearch className="w-4 h-4 mr-2" /> View in INP Viewer
+                        </Button>
+                        <Button onClick={handleDownloadReport} variant="outline" className="w-full" data-testid="button-download-report">
+                          <FileText className="w-4 h-4 mr-2" /> Download Report
                         </Button>
                         <p className="text-[11px] text-muted-foreground font-mono" data-testid="text-file-stats">{result.stats.fileSize} | {fmt(result.stats.lineCount)} lines | {fmt(result.stats.totalElements)} total elements</p>
                       </div>
@@ -1297,6 +1421,40 @@ export default function Home() {
                   </AccordionContent>
                 </AccordionItem>
 
+                <AccordionItem value="scenarios" className="border-border bg-card rounded-lg mb-4 border" data-testid="section-scenarios">
+                  <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
+                    <span className="font-serif text-xl text-card-foreground">Which Settings Should I Use?</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground">
+                    <div className="space-y-4">
+                      <div>
+                        <p className="font-bold text-card-foreground">I just want a quick test file to learn SWMM.</p>
+                        <p className="text-muted-foreground">Set Junctions to 20–50, pick any Model Type, and leave Detail at Basic. This gives you a tiny network you can open in EPA SWMM immediately, run in seconds, and inspect every element by hand.</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-card-foreground">I need a realistic residential subdivision model.</p>
+                        <p className="text-muted-foreground">Choose Sanitary or Combined model type, set Terrain to Moderate, Detail to Moderate, and Land Use to Residential. Start with 200–500 junctions for a typical subdivision. Enable DWF patterns and set Infiltration to Horton for realistic dry-weather and wet-weather response.</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-card-foreground">I want to stress-test with a 100-year storm event.</p>
+                        <p className="text-muted-foreground">Use the Stormwater model type with 1,000+ junctions, Detail set to Detailed, and Terrain set to Hilly or Mountainous. Select an SCS Type II or Huff rainfall distribution and increase storm intensity. This will generate surcharging conditions and help you evaluate system capacity under extreme loading.</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-card-foreground">I&apos;m testing CSO/SSO overflow scenarios.</p>
+                        <p className="text-muted-foreground">Select Combined model type with 500+ junctions, Detailed detail level, and Mixed or Commercial land use. The generator will include weirs, orifices, and storage units that represent overflow structures. Crown-matching offsets appear automatically at the Detailed level for hydraulically accurate connections.</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-card-foreground">I need a network for RDII calibration work.</p>
+                        <p className="text-muted-foreground">Select the RDII Calibration model type with 300–800 junctions and Moderate detail. Use Green-Ampt infiltration and adjust subcatchment parameters to represent your basin. The generated RDII unit hydrograph parameters (R, T, K) provide a realistic starting point for calibration.</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-card-foreground">I&apos;m building a city-scale capacity planning model.</p>
+                        <p className="text-muted-foreground">Set Junctions to 2,000–5,000 with Detailed detail level and enable ReSWMM conduit discretization. Use the Force-Directed generation method with Barnes-Hut optimization for spatially realistic layouts. This produces large networks suitable for master planning, capacity assessment, and long-term simulation studies.</p>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="offsets" className="border-border bg-card rounded-lg mb-4 border">
                   <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
                     <span className="font-serif text-xl text-card-foreground">Offset Algorithm (6M conduits)</span>
@@ -1731,6 +1889,68 @@ export default function Home() {
                       </ul>
                       <p className="mt-2">The validation report shown after generation (section counts, error/warning counts, fix details) serves as a QA checklist. The "Download Fixed" option provides the validated, repaired INP file ready for import.</p>
                     </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="glossary" className="border-border bg-card rounded-lg mb-4 border" data-testid="section-glossary">
+                  <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
+                    <span className="font-serif text-xl text-card-foreground"><BookOpen className="w-5 h-5 inline-block mr-2 align-text-bottom" />Glossary</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-3">
+                    <dl className="space-y-3">
+                      <div>
+                        <dt className="font-bold text-card-foreground">Adverse Slope</dt>
+                        <dd className="text-muted-foreground">A conduit whose downstream invert elevation is higher than its upstream invert, causing water to flow against the intended gravity direction. The validator flags and auto-repairs these.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">Barnes-Hut Quadtree</dt>
+                        <dd className="text-muted-foreground">An O(N log N) approximation algorithm for N-body repulsion that recursively subdivides 2D space into quadrants, treating distant node clusters as single point masses to speed up force-directed layout.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">CFL Condition</dt>
+                        <dd className="text-muted-foreground">Courant-Friedrichs-Lewy condition &mdash; a numerical stability criterion requiring the simulation time step to be small enough that a wave cannot travel more than one computational cell per step. ReSWMM uses a conservative 10% CFL value.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">Crown Matching</dt>
+                        <dd className="text-muted-foreground">An offset method where the top (crown) of connecting pipes are aligned at the same elevation, commonly used in sanitary sewer design to prevent surcharge at junctions.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">DWF (Dry Weather Flow)</dt>
+                        <dd className="text-muted-foreground">The baseline wastewater flow entering a sewer system during dry conditions, typically following diurnal patterns driven by residential and commercial water use.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">Force Main</dt>
+                        <dd className="text-muted-foreground">A pressurized pipe downstream of a pump station that conveys wastewater under pressure rather than by gravity. Modeled with Hazen-Williams or Darcy-Weisbach equations in SWMM.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">Invert Elevation</dt>
+                        <dd className="text-muted-foreground">The elevation of the lowest interior point (bottom) of a pipe or manhole. Determines gravity flow direction and hydraulic grade line calculations.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">Manning&apos;s n</dt>
+                        <dd className="text-muted-foreground">A roughness coefficient used in Manning&apos;s equation for open-channel and gravity pipe flow. Typical values range from 0.011 (smooth PVC) to 0.024 (corrugated metal).</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">MNSA (Minimum Nodal Surface Area)</dt>
+                        <dd className="text-muted-foreground">The plan-view area assigned to ReSWMM intermediate junctions, controlling the surcharge volume storage at discretized nodes. Larger values allow more water to pond at a junction before pressurizing.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">RDII (Rainfall-Dependent Infiltration/Inflow)</dt>
+                        <dd className="text-muted-foreground">Stormwater that enters sanitary sewers through defective joints, cracked pipes, and illegal connections during and after rainfall events. Modeled using unit hydrograph parameters (R, T, K).</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">ReSWMM</dt>
+                        <dd className="text-muted-foreground">A conduit discretization tool by Robson Leo Pachaly that subdivides long conduits into shorter segments using CFL-based analysis, improving dynamic wave simulation stability and accuracy.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">Subcatchment</dt>
+                        <dd className="text-muted-foreground">A hydrologic land area that drains to a single discharge point (node). Characterized by area, imperviousness, slope, width, and infiltration parameters for rainfall-runoff modeling.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">Surcharge</dt>
+                        <dd className="text-muted-foreground">A condition where water rises above the crown of a pipe or the rim of a junction, indicating the system is operating beyond its gravity-flow capacity and may experience flooding.</dd>
+                      </div>
+                    </dl>
                   </AccordionContent>
                 </AccordionItem>
 

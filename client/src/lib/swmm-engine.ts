@@ -284,6 +284,7 @@ export const SHAPE_COLORS = ["#38bdf8","#818cf8","#34d399","#fb923c","#f472b6","
 export interface ExamplePreset {
   name: string;
   description: string;
+  rationale?: string;
   config: SwmmConfig;
   tags: string[];
 }
@@ -292,24 +293,28 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Small Residential Sanitary",
     description: "Typical small-town sanitary sewer — 200 junctions, flat terrain, basic detail",
+    rationale: "Flat terrain and basic detail keep slopes gentle and offsets simple, matching typical small-town gravity sewers with minimal hydraulic complexity.",
     config: { N: 200, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Quick", "Sanitary"],
   },
   {
     name: "Medium Stormwater Network",
     description: "Urban stormwater collection system — 500 junctions, moderate terrain, mixed land use",
+    rationale: "Moderate terrain and mixed land use produce varied imperviousness and realistic runoff patterns typical of suburban stormwater systems.",
     config: { N: 500, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Stormwater", "Medium"],
   },
   {
     name: "Large Combined Sewer (SI)",
     description: "Full combined sewer system — 2,000 junctions, hilly terrain, detailed offsets, SI units",
+    rationale: "Hilly terrain with detailed offsets exercises crown-matching logic and steep-slope handling critical for combined sewer overflow analysis.",
     config: { N: 2000, type: "combined", units: "SI", terrain: "hilly", detail: "detailed", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Large", "Combined", "SI"],
   },
   {
     name: "Pump Station Intensive",
     description: "Flat pump-heavy system — 800 junctions, many pumps and storage units, industrial land use",
+    rationale: "Flat terrain forces reliance on pump stations to move flow, generating many force mains and wet wells typical of coastal industrial districts.",
     config: { N: 800, type: "pump_intensive", units: "US", terrain: "flat", detail: "detailed", landUse: "industrial", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Pumps", "Industrial"],
   },
@@ -322,6 +327,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "RDII Calibration Model",
     description: "RDII calibration setup — 400 junctions, moderate terrain, with subcatchments and hydrographs",
+    rationale: "Moderate size with subcatchments enables RDII unit hydrograph calibration against flow monitors without excessive computation time.",
     config: { N: 400, type: "rdii_calibration", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["RDII", "Calibration"],
   },
@@ -334,6 +340,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Weir/Orifice/Storage Intensive",
     description: "CSO/SSO control model — 600 junctions, many weirs, orifices, and storage units",
+    rationale: "High weir/orifice/storage ratios model CSO regulators and detention basins used for overflow control in combined systems.",
     config: { N: 600, type: "wos_intensive", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["WOS", "CSO"],
   },
@@ -364,6 +371,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "ReSWMM Fixed Interval (Sanitary)",
     description: "Sanitary sewer with ReSWMM fixed-interval discretization — 500 junctions, 50–200 ft segments",
+    rationale: "Fixed-interval discretization splits long conduits into 50-200 ft segments, improving numerical accuracy for dynamic wave routing in sanitary sewers.",
     config: { N: 500, type: "sanitary", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 0, reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 50, fixedMaxLength: 200, dxDRatio: 5, mnsa: 12.566 }, ...DEFAULT_HYDROLOGY },
     tags: ["ReSWMM", "Sanitary"],
   },
@@ -376,6 +384,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Tiny Test Model",
     description: "Minimal model for quick validation — 50 junctions, flat terrain, basic detail",
+    rationale: "Minimal junction count generates in under a second, ideal for verifying SWMM5 import compatibility before scaling up.",
     config: { N: 50, type: "sanitary", units: "US", terrain: "flat", detail: "basic", landUse: "residential", outfallElev: 0, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Tiny", "Quick"],
   },
@@ -472,6 +481,7 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
   {
     name: "Mixed Use Moderate (Template)",
     description: "Balanced baseline model — 1,000 junctions, moderate everything, good starting point",
+    rationale: "Balanced settings across all parameters provide a neutral starting point you can tune toward any specific project scenario.",
     config: { N: 1000, type: "combined", units: "US", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Template", "Balanced"],
   },

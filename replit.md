@@ -23,7 +23,7 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 
 ## Features
 - 5 network generation methods: Force-Directed (Barnes-Hut), Horton-Strahler Branching, L-System Grammar (Dendritic/Grid/Radial variants), Space Colonization, Minimum Spanning Tree
-- 33 example SWMM5 file presets (quick-load configurations)
+- 33 example SWMM5 file presets (quick-load configurations, with rationale text on key presets)
 - US Customary / SI Metric unit toggle with sub-labels showing unit systems
 - Configurable hydrology parameters:
   - Number of outfalls (manual or auto from model type ratio)
@@ -39,14 +39,15 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms
 - Static INP validation with auto-repair: runs automatically after generation and on file upload in viewer
 - SWMM5 real-world statistics from 1,729 models (15.4M elements) in docs tab
-- Comprehensive stats panel after generation
+- Comprehensive stats panel after generation with downloadable markdown report
+- App Docs tab includes: Model Types, "Which Settings Should I Use?" scenario guide (6 scenarios), Offset Algorithm, SWMM5 Statistics, ReSWMM docs, FAQ, Glossary (13 technical terms)
 
 ## Theme
-- 5 themes: Light, Dark, UF Gators, EPA, OSU Buckeyes — selectable via dropdown in header
-- localStorage persistence (key: "swmm-theme"), values: "light" | "dark" | "uf" | "epa" | "osu"
+- 6 themes: Light, Dark, UF Gators, EPA, Oregon State Beavers, Auburn Tigers — selectable via dropdown in header
+- localStorage persistence (key: "swmm-theme"), values: "light" | "dark" | "uf" | "epa" | "osu" | "auburn"
 - ThemeProvider in `client/src/components/theme-provider.tsx` manages theme classes on `<html>`
-- Branded themes (uf/epa/osu) extend dark mode with `.dark` class + `.theme-uf`/`.theme-epa`/`.theme-osu` CSS overrides
-- CSS variable blocks in `client/src/index.css`: `.theme-uf` (Orange #FA4616 primary), `.theme-epa` (Green #2E8540 primary), `.theme-osu` (Scarlet #BB0000 primary)
+- Branded themes (uf/epa/osu/auburn) extend dark mode with `.dark` class + `.theme-{id}` CSS overrides
+- CSS variable blocks in `client/src/index.css`: `.theme-uf` (Orange #FA4616 primary), `.theme-epa` (Green #2E8540 primary), `.theme-osu` (Scarlet #BB0000 primary), `.theme-auburn` (Burnt Orange #DD550C primary)
 - Inline script in `client/index.html` applies stored theme before React mounts (no flash)
 - Base water engineering theme: deep navy background (dark), sky blue primary (#38bdf8)
 - Fonts: DM Sans (sans), Playfair Display (serif for titles), JetBrains Mono (mono)

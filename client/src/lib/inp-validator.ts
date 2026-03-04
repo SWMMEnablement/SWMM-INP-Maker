@@ -127,6 +127,8 @@ function staticAnalysis(inpContent: string): ValidationIssue[] {
   const nodeInverts: Record<string, number> = {};
   const nodeMaxDepths: Record<string, number> = {};
   const conduitData: Record<string, { from: string; to: string; length: number; roughness: number }> = {};
+  const conduitShapes: Record<string, string> = {};
+  const pendingRoughnessChecks: { name: string; roughness: number; line: number }[] = [];
 
   let hasOutfall = false;
   let hasOptions = false;
@@ -208,11 +210,7 @@ function staticAnalysis(inpContent: string): ValidationIssue[] {
           }
           const roughness = parseFloat(parts[4]);
           if (roughness && (roughness < 0.001 || roughness > 0.5)) {
-            issues.push({
-              source: "static", severity: "warning",
-              message: `Conduit ${parts[0]} has unusual Manning's n: ${roughness}`,
-              line: lineNumber, fixable: true, fixAction: "setDefaultRoughness", element: parts[0],
-            });
+            pendingRoughnessChecks.push({ name: parts[0], roughness, line: lineNumber });
           }
         }
         break;
@@ -259,6 +257,31 @@ function staticAnalysis(inpContent: string): ValidationIssue[] {
           referencedNodes.add(parts[2]);
         }
         break;
+
+      case "[XSECTIONS]":
+        if (parts.length >= 2) {
+          conduitShapes[parts[0]] = parts[1].toUpperCase();
+        }
+        break;
+    }
+  }
+
+  for (const chk of pendingRoughnessChecks) {
+    const shape = conduitShapes[chk.name] || "";
+    if (shape === "FORCE_MAIN") {
+      if (chk.roughness < 50 || chk.roughness > 200) {
+        issues.push({
+          source: "static", severity: "warning",
+          message: `Force main ${chk.name} has unusual Hazen-Williams C: ${chk.roughness} (typical 100–150)`,
+          line: chk.line, fixable: true, fixAction: "setDefaultRoughness", element: chk.name,
+        });
+      }
+    } else {
+      issues.push({
+        source: "static", severity: "warning",
+        message: `Conduit ${chk.name} has unusual Manning's n: ${chk.roughness}`,
+        line: chk.line, fixable: true, fixAction: "setDefaultRoughness", element: chk.name,
+      });
     }
   }
 

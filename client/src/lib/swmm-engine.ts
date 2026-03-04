@@ -68,6 +68,8 @@ export const DEFAULT_HYDROLOGY = {
   infiltrationMethod: 'HORTON' as InfiltrationMethod,
   generationMethod: 'force_directed' as GenerationMethod,
   lSystemVariant: 'dendritic' as LSystemVariant,
+  enableAquifers: false,
+  enableGroundwater: false,
 };
 
 export interface SwmmConfig {
@@ -90,6 +92,8 @@ export interface SwmmConfig {
   infiltrationMethod: InfiltrationMethod;
   generationMethod: GenerationMethod;
   lSystemVariant: LSystemVariant;
+  enableAquifers: boolean;
+  enableGroundwater: boolean;
 }
 
 export interface ComputedElements {
@@ -247,7 +251,7 @@ export const PIPE_WEIGHTS = [3,8,6,12,10,10,8,14,10,8,4,3,2,1,0.5,0.3,0.1,0.05,0
 
 export const ALL_SECTIONS = [
   "[TITLE]","[OPTIONS]","[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]",
-  "[INFILTRATION]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
+  "[INFILTRATION]","[AQUIFERS]","[GROUNDWATER]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
   "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[TRANSECTS]","[LOSSES]",
   "[CONTROLS]","[INFLOWS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
   "[CURVES]","[TIMESERIES]","[COORDINATES]","[MAP]","[REPORT]"
@@ -1367,6 +1371,54 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       for (let i=0; i<nSubcatch; i++) w(`S${i+1}`.padEnd(17)+`${rand(2,5).toFixed(2).padEnd(11)}${rand(0.3,1).toFixed(2).padEnd(11)}${rand(3,5).toFixed(1).padEnd(11)}7          0`);
     }
     w("");
+
+    if (config.enableAquifers) {
+      const nAquifers = Math.max(1, Math.ceil(nSubcatch / 20));
+      const aquiferNames: string[] = [];
+      w("[AQUIFERS]");
+      w(";;Name           Por    WP     FC     Ksat   Kslope Tslope ETu    ETs    Seep   Ebot   Egw    Umc    ETpat");
+      for (let a = 0; a < nAquifers; a++) {
+        const aName = `AQ${a + 1}`;
+        aquiferNames.push(aName);
+        const por = rand(0.40, 0.50);
+        const wp = rand(0.10, 0.15);
+        const fc = rand(wp + 0.05, 0.35);
+        const ksat = rand(0.5, 12.0);
+        const kslope = rand(10, 40);
+        const tslope = rand(1.0, 3.0);
+        const etu = rand(0.3, 0.6);
+        const ets = rand(eLo, eLo + (eHi - eLo) * 0.3);
+        const seep = rand(0.0, 0.005);
+        const ebot = eLo + rand(0, (eHi - eLo) * 0.1);
+        const egw = ebot + rand(1, 5);
+        const umc = rand(wp, fc);
+        w(`${aName.padEnd(17)}${por.toFixed(3).padEnd(7)}${wp.toFixed(3).padEnd(7)}${fc.toFixed(3).padEnd(7)}${ksat.toFixed(2).padEnd(7)}${kslope.toFixed(1).padEnd(7)}${tslope.toFixed(1).padEnd(7)}${etu.toFixed(2).padEnd(7)}${ets.toFixed(1).padEnd(7)}${seep.toFixed(4).padEnd(7)}${ebot.toFixed(1).padEnd(7)}${egw.toFixed(1).padEnd(7)}${umc.toFixed(3).padEnd(7)}`);
+      }
+      w("");
+
+      if (config.enableGroundwater) {
+        w("[GROUNDWATER]");
+        w(";;Subcatch       Aquifer          Node             Esurf      A1         B1         A2         B2         A3         Dsw        Egwt       Ebot       Wgr        Umc");
+        for (let i = 0; i < nSubcatch; i++) {
+          const sName = `S${i + 1}`;
+          const aqName = aquiferNames[i % nAquifers];
+          const gwNode = junctions[i % N].name;
+          const surfElev = junctions[i % N].elev + junctions[i % N].maxD;
+          const a1 = rand(0.001, 0.05);
+          const b1 = rand(1.0, 2.5);
+          const a2 = rand(0.001, 0.03);
+          const b2 = rand(1.0, 2.0);
+          const a3 = rand(0.0, 0.002);
+          const dsw = rand(0, 5);
+          const ebot = eLo + rand(0, (eHi - eLo) * 0.1);
+          const egwt = ebot + rand(2, 8);
+          const wgr = rand(0.1, 0.3);
+          const umc = rand(0.1, 0.3);
+          w(`${sName.padEnd(17)}${aqName.padEnd(17)}${gwNode.padEnd(17)}${surfElev.toFixed(2).padEnd(11)}${a1.toFixed(4).padEnd(11)}${b1.toFixed(2).padEnd(11)}${a2.toFixed(4).padEnd(11)}${b2.toFixed(2).padEnd(11)}${a3.toFixed(4).padEnd(11)}${dsw.toFixed(2).padEnd(11)}${egwt.toFixed(2).padEnd(11)}${ebot.toFixed(2).padEnd(11)}${wgr.toFixed(3).padEnd(11)}${umc.toFixed(3)}`);
+        }
+        w("");
+      }
+    }
   }
 
   const pumps: PumpData[] = [];

@@ -35,6 +35,7 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
   - Rainfall distribution (34 patterns via Rain Canvas Studio: SCS I/IA/II/III, Huff Q1-Q4, Chicago, Alternating Block, Triangular, Regional US, International, Historical)
   - Infiltration method (Horton, Green-Ampt, Curve Number) — affects both [OPTIONS] and [INFILTRATION] section format
 - Transects and open channels: IRREGULAR cross-sections auto-generate [TRANSECTS] section with HEC-2 format station/elevation data (NC/X1/GR lines)
+- Aquifers and Groundwater: toggleable [AQUIFERS] and [GROUNDWATER] sections with realistic soil properties and GW flow exchange per subcatchment
 - ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
 - Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms

@@ -3,6 +3,7 @@ import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCi
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -187,6 +188,8 @@ export default function Home() {
     lines.push(`| DWF Patterns | ${c.dwfPatterns.join(', ')} |`);
     lines.push(`| Rainfall Depth | ${c.rainfallDepth} ${c.units === 'SI' ? 'mm' : 'in'} |`);
     lines.push(`| Rainfall Duration | ${c.rainfallDuration} hr |`);
+    lines.push(`| Aquifers | ${c.enableAquifers ? 'Yes' : 'No'} |`);
+    lines.push(`| Groundwater | ${c.enableGroundwater ? 'Yes' : 'No'} |`);
     lines.push('');
     lines.push('## Element Counts');
     lines.push('');
@@ -609,6 +612,35 @@ export default function Home() {
                       onChange={(v) => update({ infiltrationMethod: v as InfiltrationMethod })}
                       options={Object.entries(INFILTRATION_LABELS).map(([k, v]) => ({ label: v, value: k }))}
                     />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-semibold">Aquifers</label>
+                        <p className="text-[10px] text-muted-foreground">Generate [AQUIFERS] section with soil properties</p>
+                      </div>
+                      <Switch
+                        checked={config.enableAquifers}
+                        onCheckedChange={(v) => update({ enableAquifers: v, enableGroundwater: v ? config.enableGroundwater : false })}
+                        data-testid="switch-aquifers"
+                      />
+                    </div>
+                    <div className={`flex items-center justify-between transition-opacity ${config.enableAquifers ? '' : 'opacity-40 pointer-events-none'}`}>
+                      <div>
+                        <label className="text-xs font-semibold">Groundwater</label>
+                        <p className="text-[10px] text-muted-foreground">Generate [GROUNDWATER] flow exchange per subcatchment</p>
+                      </div>
+                      <Switch
+                        checked={config.enableGroundwater}
+                        onCheckedChange={(v) => update({ enableGroundwater: v })}
+                        data-testid="switch-groundwater"
+                        disabled={!config.enableAquifers}
+                      />
+                    </div>
+                    {config.enableAquifers && (
+                      <p className="text-[10px] text-muted-foreground italic">Requires subcatchments — model types without subcatchments will skip these sections</p>
+                    )}
                   </div>
 
                   <div>

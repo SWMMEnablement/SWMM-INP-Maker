@@ -248,7 +248,7 @@ export const PIPE_WEIGHTS = [3,8,6,12,10,10,8,14,10,8,4,3,2,1,0.5,0.3,0.1,0.05,0
 export const ALL_SECTIONS = [
   "[TITLE]","[OPTIONS]","[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]",
   "[INFILTRATION]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
-  "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[LOSSES]",
+  "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[TRANSECTS]","[LOSSES]",
   "[CONTROLS]","[INFLOWS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
   "[CURVES]","[TIMESERIES]","[COORDINATES]","[MAP]","[REPORT]"
 ];
@@ -1224,16 +1224,83 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   }
   w("");
 
+  const irregularConduits = conduits.filter(c => c.shape === "IRREGULAR");
+  const transectMap: Record<string, string> = {};
+  if (irregularConduits.length > 0) {
+    const nUnique = Math.min(irregularConduits.length, Math.max(3, Math.ceil(irregularConduits.length * 0.3)));
+    const transectDefs: { name: string; nLeft: number; nRight: number; nChannel: number; stations: [number, number][] }[] = [];
+    for (let t = 0; t < nUnique; t++) {
+      const tName = `TR${t + 1}`;
+      const refDiam = irregularConduits[Math.floor(t * irregularConduits.length / nUnique)].diam;
+      const depth = refDiam * rand(1.2, 2.5);
+      const botW = refDiam * rand(1.5, 4);
+      const slopeL = rand(1.5, 4);
+      const slopeR = rand(1.5, 4);
+      const bankW_L = depth * slopeL;
+      const bankW_R = depth * slopeR;
+      const overbankL = rand(botW * 0.5, botW * 2);
+      const overbankR = rand(botW * 0.5, botW * 2);
+      const totalW = overbankL + bankW_L + botW + bankW_R + overbankR;
+      const pts: [number, number][] = [];
+      const s0 = 0;
+      const s1 = overbankL;
+      const s2 = overbankL + bankW_L;
+      const s3 = s2 + botW * 0.33;
+      const s4 = s2 + botW * 0.67;
+      const s5 = s2 + botW;
+      const s6 = s5 + bankW_R;
+      const s7 = totalW;
+      const topElev = depth;
+      const bankElev = depth * rand(0.85, 0.95);
+      const toeElev = depth * rand(0.05, 0.15);
+      pts.push([s0, topElev + rand(0, depth * 0.1)]);
+      pts.push([s1 * 0.5, bankElev + rand(0, depth * 0.05)]);
+      pts.push([s1, bankElev]);
+      pts.push([s2, toeElev]);
+      pts.push([s3, rand(0, toeElev * 0.5)]);
+      pts.push([s4, rand(0, toeElev * 0.5)]);
+      pts.push([s5, toeElev * rand(0.8, 1.2)]);
+      pts.push([s6, bankElev * rand(0.95, 1.05)]);
+      pts.push([s6 + (s7 - s6) * 0.5, bankElev + rand(0, depth * 0.05)]);
+      pts.push([s7, topElev + rand(0, depth * 0.1)]);
+      const nL = 0.035 + Math.random() * 0.03;
+      const nR = 0.035 + Math.random() * 0.03;
+      const nC = 0.025 + Math.random() * 0.015;
+      transectDefs.push({ name: tName, nLeft: nL, nRight: nR, nChannel: nC, stations: pts });
+    }
+    for (let i = 0; i < irregularConduits.length; i++) {
+      transectMap[irregularConduits[i].name] = transectDefs[i % nUnique].name;
+    }
+    w("[TRANSECTS]");
+    w(";;Transect Data in HEC-2 format");
+    for (const td of transectDefs) {
+      w(`NC ${td.nLeft.toFixed(3)}   ${td.nChannel.toFixed(3)}   ${td.nRight.toFixed(3)}`);
+      w(`X1 ${td.name.padEnd(17)}${td.stations.length.toString().padEnd(6)}0         0         0         0         0         0`);
+      let grLine = "GR";
+      for (let p = 0; p < td.stations.length; p++) {
+        grLine += ` ${td.stations[p][1].toFixed(3).padEnd(10)}${td.stations[p][0].toFixed(3).padEnd(10)}`;
+        if ((p + 1) % 5 === 0 && p < td.stations.length - 1) { w(grLine); grLine = "GR"; }
+      }
+      if (grLine !== "GR") w(grLine);
+    }
+    w("");
+  }
+
   w("[XSECTIONS]");
   w(";;Link           Shape            Geom1       Geom2       Geom3       Geom4       Barrels");
   for (const c of conduits) {
-    let g1 = c.diam, g2 = 0, g3 = 0, g4 = 0;
-    if (c.shape === "EGG") g1 = c.diam * 1.5;
-    else if (c.shape === "RECT_CLOSED") { g2 = c.diam * rand(0.8, 1.5); }
-    else if (c.shape === "RECT_OPEN") { g2 = c.diam * rand(1, 3); }
-    else if (c.shape === "TRAPEZOIDAL") { g2 = c.diam * 2; g3 = 2; g4 = 2; }
-    else if (c.shape.includes("FILLED")) { g2 = +(c.diam * rand(0.1, 0.3)).toFixed(3); }
-    w(`${c.name.padEnd(17)}${c.shape.padEnd(17)}${g1.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
+    if (c.shape === "IRREGULAR") {
+      const tName = transectMap[c.name] || "TR1";
+      w(`${c.name.padEnd(17)}${"IRREGULAR".padEnd(17)}${tName.padEnd(12)}0.000       0.0         0.0         1`);
+    } else {
+      let g1 = c.diam, g2 = 0, g3 = 0, g4 = 0;
+      if (c.shape === "EGG") g1 = c.diam * 1.5;
+      else if (c.shape === "RECT_CLOSED") { g2 = c.diam * rand(0.8, 1.5); }
+      else if (c.shape === "RECT_OPEN") { g2 = c.diam * rand(1, 3); }
+      else if (c.shape === "TRAPEZOIDAL") { g2 = c.diam * 2; g3 = 2; g4 = 2; }
+      else if (c.shape.includes("FILLED")) { g2 = +(c.diam * rand(0.1, 0.3)).toFixed(3); }
+      w(`${c.name.padEnd(17)}${c.shape.padEnd(17)}${g1.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
+    }
   }
   w("");
 

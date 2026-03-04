@@ -1,4 +1,4 @@
-import { generateHortonStrahler, generateLSystem, generateSpaceColonization, generateMST } from './generators';
+import { generateHortonStrahler, generateLSystem, generateSpaceColonization, generateMST, generateD8FlowAccumulation, generateVoronoiDelaunay, generateInterceptorLateral, generatePerlinD8, generateGeneticAlgorithm, generateGridManhattan, generateSteinerTree, generateLoopAndBranch, generateZoneHierarchical, generateDLA, generateRadialSpokeRing } from './generators';
 import { RAIN_CANVAS_CATALOG, rainCanvasToSwmmTimeseries, mapLegacyDistribution, getPatternName } from './rain-canvas';
 export { RAIN_CANVAS_CATALOG } from './rain-canvas';
 
@@ -9,7 +9,7 @@ export type LandUseType = 'mixed' | 'residential' | 'commercial' | 'industrial';
 export type DiscretizationMethod = 'none' | 'fixed_interval' | 'dx_d_ratio';
 export type InfiltrationMethod = 'HORTON' | 'GREEN_AMPT' | 'CURVE_NUMBER';
 export type RainfallDistribution = string;
-export type GenerationMethod = 'force_directed' | 'horton_strahler' | 'l_system' | 'space_colonization' | 'mst';
+export type GenerationMethod = 'force_directed' | 'horton_strahler' | 'l_system' | 'space_colonization' | 'mst' | 'd8_flow' | 'voronoi_delaunay' | 'interceptor_lateral' | 'perlin_d8' | 'genetic_algorithm' | 'grid_manhattan' | 'steiner_tree' | 'loop_and_branch' | 'zone_hierarchical' | 'dla' | 'radial_spoke_ring';
 export type LSystemVariant = 'dendritic' | 'grid' | 'radial';
 
 export interface ReswmmConfig {
@@ -48,6 +48,17 @@ export const GENERATION_METHOD_LABELS: Record<GenerationMethod, string> = {
   l_system: 'L-System Grammar',
   space_colonization: 'Space Colonization',
   mst: 'Minimum Spanning Tree',
+  d8_flow: 'D8 Flow Accumulation',
+  voronoi_delaunay: 'Voronoi / Delaunay',
+  interceptor_lateral: 'Interceptor + Lateral',
+  perlin_d8: 'Perlin Noise + D8',
+  genetic_algorithm: 'Genetic Algorithm',
+  grid_manhattan: 'Grid / Manhattan',
+  steiner_tree: 'Steiner Tree',
+  loop_and_branch: 'Loop-and-Branch',
+  zone_hierarchical: 'Zone-Based Hierarchical',
+  dla: 'Diffusion-Limited Aggregation',
+  radial_spoke_ring: 'Radial Spoke-and-Ring',
 };
 
 export const L_SYSTEM_VARIANT_LABELS: Record<LSystemVariant, string> = {
@@ -987,6 +998,39 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       break;
     case 'mst':
       graph = generateMST(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'd8_flow':
+      graph = generateD8FlowAccumulation(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'voronoi_delaunay':
+      graph = generateVoronoiDelaunay(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'interceptor_lateral':
+      graph = generateInterceptorLateral(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'perlin_d8':
+      graph = generatePerlinD8(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'genetic_algorithm':
+      graph = generateGeneticAlgorithm(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'grid_manhattan':
+      graph = generateGridManhattan(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'steiner_tree':
+      graph = generateSteinerTree(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'loop_and_branch':
+      graph = generateLoopAndBranch(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'zone_hierarchical':
+      graph = generateZoneHierarchical(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'dla':
+      graph = generateDLA(N, nOutfalls, domain, outfallPositions, elevFn);
+      break;
+    case 'radial_spoke_ring':
+      graph = generateRadialSpokeRing(N, nOutfalls, domain, outfallPositions, elevFn);
       break;
     case 'force_directed':
     default: {

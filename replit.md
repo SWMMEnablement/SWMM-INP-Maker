@@ -22,8 +22,8 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - `client/src/App.tsx` — Router setup (single page at `/`)
 
 ## Features
-- 5 network generation methods: Force-Directed (Barnes-Hut), Horton-Strahler Branching, L-System Grammar (Dendritic/Grid/Radial variants), Space Colonization, Minimum Spanning Tree
-- "All Methods" button generates all 7 method variants at once, displaying a comparison grid with network maps, stats, "Use This", and "Download" per method
+- 16 network generation methods: Force-Directed (Barnes-Hut), Horton-Strahler Branching, L-System Grammar (Dendritic/Grid/Radial variants), Space Colonization, Minimum Spanning Tree, D8 Flow Accumulation, Voronoi/Delaunay, Interceptor+Lateral, Perlin Noise+D8, Genetic Algorithm, Grid/Manhattan, Steiner Tree, Loop-and-Branch, Zone-Based Hierarchical, Diffusion-Limited Aggregation, Radial Spoke-and-Ring
+- "All Methods" button generates all 18 method variants at once (16 methods + 3 L-System variants), displaying a comparison grid with network maps, stats, "Use This", and "Download" per method
 - 33 example SWMM5 file presets (quick-load configurations, with rationale text on key presets)
 - US Customary / SI Metric unit toggle with sub-labels showing unit systems
 - Configurable hydrology parameters:

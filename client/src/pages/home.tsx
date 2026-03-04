@@ -108,6 +108,17 @@ export default function Home() {
     { method: 'l_system', label: 'L-System (Radial)', variant: 'radial' },
     { method: 'space_colonization', label: 'Space Colonization' },
     { method: 'mst', label: 'Minimum Spanning Tree' },
+    { method: 'd8_flow', label: 'D8 Flow Accumulation' },
+    { method: 'voronoi_delaunay', label: 'Voronoi / Delaunay' },
+    { method: 'interceptor_lateral', label: 'Interceptor + Lateral' },
+    { method: 'perlin_d8', label: 'Perlin Noise + D8' },
+    { method: 'genetic_algorithm', label: 'Genetic Algorithm' },
+    { method: 'grid_manhattan', label: 'Grid / Manhattan' },
+    { method: 'steiner_tree', label: 'Steiner Tree' },
+    { method: 'loop_and_branch', label: 'Loop-and-Branch' },
+    { method: 'zone_hierarchical', label: 'Zone-Based Hierarchical' },
+    { method: 'dla', label: 'Diffusion-Limited Aggregation' },
+    { method: 'radial_spoke_ring', label: 'Radial Spoke-and-Ring' },
   ];
 
   const handleGenerateAll = useCallback(() => {

@@ -1171,6 +1171,23 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     graph.accumUpstream[outNode.name] = countUp2(outNode.name);
   }
 
+  const outfallNodes = graph.allNodes.filter(n => n.type === 'outfall');
+  for (const outNode of outfallNodes) {
+    const inletEdges = graph.edges.filter(e => e.to.name === outNode.name);
+    if (inletEdges.length <= 1) continue;
+    const collectorName = `JC_${outNode.name}`;
+    const collector: GraphNode = {
+      name: collectorName, x: outNode.x, y: outNode.y + 0.5,
+      elev: outNode.elev + 0.5, type: 'junction'
+    };
+    graph.allNodes.push(collector);
+    for (const ie of inletEdges) {
+      ie.to = collector;
+    }
+    graph.edges.push({ from: collector, to: outNode, length: 1 });
+    graph.accumUpstream[collectorName] = inletEdges.length;
+  }
+
   const elevRange = eHi - eLo;
   let demMin = Infinity, demMax = -Infinity;
   for (const n of graph.allNodes) {
@@ -1489,12 +1506,12 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       const su = storages[wi % storages.length];
       const tgt = junctions[Math.floor(rand(0, Math.min(10, N - 1)))];
       const name = `WR${wi + 1}`;
-      const wType = pick(["TRANSVERSE", "SIDEFLOW", "V-NOTCH"]);
+      const wType = pick(["TRANSVERSE", "SIDEFLOW", "V-NOTCH", "TRAPEZOIDAL"]);
       const crestHt = +(su.maxD * rand(0.3, 0.7)).toFixed(2);
       const cd = +(rand(2.5, 3.5)).toFixed(2);
-      const shape = wType === "V-NOTCH" ? "TRIANGULAR" : (Math.random() < 0.7 ? "RECT_OPEN" : "TRAPEZOIDAL");
+      const shape = wType === "V-NOTCH" ? "TRIANGULAR" : wType === "TRAPEZOIDAL" ? "TRAPEZOIDAL" : "RECT_OPEN";
       const height = +(isSI ? rand(0.5, 2.0) : rand(1.5, 6)).toFixed(3);
-      const width = shape !== "TRIANGULAR" ? +(height * rand(1.5, 4.0)).toFixed(3) : 0;
+      const width = +(height * rand(1.5, 4.0)).toFixed(3);
       weirs.push({ name, from: su.name, to: tgt.name, type: wType, height, width, shape, crestHt, cd });
     }
   }
@@ -1522,7 +1539,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w(`${o.name.padEnd(17)}${o.shape.padEnd(17)}${o.height.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${"0.0".padEnd(12)}${"0.0".padEnd(12)}1`);
   }
   for (const wr of weirs) {
-    const g2 = wr.shape !== "TRIANGULAR" ? wr.width : 0;
+    const g2 = wr.width;
     const g3 = wr.shape === "TRAPEZOIDAL" ? 2 : 0;
     const g4 = wr.shape === "TRAPEZOIDAL" ? 2 : 0;
     w(`${wr.name.padEnd(17)}${wr.shape.padEnd(17)}${wr.height.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
@@ -1814,9 +1831,9 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
 
   if (weirs.length > 0) {
     w("[WEIRS]");
-    w(";;Name           FromNode         ToNode           Type       CrestHt    Cd         FlapGate   EndCon     EndCoeff   Surcharge");
+    w(";;Name           FromNode         ToNode           Type         CrestHt    Cd         FlapGate   EndCon     EndCoeff   Surcharge");
     for (const wr of weirs) {
-      w(`${wr.name.padEnd(17)}${wr.from.padEnd(17)}${wr.to.padEnd(17)}${wr.type.padEnd(11)}${wr.crestHt.toFixed(2).padEnd(11)}${wr.cd.toFixed(2).padEnd(11)}${"NO".padEnd(11)}0          0          YES`);
+      w(`${wr.name.padEnd(17)}${wr.from.padEnd(17)}${wr.to.padEnd(17)}${wr.type.padEnd(13)}${wr.crestHt.toFixed(2).padEnd(11)}${wr.cd.toFixed(2).padEnd(11)}${"NO".padEnd(11)}0          0          YES`);
     }
     w("");
   }

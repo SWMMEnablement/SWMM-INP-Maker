@@ -1622,6 +1622,27 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
     }
   }
 
+  if (orifices.length > 0) {
+    w("[ORIFICES]");
+    w(";;Name           FromNode         ToNode           Type       Offset     Cd         FlapGate");
+    for (const o of orifices) {
+      const su = storages.find(s => s.name === o.from);
+      const offset = su ? +(su.maxD * rand(0.1, 0.4)).toFixed(2) : 0;
+      const cd = +(rand(0.5, 0.7)).toFixed(2);
+      w(`${o.name.padEnd(17)}${o.from.padEnd(17)}${o.to.padEnd(17)}${o.type.padEnd(11)}${offset.toFixed(2).padEnd(11)}${cd.toFixed(2).padEnd(11)}NO`);
+    }
+    w("");
+  }
+
+  if (weirs.length > 0) {
+    w("[WEIRS]");
+    w(";;Name           FromNode         ToNode           Type         CrestHt    Cd         FlapGate   EndCon     EndCoeff   Surcharge");
+    for (const wr of weirs) {
+      w(`${wr.name.padEnd(17)}${wr.from.padEnd(17)}${wr.to.padEnd(17)}${wr.type.padEnd(13)}${wr.crestHt.toFixed(2).padEnd(11)}${wr.cd.toFixed(2).padEnd(11)}${"NO".padEnd(11)}0          0          YES`);
+    }
+    w("");
+  }
+
   w("[XSECTIONS]");
   w(";;Link           Shape            Geom1       Geom2       Geom3       Geom4       Barrels");
   for (const c of conduits) {
@@ -1986,27 +2007,6 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
       w(`IF NODE ${p.from} DEPTH < ${p.shutoff}`);
       w(`THEN PUMP ${p.name} STATUS = OFF`);
       w("");
-    }
-    w("");
-  }
-
-  if (orifices.length > 0) {
-    w("[ORIFICES]");
-    w(";;Name           FromNode         ToNode           Type       Offset     Cd         FlapGate");
-    for (const o of orifices) {
-      const su = storages.find(s => s.name === o.from);
-      const offset = su ? +(su.maxD * rand(0.1, 0.4)).toFixed(2) : 0;
-      const cd = +(rand(0.5, 0.7)).toFixed(2);
-      w(`${o.name.padEnd(17)}${o.from.padEnd(17)}${o.to.padEnd(17)}${o.type.padEnd(11)}${offset.toFixed(2).padEnd(11)}${cd.toFixed(2).padEnd(11)}NO`);
-    }
-    w("");
-  }
-
-  if (weirs.length > 0) {
-    w("[WEIRS]");
-    w(";;Name           FromNode         ToNode           Type         CrestHt    Cd         FlapGate   EndCon     EndCoeff   Surcharge");
-    for (const wr of weirs) {
-      w(`${wr.name.padEnd(17)}${wr.from.padEnd(17)}${wr.to.padEnd(17)}${wr.type.padEnd(13)}${wr.crestHt.toFixed(2).padEnd(11)}${wr.cd.toFixed(2).padEnd(11)}${"NO".padEnd(11)}0          0          YES`);
     }
     w("");
   }

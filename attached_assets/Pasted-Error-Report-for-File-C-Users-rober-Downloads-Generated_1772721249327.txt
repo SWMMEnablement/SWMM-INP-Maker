@@ -1,0 +1,72 @@
+Error Report for File C:\Users\rober\Downloads\Generated_5000_stormwater.inp
+Undefined Link (ORI1) referenced at line 16521:
+[XSECTION]
+ORI1             RECT_CLOSED      3.210       2.895       0.0         0.0         1
+
+Undefined Link (ORI2) referenced at line 16522:
+[XSECTION]
+ORI2             CIRCULAR         1.804       0.000       0.0         0.0         1
+
+Undefined Link (ORI3) referenced at line 16523:
+[XSECTION]
+ORI3             RECT_CLOSED      3.746       3.796       0.0         0.0         1
+
+Undefined Link (ORI4) referenced at line 16524:
+[XSECTION]
+ORI4             RECT_CLOSED      3.444       5.075       0.0         0.0         1
+
+Undefined Link (ORI5) referenced at line 16525:
+[XSECTION]
+ORI5             CIRCULAR         2.891       0.000       0.0         0.0         1
+
+Undefined Link (ORI6) referenced at line 16526:
+[XSECTION]
+ORI6             CIRCULAR         1.874       0.000       0.0         0.0         1
+
+Undefined Link (ORI7) referenced at line 16527:
+[XSECTION]
+ORI7             CIRCULAR         2.706       0.000       0.0         0.0         1
+
+Undefined Link (ORI8) referenced at line 16528:
+[XSECTION]
+ORI8             RECT_CLOSED      2.631       4.907       0.0         0.0         1
+
+Undefined Link (ORI9) referenced at line 16529:
+[XSECTION]
+ORI9             CIRCULAR         1.444       0.000       0.0         0.0         1
+
+Undefined Link (ORI10) referenced at line 16530:
+[XSECTION]
+ORI10            RECT_CLOSED      3.789       7.429       0.0         0.0         1
+
+Undefined Link (ORI11) referenced at line 16531:
+[XSECTION]
+ORI11            CIRCULAR         3.130       0.000       0.0         0.0         1
+
+Undefined Link (ORI12) referenced at line 16532:
+[XSECTION]
+ORI12            RECT_CLOSED      3.044       5.540       0.0         0.0         1
+
+Undefined Link (ORI13) referenced at line 16533:
+[XSECTION]
+ORI13            CIRCULAR         3.650       0.000       0.0         0.0         1
+
+Undefined Link (ORI14) referenced at line 16534:
+[XSECTION]
+ORI14            CIRCULAR         3.227       0.000       0.0         0.0         1
+
+Undefined Link (ORI15) referenced at line 16535:
+[XSECTION]
+ORI15            RECT_CLOSED      2.304       3.995       0.0         0.0         1
+
+Undefined Link (ORI16) referenced at line 16536:
+[XSECTION]
+ORI16            CIRCULAR         2.897       0.000       0.0         0.0         1
+
+Undefined Link (ORI17) referenced at line 16537:
+[XSECTION]
+ORI17            CIRCULAR         3.205       0.000       0.0         0.0         1
+
+Undefined Link (ORI18) referenced at line 16538:
+[XSECTION]
+ORI18            RECT_CLOSED      3.630       7.093       0.0         0.0         1

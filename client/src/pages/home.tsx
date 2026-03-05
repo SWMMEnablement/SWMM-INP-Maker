@@ -2191,6 +2191,58 @@ export default function Home() {
                   </AccordionContent>
                 </AccordionItem>
 
+                <AccordionItem value="progress-phases" className="border-border bg-card rounded-lg mb-4 border">
+                  <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
+                    <span className="font-serif text-xl text-card-foreground">Progress Monitor Phases</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-4">
+                    <p>When you click <strong>Generate INP File</strong>, the progress monitor shows each phase of the generation pipeline in real time. Here is what each phase does and why it matters:</p>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead><tr className="bg-muted">
+                          <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">%</th>
+                          <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Phase</th>
+                          <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">What Happens</th>
+                        </tr></thead>
+                        <tbody>
+                          {[
+                            ["5%", "Initializing terrain DEM", "A synthetic Digital Elevation Model is created using 5-octave fractal Brownian motion noise. The terrain tilts toward outfall locations with a base slope, then noise octaves add realistic micro-terrain variation. This DEM drives all gravity-based flow routing."],
+                            ["10%", "Generating network topology", "The selected generation method runs — Force-Directed (Barnes-Hut particle simulation), Horton-Strahler branching, L-System grammar, or one of the other 16 algorithms. This produces the raw graph of nodes and edges that forms the drainage network skeleton."],
+                            ["30%", "Assigning node properties", "DEM elevations are mapped to the user's terrain range. Each junction gets an invert elevation, maximum depth (scaled by upstream accumulation), and ponded area. Outfalls and storage units are placed at strategic locations."],
+                            ["46%", "Writing header & options", "The INP file header is written: [TITLE], [OPTIONS] (flow units, routing method, simulation dates, infiltration), [FILES], [EVAPORATION], and climate sections ([TEMPERATURE], [ADJUSTMENTS], [SNOWPACKS] if snowmelt is enabled)."],
+                            ["48%", "Building conduit network", "Every graph edge becomes a conduit with pipe diameter (scaled by upstream accumulation from the 1,729-model statistics), Manning's roughness, cross-section shape (70% circular, 12% rectangular, etc.), and inlet/outlet offsets following real-world offset patterns."],
+                            ["52%", "ReSWMM discretization", "If enabled, long conduits are subdivided into shorter segments using either fixed-interval or Δx/D ratio methods. New intermediate junction nodes are interpolated along each split conduit to maintain hydraulic accuracy for dynamic wave routing."],
+                            ["60%", "Writing subcatchments & hydrology", "Subcatchment parameters (area, % imperviousness, width, slope) are generated. Subareas, infiltration parameters, aquifer definitions, and groundwater flow exchange sections are written based on land use type and infiltration method."],
+                            ["68%", "Writing water quality sections", "If water quality is enabled: pollutant definitions (TSS, BOD, COD, TN, TP), land use categories with sweep intervals, coverage percentages, power-law buildup functions, EMC washoff, treatment expressions, and initial loadings are generated."],
+                            ["75%", "Writing pumps, controls & hydraulics", "Pump links with Type 3 pump curves connecting storage units to junctions. Rule-based controls (ON when depth > startup, OFF when depth < shutoff). Orifices, weirs, outlets, street inlets, and entry/exit loss coefficients."],
+                            ["82%", "Writing coordinates & map data", "Node X/Y coordinates for the map view. Curved link vertices (if enabled) add 1-3 intermediate points with perpendicular offsets for natural-looking conduit rendering."],
+                            ["88%", "Computing subcatchment polygons", "Voronoi tessellation computes drainage area polygons for each subcatchment. Each junction's contributing area is bounded by perpendicular bisectors with neighboring sites, producing realistic Thiessen polygon boundaries."],
+                            ["95%", "Finalizing INP file", "All remaining map sections are assembled: [SYMBOLS] (rain gage positions), [LABELS] (map annotations), [BACKDROP], [MAP] (extents), [TAGS] (element categorization), [PROFILES] (longest paths), and [REPORT]. The complete INP text is joined and file statistics are computed."],
+                            ["98%", "Running validation", "The generated INP file passes through the static analysis engine: checking for orphan nodes, adverse slopes, zero-length conduits, undefined references, and 8 other categories. Auto-repair fixes are applied, then the file is sent to the SWMM5 v5.2.4 engine for final validation."],
+                          ].map(([pctVal, phase, desc]) => (
+                            <tr key={phase} className="hover:bg-primary/5">
+                              <td className="p-2 border border-border font-mono text-center text-primary font-bold whitespace-nowrap">{pctVal}</td>
+                              <td className="p-2 border border-border font-medium whitespace-nowrap">{phase}</td>
+                              <td className="p-2 border border-border text-muted-foreground">{desc}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary">All Methods Mode</h4>
+                      <p className="text-xs text-muted-foreground">When you click <strong>All Methods</strong>, the generator runs all 18 network variants (16 methods, with L-System producing 3 sub-variants) sequentially. Each method runs in its own animation frame so the progress bar updates between methods, showing <code className="font-mono bg-muted px-1 rounded">Method 3/18: L-System Grammar</code> with an overall completion percentage. The toast notification reports how many of the 18 methods succeeded.</p>
+                    </div>
+
+                    <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Generation Timing</h4>
+                      <p className="text-xs text-muted-foreground">The toast notification after generation includes the actual computation time in milliseconds (e.g., <code className="font-mono bg-muted px-1 rounded">1,234 elements, 45.3 KB in 142ms</code>). This measures only the model generation and INP assembly time — it excludes the static validation and engine simulation steps that follow.</p>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
                 <AccordionItem value="why-barnes-hut" className="border-border bg-card rounded-lg mb-4 border">
                   <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
                     <span className="font-serif text-xl text-card-foreground">Why Barnes-Hut Force-Directed Synthesis</span>

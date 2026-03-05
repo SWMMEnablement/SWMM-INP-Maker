@@ -1524,7 +1524,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   const transectMap: Record<string, string> = {};
   if (irregularConduits.length > 0) {
     const nUnique = Math.min(irregularConduits.length, Math.max(3, Math.ceil(irregularConduits.length * 0.3)));
-    const transectDefs: { name: string; nLeft: number; nRight: number; nChannel: number; stations: [number, number][] }[] = [];
+    const transectDefs: { name: string; nLeft: number; nRight: number; nChannel: number; stations: [number, number][]; xleft: number; xright: number }[] = [];
     for (let t = 0; t < nUnique; t++) {
       const tName = `TR${t + 1}`;
       const refDiam = irregularConduits[Math.floor(t * irregularConduits.length / nUnique)].diam;
@@ -1562,7 +1562,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       const nL = 0.035 + Math.random() * 0.03;
       const nR = 0.035 + Math.random() * 0.03;
       const nC = 0.025 + Math.random() * 0.015;
-      transectDefs.push({ name: tName, nLeft: nL, nRight: nR, nChannel: nC, stations: pts });
+      transectDefs.push({ name: tName, nLeft: nL, nRight: nR, nChannel: nC, stations: pts, xleft: s1, xright: s6 });
     }
     for (let i = 0; i < irregularConduits.length; i++) {
       transectMap[irregularConduits[i].name] = transectDefs[i % nUnique].name;
@@ -1571,7 +1571,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w(";;Transect Data in HEC-2 format");
     for (const td of transectDefs) {
       w(`NC ${td.nLeft.toFixed(3)}   ${td.nChannel.toFixed(3)}   ${td.nRight.toFixed(3)}`);
-      w(`X1 ${td.name.padEnd(17)}${td.stations.length.toString().padEnd(6)}0         0         0         0         0         0`);
+      w(`X1 ${td.name.padEnd(17)}${td.stations.length.toString().padEnd(6)}${td.xleft.toFixed(3).padEnd(10)}${td.xright.toFixed(3).padEnd(10)}0.0       0.0       0.0       0.0       1.0       1.0`);
       let grLine = "GR";
       for (let p = 0; p < td.stations.length; p++) {
         grLine += ` ${td.stations[p][1].toFixed(3).padEnd(10)}${td.stations[p][0].toFixed(3).padEnd(10)}`;

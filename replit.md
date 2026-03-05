@@ -34,7 +34,7 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
   - DWF flow patterns (multi-select: Diurnal, Monthly, Weekend, Seasonal)
   - Inflow time series percentage (0-100%, external inflows on junctions)
   - Rainfall depth (configurable total depth in inches or mm)
-  - Rainfall distribution (34 patterns via Rain Canvas Studio: SCS I/IA/II/III, Huff Q1-Q4, Chicago, Alternating Block, Triangular, Regional US, International, Historical)
+  - Rainfall distribution (276 patterns via Rain Canvas Studio across 11 categories: SCS/NRCS, Huff Quartiles, Chicago, Alternating Block, Uniform/Triangular/Bimodal/Exponential/Step, Regional US — all 50 State DOTs + DC + PR, NOAA Atlas 14 Return Periods, International (67 countries/cities), Historical/Extreme (hurricanes, floods, cloudbursts), Synthetic IDF-Based, Climate Change Scenarios)
   - Infiltration method (Horton, Green-Ampt, Curve Number) — affects both [OPTIONS] and [INFILTRATION] section format
 - Full 56/56 SWMM5 section coverage including:
   - Climate: [FILES], [EVAPORATION], [TEMPERATURE], [ADJUSTMENTS], [SNOWPACKS]

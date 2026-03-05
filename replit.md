@@ -50,7 +50,8 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms
 - Static INP validation with auto-repair: runs automatically after generation and on file upload in viewer; prominent validation badge shows pass/fail status with fix count
-- Server-side SWMM5 engine validation: after static validation, INP is sent to `POST /api/simulate` which patches duration to 1 minute, runs the compiled SWMM5 v5.2.4 binary, and returns continuity errors, routing errors, warnings, and summary
+- Server-side SWMM5 engine validation: after static validation, INP is sent to `POST /api/simulate` which patches duration to 1 minute, runs the compiled SWMM5 v5.2.4 binary, and returns continuity errors, routing errors, warnings, summary, and full RPT text
+- "View SWMM5 Report (.rpt)" button: shows the engine's report file inline with download option — available on both successful and failed simulations for debugging
 - "Open in SWMM5 Engine" button: downloads INP file and opens the companion SWMM5 Simulation Engine app for one-click simulation
 - SWMM5 real-world statistics from 1,729 models (15.4M elements) in docs tab
 - Comprehensive stats panel after generation with downloadable markdown report

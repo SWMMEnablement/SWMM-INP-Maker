@@ -787,6 +787,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("generator");
   const [viewerInpText, setViewerInpText] = useState<{ text: string; name: string } | null>(null);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [showReport, setShowReport] = useState(false);
 
   const elements = useMemo(() => compute(config), [config]);
   const sections = useMemo(() => getSections(elements, config), [elements, config]);
@@ -893,6 +894,7 @@ export default function Home() {
   const handleGenerate = useCallback(() => {
     setGenerating(true);
     setValidation(null);
+    setShowReport(false);
     setGenProgress({ phase: "Initializing terrain & particles", pct: 5 });
     setTimeout(() => {
       const genStart = performance.now();
@@ -1815,6 +1817,16 @@ export default function Home() {
                         <Button onClick={handleDownloadReport} variant="outline" className="w-full" data-testid="button-download-report">
                           <FileText className="w-4 h-4 mr-2" /> Download Report
                         </Button>
+                        {validation?.engineResult?.report && (
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => setShowReport(true)}
+                            data-testid="button-view-rpt"
+                          >
+                            <FileText className="w-4 h-4 mr-2" /> View SWMM5 Report (.rpt)
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           className="w-full"
@@ -1837,6 +1849,43 @@ export default function Home() {
                       result={validation}
                       onDownloadFixed={validation.fixedInp ? handleDownloadFixed : undefined}
                     />
+                  )}
+
+                  {showReport && validation?.engineResult?.report && (
+                    <div className="rounded-lg border border-border bg-card p-4 space-y-3" data-testid="panel-rpt-viewer">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-semibold uppercase tracking-widest text-primary">SWMM5 Engine Report (.rpt)</h3>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const blob = new Blob([validation.engineResult!.report!], { type: "text/plain" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = (result?.stats.fileName || "model").replace(/\.inp$/, ".rpt");
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }}
+                            data-testid="button-download-rpt"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1" /> Download .rpt
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowReport(false)}
+                            data-testid="button-close-rpt"
+                          >
+                            Close
+                          </Button>
+                        </div>
+                      </div>
+                      <pre className="text-[11px] font-mono leading-relaxed text-foreground bg-muted/30 border border-border rounded-lg p-4 overflow-auto max-h-[500px] whitespace-pre-wrap" data-testid="text-rpt-content">
+                        {validation.engineResult.report}
+                      </pre>
+                    </div>
                   )}
 
                   {s && (

@@ -180,13 +180,14 @@ export async function registerRoutes(
           version: '5.2.4',
           summary: `Simulation failed: ${errDetail}`,
           wallTimeMs: wallMs,
+          report: stderrData.trim() ? `SWMM5 stderr output:\n${stderrData.trim()}` : '',
         });
       }
 
       const result = parseReport(report);
       result.elapsed = wallMs / 1000;
 
-      res.json({ ...result, wallTimeMs: wallMs });
+      res.json({ ...result, wallTimeMs: wallMs, report });
     } catch (err: any) {
       res.json({
         success: false,
@@ -198,6 +199,7 @@ export async function registerRoutes(
         version: '5.2.4',
         summary: `Simulation failed: ${err.message || 'unknown error'}`,
         wallTimeMs: 0,
+        report: '',
       });
     } finally {
       if (dir) {

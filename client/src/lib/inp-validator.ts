@@ -49,6 +49,7 @@ export interface EngineSimResult {
   version: string;
   summary: string;
   wallTimeMs: number;
+  report?: string;
 }
 
 export function validateInp(inpContent: string, autoFix = true): ValidationResult {

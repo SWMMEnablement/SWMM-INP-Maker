@@ -1,6 +1,6 @@
 # ReSWMM — Conduit Discretization Engine for EPA SWMM5
 
-**Author:** Robson Leo Pachaly (robsonleopachaly@yahoo.com.br)
+**Author:** Robson Leo Pachaly (robsonleopachaly@yahoo.com.br)a
 **Original Platform:** Windows Desktop (VB.NET, started April 2018)
 **Ported By:** Robert Dickinson — [SWMM5.org](https://swmm5.org) — TypeScript/React implementation
 **SWMM Version:** Compatible with EPA SWMM 5.2.x

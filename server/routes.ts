@@ -147,6 +147,7 @@ export async function registerRoutes(
 
       const startMs = Date.now();
 
+      let stderrData = '';
       await new Promise<void>((resolve, reject) => {
         const proc = execFile(SWMM_BIN, [inpPath, rptPath, outPath], {
           timeout: SIM_TIMEOUT_MS,
@@ -158,6 +159,7 @@ export async function registerRoutes(
             resolve();
           }
         });
+        if (proc.stderr) proc.stderr.on('data', (d: any) => { stderrData += d.toString(); });
       });
 
       const wallMs = Date.now() - startMs;
@@ -166,15 +168,17 @@ export async function registerRoutes(
       try {
         report = await readFile(rptPath, 'utf-8');
       } catch {
+        await writeFile('/tmp/swmm_debug_inp.txt', patchedInp).catch(() => {});
+        const errDetail = stderrData.trim() || 'no report file generated';
         return res.json({
           success: false,
           continuityError: null,
           routingError: null,
           warnings: 0,
-          errors: ['No report file generated'],
+          errors: [errDetail],
           elapsed: wallMs / 1000,
           version: '5.2.4',
-          summary: 'Simulation failed: no report file generated',
+          summary: `Simulation failed: ${errDetail}`,
           wallTimeMs: wallMs,
         });
       }

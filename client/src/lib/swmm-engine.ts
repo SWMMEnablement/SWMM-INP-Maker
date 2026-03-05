@@ -1647,11 +1647,12 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   const subcatchData: { name: string; outlet: string; jx: number; jy: number }[] = [];
   if (nSubcatch > 0) {
     w("[SUBCATCHMENTS]");
-    w(";;Name           Raingage         Outlet           Area     %Imperv  Width    Slope");
+    w(";;Name           Raingage         Outlet           Area     %Imperv  Width    Slope    CurbLen  SnowPack");
     const impRanges: Record<string, [number,number]> = { commercial:[85,98], industrial:[60,90], residential:[30,55], mixed:[15,80] };
     const impR = impRanges[config.landUse] || [20,80];
     const slopeR: Record<string, [number,number]> = { flat:[0.1,1], moderate:[0.5,3], hilly:[2,8], mountainous:[5,20] };
     const slR = slopeR[config.terrain];
+    const snowpackNames = config.enableSnowmelt ? ['SnowPack1','SnowPack2'] : [];
     for (let i=0; i<nSubcatch; i++) {
       const name = `S${i+1}`;
       const gage = `RG${(i%nGages)+1}`;
@@ -1662,7 +1663,8 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       const areaFt = area*(isSI?10764:43560);
       const width = Math.sqrt(areaFt)*rand(0.5,1.2);
       const slope = rand(slR[0],slR[1]);
-      w(`${name.padEnd(17)}${gage.padEnd(17)}${outlet.padEnd(17)}${area.toFixed(3).padEnd(9)}${imperv.toFixed(1).padEnd(9)}${width.toFixed(1).padEnd(9)}${slope.toFixed(2)}`);
+      const snowCol = snowpackNames.length > 0 ? snowpackNames[i % snowpackNames.length] : '';
+      w(`${name.padEnd(17)}${gage.padEnd(17)}${outlet.padEnd(17)}${area.toFixed(3).padEnd(9)}${imperv.toFixed(1).padEnd(9)}${width.toFixed(1).padEnd(9)}${slope.toFixed(2).padEnd(9)}0        ${snowCol}`);
       subcatchData.push({ name, outlet, jx: junc.x, jy: junc.y });
     }
     w("");
@@ -1753,7 +1755,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       w(`${sp.padEnd(17)}PLOWABLE   0.001  0.001  32.0  0.10  0.00  0.00  0.0`);
       w(`${sp.padEnd(17)}IMPERVIOUS 0.001  0.001  32.0  0.10  0.00  0.00  0.0`);
       w(`${sp.padEnd(17)}PERVIOUS   0.001  0.001  32.0  0.10  0.00  0.00  0.0`);
-      w(`${sp.padEnd(17)}REMOVAL    0.5    0.0    0.0   0.0   0.0   0.0   *`);
+      w(`${sp.padEnd(17)}REMOVAL    0.5    0.0    0.0   0.0   0.0   0.0`);
     }
     w("");
   }
@@ -1886,12 +1888,12 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
 
     w("[BUILDUP]");
-    w(";;LandUse         Pollutant    BType      Rate       Power      Normalizer");
+    w(";;LandUse         Pollutant    BType      Rate       Power      SatConst   Normalizer");
     for (const lu of luForConfig) {
       for (const p of POLLUTANTS) {
         const rate = (baseRate * (p.name === 'TSS' ? 25 : p.name === 'BOD' ? 5 : p.name === 'COD' ? 10 : p.name === 'TN' ? 2 : 0.5)).toFixed(2);
         const power = rand(0.4, 0.6).toFixed(2);
-        w(`${lu.padEnd(17)}${p.name.padEnd(13)}POW        ${rate.padEnd(11)}${power.padEnd(11)}AREA`);
+        w(`${lu.padEnd(17)}${p.name.padEnd(13)}POW        ${rate.padEnd(11)}${power.padEnd(11)}0.0        AREA`);
       }
     }
     w("");
@@ -1914,7 +1916,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     for (const tn of treatmentNodes) {
       for (const p of POLLUTANTS) {
         const removalFrac = p.name === 'TSS' ? rand(0.4, 0.8) : p.name === 'BOD' ? rand(0.3, 0.6) : rand(0.2, 0.5);
-        w(`${tn.name.padEnd(17)}${p.name.padEnd(13)}C = C * ${(1 - removalFrac).toFixed(3)}`);
+        w(`${tn.name.padEnd(17)}${p.name.padEnd(13)}R = ${removalFrac.toFixed(3)}`);
       }
     }
     w("");

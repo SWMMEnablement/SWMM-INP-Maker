@@ -1076,7 +1076,9 @@ function computeVoronoiCells(
   return cells;
 }
 
-export function generateModel(config: SwmmConfig): GeneratedModel {
+export type ProgressCallback = (phase: string, pct: number) => void;
+
+export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback): GeneratedModel {
   const N = config.N;
   const r = RATIOS[config.type];
   const flowUnit = FLOW_UNITS[config.units][config.type];
@@ -1122,9 +1124,11 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     });
   }
 
+  onProgress?.("Initializing terrain DEM", 5);
   const dem = new TerrainDEM(domain, domain, config.terrain, outfallPositions, Math.random()*999);
   const elevFn = (x: number, y: number) => dem.elevationAt(x, y);
 
+  onProgress?.("Generating network topology", 10);
   let graph: { allNodes: { x: number; y: number; name: string; type: string; idx: number; elev: number; }[]; edges: { from: { x: number; y: number; name: string; type: string; idx: number; elev: number; }; to: { x: number; y: number; name: string; type: string; idx: number; elev: number; }; length: number; }[]; accumUpstream: Record<string, number> };
 
   switch (config.generationMethod) {
@@ -1223,6 +1227,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     graph.accumUpstream[collectorName] = inletEdges.length;
   }
 
+  onProgress?.("Assigning node properties", 30);
   const elevRange = eHi - eLo;
   let demMin = Infinity, demMax = -Infinity;
   for (const n of graph.allNodes) {
@@ -1270,6 +1275,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     }
   }
 
+  onProgress?.("Writing header & options", 46);
   const lines: string[] = [];
   const w = (s: string) => lines.push(s);
 
@@ -1347,6 +1353,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   for (const o of outfalls) nodeLookup[o.name] = { ...o, maxD: undefined };
   for (const s of storages) nodeLookup[s.name] = s;
 
+  onProgress?.("Building conduit network", 48);
   for (let i = 0; i < graph.edges.length; i++) {
     const edge = graph.edges[i];
     const fromNode = nodeLookup[edge.from.name];
@@ -1393,6 +1400,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     conduits.push({ name: `C${conduits.length+1}`, from: j1.name, to: lowers[0].name, len: +Math.max(1, Math.hypot(lowers[0].x-j1.x, lowers[0].y-j1.y)).toFixed(2), rough: 0.013, inOff: 0, outOff: 0, diam: pick(PIPES.slice(0, 10)), shape: "CIRCULAR" });
   }
 
+  onProgress?.("ReSWMM discretization", 52);
   const reswmmOrigConduits = conduits.length;
   let reswmmNewJunctions = 0;
   let reswmmSplitLinks = 0;
@@ -1644,6 +1652,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   }
   w("");
 
+  onProgress?.("Writing subcatchments & hydrology", 60);
   const subcatchData: { name: string; outlet: string; jx: number; jy: number }[] = [];
   if (nSubcatch > 0) {
     w("[SUBCATCHMENTS]");
@@ -1838,6 +1847,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  onProgress?.("Writing water quality sections", 68);
   if (config.enableWQ && nSubcatch > 0) {
     const POLLUTANTS = [
       { name: 'TSS', units: 'MG/L', crain: 10.0, cgw: 0.0, crdii: 0.0, kinit: 0.0, cflag: 'CONCENTRATION' },
@@ -1935,6 +1945,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  onProgress?.("Writing pumps, controls & hydraulics", 75);
   const pumps: PumpData[] = [];
   if (nPumps > 0 && storages.length > 0) {
     w("[PUMPS]");
@@ -2157,6 +2168,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  onProgress?.("Writing coordinates & map data", 82);
   w("[COORDINATES]");
   w(";;Node           X-Coord        Y-Coord");
   for (const o of outfalls) w(`${o.name.padEnd(17)}${o.x.toFixed(1).padEnd(15)}${o.y.toFixed(1)}`);
@@ -2200,6 +2212,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  onProgress?.("Computing subcatchment polygons", 88);
   const voronoiCells: VoronoiCell[] = [];
   if (subcatchData.length > 0) {
     const uniqueSites = new Map<string, { x: number; y: number; name: string }>();
@@ -2305,6 +2318,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   w("LINKS            ALL");
   w("");
 
+  onProgress?.("Finalizing INP file", 95);
   const inpText = lines.join("\n");
   const sizeKB = (new Blob([inpText]).size / 1024).toFixed(1);
   const sizeMB = (parseFloat(sizeKB) / 1024).toFixed(2);

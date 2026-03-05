@@ -777,6 +777,7 @@ export default function Home() {
     ...DEFAULT_HYDROLOGY,
   });
   const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState<{ phase: string; pct: number } | null>(null);
   const [reswmmDescOpen, setReswmmDescOpen] = useState(false);
   const [result, setResult] = useState<GeneratedModel | null>(null);
   const [resultConfig, setResultConfig] = useState<SwmmConfig | null>(null);
@@ -829,9 +830,20 @@ export default function Home() {
   const handleGenerateAll = useCallback(() => {
     setGeneratingAll(true);
     setAllMethodResults(null);
-    setTimeout(() => {
-      const results: { method: string; label: string; model: GeneratedModel }[] = [];
-      for (const m of ALL_METHODS) {
+    setGenProgress({ phase: "Starting all methods", pct: 0 });
+    const results: { method: string; label: string; model: GeneratedModel }[] = [];
+    let mi = 0;
+    const runNext = () => {
+      if (mi >= ALL_METHODS.length) {
+        setAllMethodResults(results);
+        toast({ title: "All methods generated", description: `${results.length} of ${ALL_METHODS.length} methods succeeded` });
+        setGeneratingAll(false);
+        setGenProgress(null);
+        return;
+      }
+      const m = ALL_METHODS[mi];
+      setGenProgress({ phase: `Method ${mi + 1}/${ALL_METHODS.length}: ${m.label}`, pct: Math.round((mi / ALL_METHODS.length) * 100) });
+      setTimeout(() => {
         try {
           const cfg = { ...config, generationMethod: m.method, lSystemVariant: m.variant || config.lSystemVariant };
           const model = generateModel(cfg);
@@ -839,11 +851,11 @@ export default function Home() {
         } catch {
           // skip failed methods
         }
-      }
-      setAllMethodResults(results);
-      toast({ title: "All methods generated", description: `${results.length} of ${ALL_METHODS.length} methods succeeded` });
-      setGeneratingAll(false);
-    }, 50);
+        mi++;
+        runNext();
+      }, 10);
+    };
+    setTimeout(runNext, 50);
   }, [config, toast]);
 
   const runEngineValidation = useCallback(async (inpText: string, vResult: ValidationResult) => {
@@ -881,9 +893,15 @@ export default function Home() {
   const handleGenerate = useCallback(() => {
     setGenerating(true);
     setValidation(null);
+    setGenProgress({ phase: "Initializing terrain & particles", pct: 5 });
     setTimeout(() => {
+      const genStart = performance.now();
       try {
-        const model = generateModel(config);
+        const model = generateModel(config, (phase, pctVal) => {
+          setGenProgress({ phase, pct: pctVal });
+        });
+        const genMs = Math.round(performance.now() - genStart);
+        setGenProgress({ phase: "Running validation", pct: 90 });
         setResult(model);
         setResultConfig({ ...config });
         const vResult = validateInp(model.inpText, true);
@@ -893,7 +911,7 @@ export default function Home() {
         const pendingResult = { ...vResult, stages: enginePendingStages, engineNote: 'Running SWMM5 engine...' };
         setValidation(pendingResult);
         const desc = vResult.valid
-          ? `${fmt(model.stats.totalElements)} elements, ${model.stats.fileSize} — running engine validation...`
+          ? `${fmt(model.stats.totalElements)} elements, ${model.stats.fileSize} in ${genMs}ms — running engine validation...`
           : `${fmt(model.stats.totalElements)} elements — ${vResult.errors.length} errors, ${vResult.warnings.length} warnings`;
         toast({ title: "Model generated", description: desc });
         const inpToSimulate = vResult.fixedInp || model.inpText;
@@ -902,8 +920,9 @@ export default function Home() {
         toast({ title: "Generation failed", description: (err as Error).message, variant: "destructive" });
       } finally {
         setGenerating(false);
+        setGenProgress(null);
       }
-    }, 50);
+    }, 80);
   }, [config, toast, runEngineValidation]);
 
   const handleDownload = useCallback(() => {
@@ -1743,11 +1762,16 @@ export default function Home() {
                     {!result && !generating && (
                       <p className="text-sm text-muted-foreground">Configure parameters and click Generate</p>
                     )}
-                    {generating && (
-                      <div className="flex flex-col items-center gap-3">
-                        <p className="text-sm text-muted-foreground">Generating {fmt(config.N)}-junction {config.type} model...</p>
-                        <div className="w-full max-w-[300px] h-1 bg-card rounded overflow-hidden">
-                          <div className="h-full rounded animate-pulse" style={{ width: "60%", background: "linear-gradient(90deg, #38bdf8, #34d399)" }} />
+                    {(generating || generatingAll) && genProgress && (
+                      <div className="flex flex-col items-center gap-3" data-testid="progress-monitor">
+                        <p className="text-sm font-medium text-foreground">{generatingAll ? "Generating all methods" : `Generating ${fmt(config.N)}-junction ${config.type} model`}</p>
+                        <div className="w-full max-w-[320px] h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-300 ease-out" style={{ width: `${Math.max(3, genProgress.pct)}%`, background: "linear-gradient(90deg, #38bdf8, #818cf8, #34d399)" }} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                          <p className="text-xs text-muted-foreground" data-testid="text-progress-phase">{genProgress.phase}</p>
+                          <span className="text-xs font-mono text-primary">{genProgress.pct}%</span>
                         </div>
                       </div>
                     )}

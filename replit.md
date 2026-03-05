@@ -5,8 +5,9 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 
 ## Architecture
 - **Frontend-only app** built with React, TypeScript, Tailwind CSS, Shadcn/ui
-- Backend (Express) exists only to serve the frontend — no API routes used
+- Backend (Express) serves the frontend and provides `POST /api/simulate` for SWMM5 engine validation
 - All SWMM5 model generation is performed client-side in `swmm-engine.ts`
+- Server-side SWMM5 v5.2.4 binary (`./swmm5`) runs 1-minute validation simulations
 
 ## Key Files
 - `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, rainfall profile generator, 5 generation methods, all constants from 1,729 real models
@@ -43,6 +44,7 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms
 - Static INP validation with auto-repair: runs automatically after generation and on file upload in viewer; prominent validation badge shows pass/fail status with fix count
+- Server-side SWMM5 engine validation: after static validation, INP is sent to `POST /api/simulate` which patches duration to 1 minute, runs the compiled SWMM5 v5.2.4 binary, and returns continuity errors, routing errors, warnings, and summary
 - "Open in SWMM5 Engine" button: downloads INP file and opens the companion SWMM5 Simulation Engine app for one-click simulation
 - SWMM5 real-world statistics from 1,729 models (15.4M elements) in docs tab
 - Comprehensive stats panel after generation with downloadable markdown report

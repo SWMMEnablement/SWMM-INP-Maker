@@ -649,6 +649,7 @@ export function compute(config: SwmmConfig): ComputedElements {
     total: 0,
   };
   if (elems.pumps > 0) elems.storage = Math.max(elems.storage, Math.max(1, Math.floor(elems.pumps/3)));
+  if (elems.orifices > 0 || elems.weirs > 0) elems.storage = Math.max(elems.storage, 1);
   elems.raingages = elems.subcatchments > 0 ? Math.max(1, Math.round(elems.subcatchments/500)) : 0;
   elems.total = elems.junctions + elems.conduits + elems.subcatchments + elems.outfalls + elems.storage + elems.pumps + elems.orifices + elems.weirs;
   return elems;
@@ -1053,7 +1054,10 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   const nOutfalls = config.numOutfalls != null ? Math.max(1, config.numOutfalls) : Math.max(1, Math.round(N * r.outfall));
   let nStorage = Math.max(0, Math.round(N * r.storage));
   const nPumps = Math.round(N * r.pump);
+  const nOrifices = Math.round(N * r.orifice);
+  const nWeirs = Math.round(N * r.weir);
   if (nPumps > 0) nStorage = Math.max(nStorage, Math.max(1, Math.floor(nPumps/3)));
+  if (nOrifices > 0 || nWeirs > 0) nStorage = Math.max(nStorage, 1);
 
   const terrainCfg: Record<string, [number,number]> = { flat:[0,30], moderate:[0,150], hilly:[0,500], mountainous:[0,2000] };
   let [eLo, eHi] = terrainCfg[config.terrain];
@@ -1463,6 +1467,38 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  interface OrificeData { name: string; from: string; to: string; type: string; height: number; width: number; shape: string; }
+  const orifices: OrificeData[] = [];
+  if (nOrifices > 0 && storages.length > 0) {
+    for (let oi = 0; oi < nOrifices; oi++) {
+      const su = storages[oi % storages.length];
+      const tgt = junctions[Math.floor(rand(0, Math.min(10, N - 1)))];
+      const name = `ORI${oi + 1}`;
+      const oType = Math.random() < 0.7 ? "SIDE" : "BOTTOM";
+      const shape = Math.random() < 0.6 ? "CIRCULAR" : "RECT_CLOSED";
+      const height = +(isSI ? rand(0.3, 1.2) : rand(1, 4)).toFixed(3);
+      const width = shape === "RECT_CLOSED" ? +(height * rand(0.8, 2.0)).toFixed(3) : 0;
+      orifices.push({ name, from: su.name, to: tgt.name, type: oType, height, width, shape });
+    }
+  }
+
+  interface WeirData { name: string; from: string; to: string; type: string; height: number; width: number; shape: string; crestHt: number; cd: number; }
+  const weirs: WeirData[] = [];
+  if (nWeirs > 0 && storages.length > 0) {
+    for (let wi = 0; wi < nWeirs; wi++) {
+      const su = storages[wi % storages.length];
+      const tgt = junctions[Math.floor(rand(0, Math.min(10, N - 1)))];
+      const name = `WR${wi + 1}`;
+      const wType = pick(["TRANSVERSE", "SIDEFLOW", "V-NOTCH"]);
+      const crestHt = +(su.maxD * rand(0.3, 0.7)).toFixed(2);
+      const cd = +(rand(2.5, 3.5)).toFixed(2);
+      const shape = wType === "V-NOTCH" ? "TRIANGULAR" : (Math.random() < 0.7 ? "RECT_OPEN" : "TRAPEZOIDAL");
+      const height = +(isSI ? rand(0.5, 2.0) : rand(1.5, 6)).toFixed(3);
+      const width = shape !== "TRIANGULAR" ? +(height * rand(1.5, 4.0)).toFixed(3) : 0;
+      weirs.push({ name, from: su.name, to: tgt.name, type: wType, height, width, shape, crestHt, cd });
+    }
+  }
+
   w("[XSECTIONS]");
   w(";;Link           Shape            Geom1       Geom2       Geom3       Geom4       Barrels");
   for (const c of conduits) {
@@ -1471,13 +1507,25 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       w(`${c.name.padEnd(17)}${"IRREGULAR".padEnd(17)}${tName.padEnd(12)}0.000       0.0         0.0         1`);
     } else {
       let g1 = c.diam, g2 = 0, g3 = 0, g4 = 0;
-      if (c.shape === "EGG") g1 = c.diam * 1.5;
+      if (c.shape === "FORCE_MAIN") { g2 = c.rough; }
+      else if (c.shape === "EGG") g1 = c.diam * 1.5;
       else if (c.shape === "RECT_CLOSED") { g2 = c.diam * rand(0.8, 1.5); }
       else if (c.shape === "RECT_OPEN") { g2 = c.diam * rand(1, 3); }
       else if (c.shape === "TRAPEZOIDAL") { g2 = c.diam * 2; g3 = 2; g4 = 2; }
+      else if (c.shape === "ARCH") { g2 = +(c.diam * rand(1.2, 2.0)).toFixed(3); }
       else if (c.shape.includes("FILLED")) { g2 = +(c.diam * rand(0.1, 0.3)).toFixed(3); }
       w(`${c.name.padEnd(17)}${c.shape.padEnd(17)}${g1.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
     }
+  }
+  for (const o of orifices) {
+    const g2 = o.shape === "RECT_CLOSED" ? o.width : 0;
+    w(`${o.name.padEnd(17)}${o.shape.padEnd(17)}${o.height.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${"0.0".padEnd(12)}${"0.0".padEnd(12)}1`);
+  }
+  for (const wr of weirs) {
+    const g2 = wr.shape !== "TRIANGULAR" ? wr.width : 0;
+    const g3 = wr.shape === "TRAPEZOIDAL" ? 2 : 0;
+    const g4 = wr.shape === "TRAPEZOIDAL" ? 2 : 0;
+    w(`${wr.name.padEnd(17)}${wr.shape.padEnd(17)}${wr.height.toFixed(3).padEnd(12)}${g2.toFixed(3).padEnd(12)}${g3.toFixed(1).padEnd(12)}${g4.toFixed(1).padEnd(12)}1`);
   }
   w("");
 
@@ -1752,6 +1800,27 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  if (orifices.length > 0) {
+    w("[ORIFICES]");
+    w(";;Name           FromNode         ToNode           Type       Offset     Cd         FlapGate");
+    for (const o of orifices) {
+      const su = storages.find(s => s.name === o.from);
+      const offset = su ? +(su.maxD * rand(0.1, 0.4)).toFixed(2) : 0;
+      const cd = +(rand(0.5, 0.7)).toFixed(2);
+      w(`${o.name.padEnd(17)}${o.from.padEnd(17)}${o.to.padEnd(17)}${o.type.padEnd(11)}${offset.toFixed(2).padEnd(11)}${cd.toFixed(2).padEnd(11)}NO`);
+    }
+    w("");
+  }
+
+  if (weirs.length > 0) {
+    w("[WEIRS]");
+    w(";;Name           FromNode         ToNode           Type       CrestHt    Cd         FlapGate   EndCon     EndCoeff   Surcharge");
+    for (const wr of weirs) {
+      w(`${wr.name.padEnd(17)}${wr.from.padEnd(17)}${wr.to.padEnd(17)}${wr.type.padEnd(11)}${wr.crestHt.toFixed(2).padEnd(11)}${wr.cd.toFixed(2).padEnd(11)}${"NO".padEnd(11)}0          0          YES`);
+    }
+    w("");
+  }
+
   w("[LOSSES]");
   w(";;Conduit        Inlet      Outlet     Average    FlapGate");
   for (const c of conduits) {
@@ -1897,7 +1966,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   const sizeKB = (new Blob([inpText]).size / 1024).toFixed(1);
   const sizeMB = (parseFloat(sizeKB) / 1024).toFixed(2);
   const nLines = lines.length;
-  const total = N + conduits.length + nSubcatch + nOutfalls + nStorage + nPumps;
+  const total = N + conduits.length + nSubcatch + nOutfalls + nStorage + nPumps + orifices.length + weirs.length;
   const fname = `Generated_${fmt(N).replace(/,/g,'')}_${config.type}.inp`;
 
   const elevs = junctions.map(j => j.elev);
@@ -1972,8 +2041,8 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       storage: nStorage,
       pumps: nPumps,
       subcatchments: nSubcatch,
-      orifices: Math.round(N * r.orifice),
-      weirs: Math.round(N * r.weir),
+      orifices: orifices.length,
+      weirs: weirs.length,
       elevMin: elevs.length ? Math.min(...elevs) : 0,
       elevMax: elevs.length ? Math.max(...elevs) : 0,
       elevMean: elevs.length ? elevs.reduce((a,b)=>a+b,0)/elevs.length : 0,

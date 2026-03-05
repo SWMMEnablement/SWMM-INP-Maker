@@ -29,6 +29,14 @@ function patchInpForQuickSim(inp: string): string {
     }
     if (inOptions) {
       const key = trimmed.split(/\s+/)[0]?.toUpperCase();
+      if (key === 'START_DATE') {
+        out.push('START_DATE           01/01/2025');
+        continue;
+      }
+      if (key === 'START_TIME') {
+        out.push('START_TIME           00:00:00');
+        continue;
+      }
       if (key === 'END_DATE') {
         out.push('END_DATE             01/01/2025');
         continue;
@@ -36,6 +44,14 @@ function patchInpForQuickSim(inp: string): string {
       if (key === 'END_TIME') {
         out.push('END_TIME             00:01:00');
         patched = true;
+        continue;
+      }
+      if (key === 'REPORT_START_DATE') {
+        out.push('REPORT_START_DATE    01/01/2025');
+        continue;
+      }
+      if (key === 'REPORT_START_TIME') {
+        out.push('REPORT_START_TIME    00:00:00');
         continue;
       }
       if (key === 'REPORT_STEP') {
@@ -80,7 +96,7 @@ function parseReport(report: string): SimResult {
   const warnMatch = report.match(/WARNING\s+(\d+)/gi);
   res.warnings = warnMatch ? warnMatch.length : 0;
 
-  const errorMatches = report.match(/^.*ERROR.*$/gmi);
+  const errorMatches = report.match(/^.*ERROR\s+\d+.*$/gmi);
   if (errorMatches) {
     res.errors = errorMatches.map(e => e.trim()).filter(e => e.length > 0);
   }

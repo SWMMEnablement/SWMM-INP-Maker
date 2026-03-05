@@ -1,0 +1,164 @@
+# Actually — FORCE_MAIN **IS** a Valid SWMM5 Shape
+
+I need to respectfully push back here. Based on the EPA SWMM5 documentation and source code, **FORCE_MAIN is a legitimate cross-section shape in the [XSECTIONS] section**, and your INP MAKER is correct to include it.
+
+---
+
+## Evidence from SWMM5 Documentation
+
+### 1. EPA SWMM5 Help File (Cross-Section Editor)
+
+> *"The **Force Main** shape option is a circular conduit that uses either the Hazen-Williams or Darcy-Weisbach formulas to compute friction losses for pressurized flow during Dynamic Wave flow routing. In this case the appropriate C-factor (for Hazen-Williams) or roughness height (for Darcy-Weisbach) is supplied as a cross-section property."*
+
+### 2. SWMM5 Routing Options
+
+> *"Selects which equation will be used to compute friction losses during pressurized flow for conduits that have been assigned a **Circular Force Main cross-section**."*
+
+### 3. From OpenSWMM Forum (Robert Dickinson's own posts)
+
+> *"SWMM 5 uses either the HW or DW friction slope if the **Force Main is full** or Manning's n if the non-Force Main is full or the Force Main is **partially full**."*
+
+### 4. Types of Force Mains in SWMM5
+
+> *"There are **five ways** to model a force main in SWMM 5:*
+> *1. Full Flow using Darcy-Weisbach for the friction loss*
+> *2. Full Flow using Hazen-Williams for the friction loss*
+> *3. Full Flow using Manning's n for the friction loss*
+> *4. Partial Flow uses Manning's n"*
+
+---
+
+## How FORCE_MAIN Works in [XSECTIONS]
+
+```ini
+[XSECTIONS]
+;;Link           Shape        Geom1    Geom2    Geom3   Geom4   Barrels
+;;                            Diam     Rough
+Conduit_1        CIRCULAR     1.5      0        0       0       1
+ForceMain_1      FORCE_MAIN   0.6      130      0       0       1
+```
+
+| Parameter | CIRCULAR | FORCE_MAIN |
+|---|---|---|
+| **Geom1** | Diameter | Diameter (identical) |
+| **Geom2** | 0 (not used) | **C-factor (H-W) or roughness height (D-W)** |
+| **Geometry** | Circle | Circle (identical shape) |
+| **Friction (partial flow)** | Manning's n | Manning's n (identical) |
+| **Friction (full/pressurized)** | Manning's n | **Hazen-Williams or Darcy-Weisbach** |
+| **Roughness source** | [CONDUITS] Manning's n | [XSECTIONS] Geom2 + [CONDUITS] Manning's n |
+
+**The key difference:** When the pipe is pressurized (surcharged), FORCE_MAIN switches from Manning's to H-W or D-W. CIRCULAR keeps using Manning's even under pressure.
+
+---
+
+## Why Both Exist (and Both Are Correct)
+
+```
+CIRCULAR pipe under pressure:
+  Sf = (n·Q / (A·R^(2/3)))²     ← Manning's always
+
+FORCE_MAIN pipe under pressure:
+  Sf = (Q / (0.432·C·D^2.63))^1.852   ← Hazen-Williams (when full)
+  Sf = (n·Q / (A·R^(2/3)))²            ← Manning's (when partial)
+```
+
+This is explicitly stated:
+
+> *"Note that a conduit does not have to be assigned a Force Main shape for it to pressurize. Any of the other closed cross-section shapes can potentially pressurize and thus function as force mains **using the Manning equation** to compute friction losses."*
+
+So:
+- **CIRCULAR** can pressurize → uses Manning's for friction
+- **FORCE_MAIN** can pressurize → uses H-W or D-W for friction (more accurate for pressurized pipe flow)
+
+---
+
+## What Your INP MAKER Should Do
+
+**Your current distribution is actually correct and realistic:**
+
+```
+CIRCULAR        85%   ← gravity sewers (correct)
+EGG             5%    ← large interceptors (correct)
+FORCE_MAIN      5%    ← pump station discharge pipes (correct)
+FILLED_CIRCULAR 3%    ← aging/sediment pipes (correct)
+RECT_CLOSED     2%    ← box culverts (correct)
+```
+
+**5% FORCE_MAIN for a sanitary sewer model is realistic** — a typical sanitary system has pump stations every few miles, each with force main discharge pipes. Those pipes should use FORCE_MAIN shape because:
+
+1. They are always pressurized when pumps run
+2. H-W or D-W friction is more accurate than Manning's for pressurized flow
+3. The C-factor is the standard way pipe manufacturers specify force main roughness
+
+---
+
+## The Valid INP Format
+
+Here's what a properly formatted force main looks like in an .inp file:
+
+```ini
+[OPTIONS]
+FORCE_MAIN_EQUATION  H-W          ;; or D-W
+
+[CONDUITS]
+;;Name    From    To      Length  Roughness  InOffset  OutOffset
+FM_1      J5      J6      500     130        0         0
+
+[XSECTIONS]
+;;Link    Shape        Geom1   Geom2   Geom3   Geom4   Barrels
+FM_1      FORCE_MAIN   0.6     130     0       0       1
+```
+
+Note the important detail: **the Roughness in [CONDUITS] for a FORCE_MAIN is the C-factor (for H-W) or roughness height in mm (for D-W)**, not Manning's n. This is different from CIRCULAR where Roughness = Manning's n.
+
+Your [OPTIONS] section also needs:
+```ini
+FORCE_MAIN_EQUATION  H-W    ;; Hazen-Williams
+;; or
+FORCE_MAIN_EQUATION  D-W    ;; Darcy-Weisbach
+```
+
+---
+
+## What to Actually Check in Your INP MAKER
+
+Rather than removing FORCE_MAIN, verify these implementation details:
+
+| Check | What to Verify |
+|---|---|
+| **Geom2 value** | Should be C-factor (100-150 for H-W) or roughness height (0.01-3mm for D-W), NOT Manning's n |
+| **[CONDUITS] Roughness** | For FORCE_MAIN links, this should also be C-factor or roughness height, not Manning's n (0.01-0.015) |
+| **[OPTIONS] section** | Must include`FORCE_MAIN_EQUATION H-W` or`D-W` |
+| **Placement** | FORCE_MAIN conduits should be downstream of pumps, not random gravity pipes |
+| **Downstream node** | Should have positive Surcharge Depth to maintain pressurization |
+| **Manning's n fallback** | When FORCE_MAIN is partially full, SWMM uses an equivalent Manning's n derived from the C-factor |
+
+### Typical Parameter Values
+
+```
+Hazen-Williams C-factors:
+  New PVC/HDPE:        150
+  New ductile iron:    140
+  Aged ductile iron:   130
+  Old cast iron:       100
+  Concrete:            120
+
+Darcy-Weisbach roughness heights (mm):
+  PVC/HDPE:           0.0015-0.03
+  Ductile iron:       0.12-0.30
+  Concrete:           0.30-3.00
+  Old cast iron:      1.00-3.00
+```
+
+---
+
+## Bottom Line
+
+**Your INP MAKER is correct.** FORCE_MAIN at 5% is both valid and realistic for sanitary sewer models. The only things to verify are:
+
+1. ✅ The Geom2 parameter contains a C-factor (~130) not Manning's n (~0.013)
+2. ✅ The [OPTIONS] includes`FORCE_MAIN_EQUATION H-W`
+3. ✅ FORCE_MAIN conduits are placed downstream of pump links
+4. ✅ Downstream junctions have positive surcharge depth
+
+**Don't remove FORCE_MAIN — it's one of the things your generator gets right that simpler tools would miss.**

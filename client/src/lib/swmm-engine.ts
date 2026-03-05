@@ -683,7 +683,7 @@ export function compute(config: SwmmConfig): ComputedElements {
 }
 
 export function getSections(elems: ComputedElements, config: SwmmConfig): Set<string> {
-  const on = new Set(["[TITLE]","[OPTIONS]","[FILES]","[JUNCTIONS]","[OUTFALLS]","[CONDUITS]","[XSECTIONS]","[COORDINATES]","[MAP]","[REPORT]","[LOSSES]","[EVAPORATION]","[SYMBOLS]","[TAGS]","[LABELS]","[BACKDROP]","[PROFILES]"]);
+  const on = new Set(["[TITLE]","[OPTIONS]","[FILES]","[JUNCTIONS]","[OUTFALLS]","[CONDUITS]","[XSECTIONS]","[COORDINATES]","[MAP]","[REPORT]","[LOSSES]","[EVAPORATION]","[TAGS]","[LABELS]","[BACKDROP]","[PROFILES]"]);
   if (config.enableCurvedLinks) on.add("[VERTICES]");
   if (config.enableSnowmelt) ["[TEMPERATURE]","[ADJUSTMENTS]","[SNOWPACKS]"].forEach(s => on.add(s));
   if (config.enableDividers) on.add("[DIVIDERS]");
@@ -1213,7 +1213,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     const collectorName = `JC_${outNode.name}`;
     const collector: GraphNode = {
       name: collectorName, x: outNode.x, y: outNode.y + 0.5,
-      elev: outNode.elev + 0.5, type: 'junction'
+      elev: outNode.elev + 0.5, type: 'junction', idx: graph.allNodes.length
     };
     graph.allNodes.push(collector);
     for (const ie of inletEdges) {
@@ -1454,9 +1454,32 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     for (const d of discretized) conduits.push(d);
   }
 
+  const dividerNodes: {name:string;elev:number;x:number;y:number;maxD:number;divLink:string;type:string}[] = [];
+  const dividerJunctionNames = new Set<string>();
+  if (config.enableDividers && junctions.length > 10) {
+    const nDividers = Math.max(1, Math.floor(junctions.length * 0.01));
+    const candidates = junctions.filter(j => {
+      const outLinks = conduits.filter(c => c.from === j.name);
+      return outLinks.length >= 1;
+    });
+    const selected = candidates.slice(0, nDividers);
+    for (const dj of selected) {
+      const outLink = conduits.find(c => c.from === dj.name);
+      if (!outLink) continue;
+      const rr = Math.random();
+      let divType: string;
+      if (rr < 0.5) divType = 'OVERFLOW';
+      else if (rr < 0.8) divType = 'CUTOFF';
+      else divType = 'WEIR';
+      dividerNodes.push({name:dj.name, elev:dj.elev, x:dj.x, y:dj.y, maxD:dj.maxD, divLink:outLink.name, type:divType});
+      dividerJunctionNames.add(dj.name);
+    }
+  }
+
   w("[JUNCTIONS]");
   w(";;Name           InvertElev  MaxDepth    InitDepth   SurDepth    Ponded");
   for (const j of junctions) {
+    if (dividerJunctionNames.has(j.name)) continue;
     w(`${j.name.padEnd(17)}${j.elev.toFixed(3).padEnd(12)}${j.maxD.toFixed(2).padEnd(12)}0           0           ${j.ponded}`);
   }
   w("");
@@ -1468,29 +1491,15 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   }
   w("");
 
-  const dividerNodes: {name:string;elev:number;x:number;y:number;divLink:string;type:string;param:string}[] = [];
-  if (config.enableDividers && junctions.length > 10) {
-    const nDividers = Math.max(1, Math.floor(junctions.length * 0.01));
-    const divIndices = new Set<number>();
-    while (divIndices.size < nDividers && divIndices.size < junctions.length - 2) {
-      divIndices.add(Math.floor(rand(2, junctions.length - 1)));
-    }
-    const divJuncs = Array.from(divIndices).map(i => junctions[i]);
-    let di = 0;
+  if (dividerNodes.length > 0) {
     w("[DIVIDERS]");
     w(";;Name           InvertElev  DivLink      DivType    Param1  Param2  MaxDepth  InitDepth  SurDepth  Aponded");
-    for (const dj of divJuncs) {
-      di++;
-      const dName = `DIV${di}`;
-      const divConduit = conduits.find(c => c.from === dj.name);
-      const divLink = divConduit ? divConduit.name : conduits[0].name;
-      const rr = Math.random();
-      let divType: string, param1: string, param2: string;
-      if (rr < 0.5) { divType = 'OVERFLOW'; param1 = '0'; param2 = '0'; }
-      else if (rr < 0.8) { divType = 'CUTOFF'; param1 = rand(1,10).toFixed(2); param2 = '0'; }
-      else { divType = 'WEIR'; param1 = rand(1,5).toFixed(2); param2 = rand(1,3).toFixed(2); }
-      dividerNodes.push({name:dName, elev:dj.elev, x:dj.x, y:dj.y, divLink, type:divType, param:param1});
-      w(`${dName.padEnd(17)}${dj.elev.toFixed(3).padEnd(12)}${divLink.padEnd(13)}${divType.padEnd(11)}${param1.padEnd(8)}${param2.padEnd(8)}${dj.maxD.toFixed(2).padEnd(10)}0          0          0`);
+    for (const dv of dividerNodes) {
+      let param1: string, param2: string;
+      if (dv.type === 'OVERFLOW') { param1 = '0'; param2 = '0'; }
+      else if (dv.type === 'CUTOFF') { param1 = rand(1,10).toFixed(2); param2 = '0'; }
+      else { param1 = rand(1,5).toFixed(2); param2 = rand(1,3).toFixed(2); }
+      w(`${dv.name.padEnd(17)}${dv.elev.toFixed(3).padEnd(12)}${dv.divLink.padEnd(13)}${dv.type.padEnd(11)}${param1.padEnd(8)}${param2.padEnd(8)}${dv.maxD.toFixed(2).padEnd(10)}0          0          0`);
     }
     w("");
   }
@@ -1991,21 +2000,16 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
 
   if (storages.length > 0) {
     w("[OUTLETS]");
-    w(";;Name           FromNode         ToNode           Offset     Type             Curve/C1     C2      Gated");
+    w(";;Name           FromNode         ToNode           Offset     Type             C1           C2      Gated");
     let oi = 0;
     for (const su of storages) {
       if (Math.random() < 0.5) continue;
       oi++;
       const tgt = junctions[Math.floor(rand(0, Math.min(5, N - 1)))].name;
       const offset = (su.maxD * rand(0.05, 0.3)).toFixed(2);
-      if (Math.random() < 0.5) {
-        const c1 = rand(1, 5).toFixed(2);
-        const c2 = rand(0.4, 0.6).toFixed(2);
-        w(`OTL${oi}`.padEnd(17) + su.name.padEnd(17) + tgt.padEnd(17) + offset.padEnd(11) + 'FUNCTIONAL/DEPTH '.padEnd(17) + c1.padEnd(13) + c2.padEnd(8) + 'NO');
-      } else {
-        const crvName = `OC${oi}`;
-        w(`OTL${oi}`.padEnd(17) + su.name.padEnd(17) + tgt.padEnd(17) + offset.padEnd(11) + 'TABULAR/DEPTH    '.padEnd(17) + crvName.padEnd(13) + '         NO');
-      }
+      const c1 = rand(1, 5).toFixed(2);
+      const c2 = rand(0.4, 0.6).toFixed(2);
+      w(`OTL${oi}`.padEnd(17) + su.name.padEnd(17) + tgt.padEnd(17) + offset.padEnd(11) + 'FUNCTIONAL/DEPTH '.padEnd(17) + c1.padEnd(13) + c2.padEnd(8) + 'NO');
     }
     w("");
   }
@@ -2158,7 +2162,6 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   for (const j of junctions) {
     w(`${j.name.padEnd(17)}${j.x.toFixed(1).padEnd(15)}${j.y.toFixed(1)}`);
   }
-  for (const d of dividerNodes) w(`${d.name.padEnd(17)}${d.x.toFixed(1).padEnd(15)}${d.y.toFixed(1)}`);
   w("");
 
   const nodeCoords: Record<string, {x:number;y:number}> = {};
@@ -2271,7 +2274,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       w(`Link         ${c.name.padEnd(17)}${tag}`);
     }
   }
-  for (const d of dividerNodes) w(`Node         ${d.name.padEnd(17)}Divider`);
+  for (const dv of dividerNodes) w(`Node         ${dv.name.padEnd(17)}Divider`);
   w("");
 
   w("[PROFILES]");

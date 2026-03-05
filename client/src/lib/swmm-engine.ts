@@ -81,6 +81,8 @@ export const DEFAULT_HYDROLOGY = {
   lSystemVariant: 'dendritic' as LSystemVariant,
   enableAquifers: false,
   enableGroundwater: false,
+  enableLID: false,
+  enableWQ: false,
 };
 
 export interface SwmmConfig {
@@ -105,6 +107,8 @@ export interface SwmmConfig {
   lSystemVariant: LSystemVariant;
   enableAquifers: boolean;
   enableGroundwater: boolean;
+  enableLID: boolean;
+  enableWQ: boolean;
 }
 
 export interface ComputedElements {
@@ -274,7 +278,8 @@ export const ALL_SECTIONS = [
   "[INFILTRATION]","[AQUIFERS]","[GROUNDWATER]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
   "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[TRANSECTS]","[LOSSES]",
   "[CONTROLS]","[INFLOWS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
-  "[CURVES]","[TIMESERIES]","[COORDINATES]","[Polygons]","[MAP]","[REPORT]"
+  "[CURVES]","[TIMESERIES]","[COORDINATES]","[Polygons]","[MAP]","[REPORT]",
+  "[LID_CONTROLS]","[LID_USAGE]","[POLLUTANTS]","[BUILDUP]","[WASHOFF]","[TREATMENT]"
 ];
 
 export const TERRAIN_LABELS: Record<string, string> = { flat:"0.1-0.5%", moderate:"0.2-1.5%", hilly:"0.5-3.0%", mountainous:"1-8%" };
@@ -524,6 +529,27 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
     config: { N: 1800, type: "combined", units: "US", terrain: "mountainous", detail: "detailed", landUse: "mixed", outfallElev: 50, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY },
     tags: ["Mountain", "Large", "Combined"],
   },
+  {
+    name: "Green Infrastructure (LID)",
+    description: "Stormwater with LID controls — 400 junctions, bio-retention, permeable pavement, rain gardens, green roofs",
+    rationale: "Enables all 5 LID control types (bio-retention, permeable pavement, rain garden, green roof, infiltration trench) assigned to ~30% of subcatchments for green infrastructure analysis.",
+    config: { N: 400, type: "stormwater", units: "US", terrain: "moderate", detail: "moderate", landUse: "residential", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, enableLID: true },
+    tags: ["LID", "Green", "Stormwater"],
+  },
+  {
+    name: "Water Quality Modeling",
+    description: "Combined sewer with full water quality — 500 junctions, TSS/BOD/COD/TN/TP, buildup/washoff, treatment",
+    rationale: "Generates 5 pollutants with power-law buildup, EMC washoff, and treatment functions at storage nodes for water quality compliance modeling.",
+    config: { N: 500, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, enableWQ: true },
+    tags: ["WQ", "Pollutants", "Combined"],
+  },
+  {
+    name: "Complete Model (LID + WQ)",
+    description: "Full-featured model — 600 junctions, LID controls + water quality + aquifers + groundwater",
+    rationale: "Combines all optional sections (LID, WQ, aquifers, groundwater) into a single comprehensive model for testing the full SWMM5 feature set.",
+    config: { N: 600, type: "stormwater", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, enableLID: true, enableWQ: true, enableAquifers: true, enableGroundwater: true },
+    tags: ["Complete", "LID", "WQ"],
+  },
 ];
 
 export const SWMM5_REAL_STATS = {
@@ -638,6 +664,8 @@ export function getSections(elems: ComputedElements, config: SwmmConfig): Set<st
   if (elems.pumps > 0 || elems.storage > 0) ["[STORAGE]","[PUMPS]","[CURVES]","[CONTROLS]"].forEach(s => on.add(s));
   if (elems.orifices > 0) on.add("[ORIFICES]");
   if (elems.weirs > 0) on.add("[WEIRS]");
+  if (config.enableLID && elems.subcatchments > 0) ["[LID_CONTROLS]","[LID_USAGE]"].forEach(s => on.add(s));
+  if (config.enableWQ && elems.subcatchments > 0) ["[POLLUTANTS]","[BUILDUP]","[WASHOFF]","[TREATMENT]"].forEach(s => on.add(s));
   return on;
 }
 
@@ -1542,6 +1570,142 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
         w("");
       }
     }
+  }
+
+  if (config.enableLID && nSubcatch > 0) {
+    const LID_TYPES: { name: string; type: string; layers: string[][] }[] = [
+      {
+        name: 'BioRetention',
+        type: 'BC',
+        layers: [
+          ['SURFACE', '6', '0.15', '0.1', '1.0', '5'],
+          ['SOIL', '18', '0.45', '0.20', '0.10', '0.5', '10.0', '3.5'],
+          ['STORAGE', '12', '0.40', '0.5', '0'],
+          ['DRAIN', '0.5', '6', '6', '0'],
+        ],
+      },
+      {
+        name: 'PermPavement',
+        type: 'PP',
+        layers: [
+          ['SURFACE', '0', '0.0', '0.02', '1.0', '5'],
+          ['PAVEMENT', '6', '0.15', '100', '50', '0'],
+          ['STORAGE', '12', '0.40', '0.5', '0'],
+          ['DRAIN', '1.0', '6', '6', '0'],
+        ],
+      },
+      {
+        name: 'RainGarden',
+        type: 'BC',
+        layers: [
+          ['SURFACE', '9', '0.2', '0.05', '1.0', '5'],
+          ['SOIL', '24', '0.50', '0.25', '0.12', '0.5', '10.0', '3.5'],
+          ['STORAGE', '6', '0.50', '0.3', '0'],
+          ['DRAIN', '0', '0', '0', '0'],
+        ],
+      },
+      {
+        name: 'GreenRoof',
+        type: 'GR',
+        layers: [
+          ['SURFACE', '3', '0.15', '0.05', '1.0', '5'],
+          ['SOIL', '4', '0.45', '0.20', '0.10', '0.5', '10.0', '3.5'],
+          ['DRAINMAT', '1', '0.5', '0.1'],
+        ],
+      },
+      {
+        name: 'InfilTrench',
+        type: 'IT',
+        layers: [
+          ['SURFACE', '0', '0.0', '0.02', '1.0', '5'],
+          ['STORAGE', '36', '0.40', '0.5', '0'],
+          ['DRAIN', '1.0', '6', '6', '0'],
+        ],
+      },
+    ];
+
+    w("[LID_CONTROLS]");
+    w(";;Name           Type/Layer Parameters");
+    for (const lid of LID_TYPES) {
+      w(`${lid.name.padEnd(17)}${lid.type}`);
+      for (const layer of lid.layers) {
+        w(`${lid.name.padEnd(17)}${layer.join('  ')}`);
+      }
+    }
+    w("");
+
+    w("[LID_USAGE]");
+    w(";;Subcatch       LID_Name         Number   Area       Width      InitSat  FromImp  ToPerv   RptFile  DrainTo  FromPerv");
+    for (let i = 0; i < nSubcatch; i++) {
+      if (Math.random() < 0.3) {
+        const lid = LID_TYPES[Math.floor(Math.random() * LID_TYPES.length)];
+        const sName = `S${i + 1}`;
+        const nUnits = Math.floor(rand(1, 5));
+        const area = rand(50, 500).toFixed(0);
+        const width = rand(5, 30).toFixed(1);
+        const initSat = rand(0, 30).toFixed(0);
+        w(`${sName.padEnd(17)}${lid.name.padEnd(17)}${String(nUnits).padEnd(9)}${area.padEnd(11)}${width.padEnd(11)}${initSat.padEnd(9)}25       1        *        *        0`);
+      }
+    }
+    w("");
+  }
+
+  if (config.enableWQ && nSubcatch > 0) {
+    const POLLUTANTS = [
+      { name: 'TSS', units: 'MG/L', crain: 10.0, cgw: 0.0, crdii: 0.0, kinit: 0.0, cflag: 'CONCENTRATION' },
+      { name: 'BOD', units: 'MG/L', crain: 3.0, cgw: 0.0, crdii: 0.0, kinit: 0.0, cflag: 'CONCENTRATION' },
+      { name: 'COD', units: 'MG/L', crain: 15.0, cgw: 0.0, crdii: 0.0, kinit: 0.0, cflag: 'CONCENTRATION' },
+      { name: 'TN', units: 'MG/L', crain: 1.5, cgw: 0.0, crdii: 0.0, kinit: 0.0, cflag: 'CONCENTRATION' },
+      { name: 'TP', units: 'MG/L', crain: 0.15, cgw: 0.0, crdii: 0.0, kinit: 0.0, cflag: 'CONCENTRATION' },
+    ];
+
+    w("[POLLUTANTS]");
+    w(";;Name           Units  Crain      Cgw        Crdii      Kdecay     SnowOnly   CoPollut   CoFrac     Cdwf       Cinit");
+    for (const p of POLLUTANTS) {
+      const kdecay = rand(0.0, 0.05);
+      const cdwf = p.name === 'TSS' ? rand(50, 200) : p.name === 'BOD' ? rand(100, 300) : p.name === 'COD' ? rand(200, 500) : p.name === 'TN' ? rand(20, 50) : rand(3, 10);
+      w(`${p.name.padEnd(17)}${p.units.padEnd(7)}${p.crain.toFixed(1).padEnd(11)}${p.cgw.toFixed(1).padEnd(11)}${p.crdii.toFixed(1).padEnd(11)}${kdecay.toFixed(3).padEnd(11)}NO         *              0          ${cdwf.toFixed(1).padEnd(11)}0`);
+    }
+    w("");
+
+    const luBuildupRates: Record<string, number> = { residential: 1.0, commercial: 1.5, industrial: 2.0, mixed: 1.2 };
+    const baseRate = luBuildupRates[config.landUse] || 1.2;
+    const LAND_USES = ['Residential_LU', 'Commercial_LU', 'Industrial_LU'];
+    const luForConfig = config.landUse === 'mixed' ? LAND_USES : [config.landUse === 'residential' ? 'Residential_LU' : config.landUse === 'commercial' ? 'Commercial_LU' : 'Industrial_LU'];
+
+    w("[BUILDUP]");
+    w(";;LandUse         Pollutant    BType      Rate       Power      Normalizer");
+    for (const lu of luForConfig) {
+      for (const p of POLLUTANTS) {
+        const rate = (baseRate * (p.name === 'TSS' ? 25 : p.name === 'BOD' ? 5 : p.name === 'COD' ? 10 : p.name === 'TN' ? 2 : 0.5)).toFixed(2);
+        const power = rand(0.4, 0.6).toFixed(2);
+        w(`${lu.padEnd(17)}${p.name.padEnd(13)}POW        ${rate.padEnd(11)}${power.padEnd(11)}AREA`);
+      }
+    }
+    w("");
+
+    w("[WASHOFF]");
+    w(";;LandUse         Pollutant    WType      Coeff      Expon      SweepRmvl  BmpRmvl");
+    for (const lu of luForConfig) {
+      for (const p of POLLUTANTS) {
+        const coeff = (p.name === 'TSS' ? rand(0.002, 0.01) : rand(0.001, 0.005)).toFixed(4);
+        const expon = rand(1.5, 2.5).toFixed(2);
+        const bmpRmvl = config.enableLID ? rand(20, 60).toFixed(0) : '0';
+        w(`${lu.padEnd(17)}${p.name.padEnd(13)}EMC        ${coeff.padEnd(11)}${expon.padEnd(11)}0          ${bmpRmvl}`);
+      }
+    }
+    w("");
+
+    w("[TREATMENT]");
+    w(";;Node           Pollutant    Function");
+    const treatmentNodes = storages.length > 0 ? storages : junctions.slice(0, Math.max(1, Math.floor(junctions.length * 0.02)));
+    for (const tn of treatmentNodes) {
+      for (const p of POLLUTANTS) {
+        const removalFrac = p.name === 'TSS' ? rand(0.4, 0.8) : p.name === 'BOD' ? rand(0.3, 0.6) : rand(0.2, 0.5);
+        w(`${tn.name.padEnd(17)}${p.name.padEnd(13)}C = C * ${(1 - removalFrac).toFixed(3)}`);
+      }
+    }
+    w("");
   }
 
   const pumps: PumpData[] = [];

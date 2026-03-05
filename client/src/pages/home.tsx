@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code, FileText } from "lucide-react";
+import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code, FileText, ExternalLink, Leaf, Droplets } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -233,6 +233,8 @@ export default function Home() {
     lines.push(`| Rainfall Duration | ${c.rainfallDuration} hr |`);
     lines.push(`| Aquifers | ${c.enableAquifers ? 'Yes' : 'No'} |`);
     lines.push(`| Groundwater | ${c.enableGroundwater ? 'Yes' : 'No'} |`);
+    lines.push(`| LID Controls | ${c.enableLID ? 'Yes' : 'No'} |`);
+    lines.push(`| Water Quality | ${c.enableWQ ? 'Yes' : 'No'} |`);
     lines.push('');
     lines.push('## Element Counts');
     lines.push('');
@@ -687,6 +689,34 @@ export default function Home() {
                     )}
                   </div>
 
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-semibold flex items-center gap-1"><Leaf className="w-3.5 h-3.5" />LID Controls</label>
+                        <p className="text-[10px] text-muted-foreground">Green infrastructure: bio-retention, permeable pavement, rain gardens, green roofs, infiltration trenches</p>
+                      </div>
+                      <Switch
+                        checked={config.enableLID}
+                        onCheckedChange={(v) => update({ enableLID: v })}
+                        data-testid="switch-lid"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-semibold flex items-center gap-1"><Droplets className="w-3.5 h-3.5" />Water Quality</label>
+                        <p className="text-[10px] text-muted-foreground">Pollutants (TSS, BOD, COD, TN, TP), buildup/washoff, treatment functions</p>
+                      </div>
+                      <Switch
+                        checked={config.enableWQ}
+                        onCheckedChange={(v) => update({ enableWQ: v })}
+                        data-testid="switch-wq"
+                      />
+                    </div>
+                    {(config.enableLID || config.enableWQ) && (
+                      <p className="text-[10px] text-muted-foreground italic">Requires subcatchments — model types without subcatchments will skip these sections</p>
+                    )}
+                  </div>
+
                   <div>
                     <div className="flex justify-between items-baseline text-xs font-semibold mb-2">
                       <span>Rainfall Total</span>
@@ -923,6 +953,15 @@ export default function Home() {
                     {result && !generating && (
                       <div className="space-y-3">
                         <p className="text-sm font-medium" style={{ color: "#34d399" }} data-testid="text-generate-success">Model generated successfully</p>
+                        {validation && (
+                          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${validation.errors.length === 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`} data-testid="text-validation-badge">
+                            {validation.errors.length === 0 ? <Check className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                            {validation.errors.length === 0
+                              ? `Validation passed — ${validation.fixes.length} auto-fixes applied, ready for SWMM5 simulation`
+                              : `${validation.errors.length} error${validation.errors.length > 1 ? 's' : ''}, ${validation.warnings.length} warning${validation.warnings.length > 1 ? 's' : ''} — ${validation.fixes.length} auto-fixes applied`
+                            }
+                          </div>
+                        )}
                         <Button onClick={handleDownload} className="w-full" style={{ background: "#34d399", color: "#0a0e17" }} data-testid="button-download">
                           <Download className="w-4 h-4 mr-2" /> Download {result.stats.fileName}
                         </Button>
@@ -943,6 +982,18 @@ export default function Home() {
                         </Button>
                         <Button onClick={handleDownloadReport} variant="outline" className="w-full" data-testid="button-download-report">
                           <FileText className="w-4 h-4 mr-2" /> Download Report
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => {
+                            handleDownload();
+                            window.open('https://swmm5-simulation-engine.replit.app/', '_blank');
+                            toast({ title: "Opening SWMM5 Engine", description: "Your INP file has been downloaded. Upload it in the engine to simulate." });
+                          }}
+                          data-testid="button-open-in-engine"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" /> Open in SWMM5 Engine
                         </Button>
                         <p className="text-[11px] text-muted-foreground font-mono" data-testid="text-file-stats">{result.stats.fileSize} | {fmt(result.stats.lineCount)} lines | {fmt(result.stats.totalElements)} total elements</p>
                       </div>
@@ -2096,6 +2147,10 @@ export default function Home() {
                         <dd className="text-muted-foreground">The elevation of the lowest interior point (bottom) of a pipe or manhole. Determines gravity flow direction and hydraulic grade line calculations.</dd>
                       </div>
                       <div>
+                        <dt className="font-bold text-card-foreground">LID (Low Impact Development)</dt>
+                        <dd className="text-muted-foreground">Green infrastructure practices that manage stormwater at the source using bio-retention cells, permeable pavement, rain gardens, green roofs, and infiltration trenches. Defined in [LID_CONTROLS] and assigned to subcatchments in [LID_USAGE].</dd>
+                      </div>
+                      <div>
                         <dt className="font-bold text-card-foreground">Manning&apos;s n</dt>
                         <dd className="text-muted-foreground">A roughness coefficient used in Manning&apos;s equation for open-channel and gravity pipe flow. Typical values range from 0.011 (smooth PVC) to 0.024 (corrugated metal).</dd>
                       </div>
@@ -2114,6 +2169,10 @@ export default function Home() {
                       <div>
                         <dt className="font-bold text-card-foreground">Subcatchment</dt>
                         <dd className="text-muted-foreground">A hydrologic land area that drains to a single discharge point (node). Characterized by area, imperviousness, slope, width, and infiltration parameters for rainfall-runoff modeling.</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-card-foreground">TSS / BOD / COD / TN / TP</dt>
+                        <dd className="text-muted-foreground">Common water quality pollutants: Total Suspended Solids, Biochemical Oxygen Demand, Chemical Oxygen Demand, Total Nitrogen, and Total Phosphorus. Defined in [POLLUTANTS] with buildup/washoff models and treatment functions.</dd>
                       </div>
                       <div>
                         <dt className="font-bold text-card-foreground">Surcharge</dt>

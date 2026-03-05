@@ -24,7 +24,7 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 ## Features
 - 16 network generation methods: Force-Directed (Barnes-Hut), Horton-Strahler Branching, L-System Grammar (Dendritic/Grid/Radial variants), Space Colonization, Minimum Spanning Tree, D8 Flow Accumulation, Voronoi/Delaunay, Interceptor+Lateral, Perlin Noise+D8, Genetic Algorithm, Grid/Manhattan, Steiner Tree, Loop-and-Branch, Zone-Based Hierarchical, Diffusion-Limited Aggregation, Radial Spoke-and-Ring
 - "All Methods" button generates all 18 method variants at once (16 methods + 3 L-System variants), displaying a comparison grid with network maps, stats, "Use This", and "Download" per method
-- 33 example SWMM5 file presets (quick-load configurations, with rationale text on key presets)
+- 36 example SWMM5 file presets (quick-load configurations, with rationale text on key presets; includes LID, WQ, and Complete model presets)
 - US Customary / SI Metric unit toggle with sub-labels showing unit systems
 - Configurable hydrology parameters:
   - Number of outfalls (manual or auto from model type ratio)
@@ -37,13 +37,16 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
   - Infiltration method (Horton, Green-Ampt, Curve Number) — affects both [OPTIONS] and [INFILTRATION] section format
 - Transects and open channels: IRREGULAR cross-sections auto-generate [TRANSECTS] section with HEC-2 format station/elevation data (NC/X1/GR lines)
 - Aquifers and Groundwater: toggleable [AQUIFERS] and [GROUNDWATER] sections with realistic soil properties and GW flow exchange per subcatchment
+- LID Controls: toggleable [LID_CONTROLS] and [LID_USAGE] sections — 5 LID types (bio-retention, permeable pavement, rain garden, green roof, infiltration trench) assigned to ~30% of subcatchments
+- Water Quality: toggleable [POLLUTANTS], [BUILDUP], [WASHOFF], [TREATMENT] sections — 5 pollutants (TSS, BOD, COD, TN, TP) with power-law buildup, EMC washoff, and treatment at storage nodes
 - ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
 - Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms
-- Static INP validation with auto-repair: runs automatically after generation and on file upload in viewer
+- Static INP validation with auto-repair: runs automatically after generation and on file upload in viewer; prominent validation badge shows pass/fail status with fix count
+- "Open in SWMM5 Engine" button: downloads INP file and opens the companion SWMM5 Simulation Engine app for one-click simulation
 - SWMM5 real-world statistics from 1,729 models (15.4M elements) in docs tab
 - Comprehensive stats panel after generation with downloadable markdown report
-- App Docs tab includes: Model Types, "Which Settings Should I Use?" scenario guide (6 scenarios), Offset Algorithm, SWMM5 Statistics, ReSWMM docs, FAQ, Glossary (13 technical terms)
+- App Docs tab includes: Model Types, "Which Settings Should I Use?" scenario guide (6 scenarios), Offset Algorithm, SWMM5 Statistics, ReSWMM docs, FAQ, Glossary (15 technical terms incl. LID and WQ)
 
 ## Theme
 - 6 themes: Light, Dark, UF Gators, EPA, Oregon State Beavers, Auburn Tigers — selectable via dropdown in header

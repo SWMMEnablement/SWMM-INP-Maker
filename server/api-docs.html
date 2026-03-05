@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWMM5 INP MAKER API Documentation</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #232633;
+      --border: #2e3244;
+      --text: #e1e4ed;
+      --text2: #9ca3b8;
+      --accent: #6c8cff;
+      --accent2: #4a6adf;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --orange: #fb923c;
+      --purple: #a78bfa;
+      --code-bg: #141620;
+      --radius: 8px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 2rem; margin-bottom: 8px; }
+    .subtitle { color: var(--text2); font-size: 1rem; margin-bottom: 32px; }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 6px;
+    }
+    .badge-get { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+    .badge-post { background: rgba(108, 140, 255, 0.15); color: var(--accent); }
+    .endpoint-group { margin-bottom: 16px; }
+    .endpoint {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .endpoint-header:hover { background: var(--surface2); }
+    .endpoint-path {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .endpoint-desc {
+      color: var(--text2);
+      font-size: 13px;
+      margin-left: auto;
+      text-align: right;
+    }
+    .endpoint-body {
+      display: none;
+      padding: 0 20px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .endpoint.open .endpoint-body { display: block; }
+    .endpoint-body p { color: var(--text2); font-size: 14px; margin: 12px 0; }
+    .endpoint-body h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text2);
+      margin: 16px 0 8px;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12.5px;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 8px 0;
+    }
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      background: var(--surface2);
+      color: var(--text2);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    td:first-child { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--accent); }
+    .try-btn {
+      background: var(--accent2);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+      margin-top: 8px;
+    }
+    .try-btn:hover { background: var(--accent); }
+    .try-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .response-area {
+      margin-top: 12px;
+      display: none;
+    }
+    .response-area.visible { display: block; }
+    .response-area pre { max-height: 400px; overflow-y: auto; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 12px; color: var(--text2); margin-top: 4px; }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 32px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .arrow { color: var(--text2); font-size: 12px; transition: transform 0.2s; margin-left: 8px; }
+    .endpoint.open .arrow { transform: rotate(90deg); }
+    textarea {
+      width: 100%;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: var(--text);
+      resize: vertical;
+      min-height: 100px;
+    }
+    textarea:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+    .header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .header-bar a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .header-bar a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-bar">
+      <div>
+        <h1>SWMM5 INP MAKER API</h1>
+        <div class="subtitle">Generate, simulate, and validate EPA SWMM5 models programmatically</div>
+      </div>
+      <a href="/">Back to App</a>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">10</div>
+        <div class="stat-label">API Endpoints</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">56</div>
+        <div class="stat-label">INP Sections</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">276</div>
+        <div class="stat-label">Rainfall Patterns</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">38</div>
+        <div class="stat-label">Example Presets</div>
+      </div>
+    </div>
+
+    <div class="section-title">Quick Start</div>
+    <pre>
+# Generate a 500-node stormwater model
+curl -X POST /api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"N": 500, "type": "stormwater", "terrain": "moderate"}'
+
+# Generate and get raw .inp file
+curl -X POST "/api/generate?format=inp" \
+  -H "Content-Type: application/json" \
+  -d '{"N": 200, "type": "sanitary"}' -o model.inp
+
+# Generate from a preset
+curl "/api/presets/Small%20Residential%20Sanitary?generate=true&amp;format=inp" -o model.inp
+
+# Generate, simulate, and get results in one call
+curl -X POST /api/generate-and-simulate \
+  -H "Content-Type: application/json" \
+  -d '{"N": 300, "type": "combined", "enableWQ": true}'
+</pre>
+
+    <div class="section-title">Endpoints</div>
+
+    <div class="endpoint" id="ep-info">
+      <div class="endpoint-header" onclick="toggle('ep-info')">
+        <span class="badge badge-get">GET</span>
+        <span class="endpoint-path">/api/info</span>
+        <span class="endpoint-desc">API metadata and endpoint list</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Returns API name, version, SWMM engine version, available endpoints, and limits.</p>
+        <h4>Try it</h4>
+        <button class="try-btn" onclick="tryGet('/api/info', 'ep-info')">Send Request</button>
+        <div class="response-area" id="resp-ep-info"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-schema">
+      <div class="endpoint-header" onclick="toggle('ep-schema')">
+        <span class="badge badge-get">GET</span>
+        <span class="endpoint-path">/api/config-schema</span>
+        <span class="endpoint-desc">Full configuration schema with defaults and allowed values</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Returns every configuration parameter with its type, default value, allowed values, and description. Use this to build forms or validate input before calling <code>/api/generate</code>.</p>
+        <h4>Try it</h4>
+        <button class="try-btn" onclick="tryGet('/api/config-schema', 'ep-schema')">Send Request</button>
+        <div class="response-area" id="resp-ep-schema"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-generate">
+      <div class="endpoint-header" onclick="toggle('ep-generate')">
+        <span class="badge badge-post">POST</span>
+        <span class="endpoint-path">/api/generate</span>
+        <span class="endpoint-desc">Generate a SWMM5 .inp file from configuration</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Generates a complete EPA SWMM5 .inp file based on the provided configuration. All parameters are optional and default to a 200-node sanitary sewer model. Add <code>?format=inp</code> to get the raw .inp file instead of JSON.</p>
+        <h4>Request Body</h4>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td>N</td><td>integer</td><td>200</td><td>Number of junction nodes (10-10,000)</td></tr>
+          <tr><td>type</td><td>string</td><td>"sanitary"</td><td>sanitary, stormwater, combined, transport_only, rdii_calibration, pump_intensive, wos_intensive</td></tr>
+          <tr><td>units</td><td>string</td><td>"US"</td><td>"US" or "SI"</td></tr>
+          <tr><td>terrain</td><td>string</td><td>"flat"</td><td>flat, moderate, hilly, mountainous</td></tr>
+          <tr><td>detail</td><td>string</td><td>"basic"</td><td>basic, moderate, detailed</td></tr>
+          <tr><td>landUse</td><td>string</td><td>"residential"</td><td>mixed, residential, commercial, industrial</td></tr>
+          <tr><td>outfallElev</td><td>number</td><td>0</td><td>Outfall invert elevation</td></tr>
+          <tr><td>generationMethod</td><td>string</td><td>"force_directed"</td><td>Network topology algorithm (16 methods)</td></tr>
+          <tr><td>rainfallDist</td><td>string</td><td>"scs-type-ii"</td><td>Rainfall pattern ID (see /api/rainfall-patterns)</td></tr>
+          <tr><td>rainfallDepth</td><td>number</td><td>2.0</td><td>Total rainfall depth (in or mm)</td></tr>
+          <tr><td>enableLID</td><td>boolean</td><td>false</td><td>Green infrastructure sections</td></tr>
+          <tr><td>enableWQ</td><td>boolean</td><td>false</td><td>Water quality sections</td></tr>
+          <tr><td>enableSnowmelt</td><td>boolean</td><td>false</td><td>Cold-climate sections</td></tr>
+          <tr><td>enableDividers</td><td>boolean</td><td>false</td><td>Flow-splitting dividers</td></tr>
+          <tr><td>enableStreetInlets</td><td>boolean</td><td>false</td><td>Street inlet sections</td></tr>
+          <tr><td>enableCurvedLinks</td><td>boolean</td><td>false</td><td>Vertex bend points</td></tr>
+          <tr><td>reswmm</td><td>object</td><td>{enabled: false}</td><td>ReSWMM discretization config</td></tr>
+        </table>
+        <p>See <code>GET /api/config-schema</code> for the complete list of all parameters.</p>
+        <h4>Try it</h4>
+        <textarea id="gen-body" rows="6">{
+  "N": 300,
+  "type": "stormwater",
+  "terrain": "moderate",
+  "enableWQ": true
+}</textarea>
+        <button class="try-btn" onclick="tryPost('/api/generate', 'gen-body', 'ep-generate')">Generate Model</button>
+        <div class="response-area" id="resp-ep-generate"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-gen-sim">
+      <div class="endpoint-header" onclick="toggle('ep-gen-sim')">
+        <span class="badge badge-post">POST</span>
+        <span class="endpoint-path">/api/generate-and-simulate</span>
+        <span class="endpoint-desc">Generate an INP and run SWMM5 simulation</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Combines generation and simulation in a single request. Same configuration parameters as <code>/api/generate</code>. The response includes both the generated INP file and SWMM5 simulation results (continuity errors, warnings, report text).</p>
+        <h4>Try it</h4>
+        <textarea id="gensim-body" rows="4">{
+  "N": 200,
+  "type": "sanitary",
+  "terrain": "flat"
+}</textarea>
+        <button class="try-btn" onclick="tryPost('/api/generate-and-simulate', 'gensim-body', 'ep-gen-sim')">Generate &amp; Simulate</button>
+        <div class="response-area" id="resp-ep-gen-sim"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-simulate">
+      <div class="endpoint-header" onclick="toggle('ep-simulate')">
+        <span class="badge badge-post">POST</span>
+        <span class="endpoint-path">/api/simulate</span>
+        <span class="endpoint-desc">Run SWMM5 v5.2.4 engine on provided INP content</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Runs the SWMM5 v5.2.4 engine on the provided INP file content. The simulation is time-limited to 60 seconds and patches dates for a quick validation run.</p>
+        <h4>Request Body</h4>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+          <tr><td>inp</td><td>string</td><td>Complete INP file content (required, min 100 chars, max 10MB)</td></tr>
+        </table>
+        <h4>Response</h4>
+        <table>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+          <tr><td>success</td><td>boolean</td><td>Whether simulation completed without errors</td></tr>
+          <tr><td>continuityError</td><td>number|null</td><td>Runoff continuity error (%)</td></tr>
+          <tr><td>routingError</td><td>number|null</td><td>Flow routing continuity error (%)</td></tr>
+          <tr><td>warnings</td><td>number</td><td>Warning count</td></tr>
+          <tr><td>errors</td><td>string[]</td><td>Error messages</td></tr>
+          <tr><td>summary</td><td>string</td><td>Human-readable summary</td></tr>
+          <tr><td>report</td><td>string</td><td>Full SWMM5 report text</td></tr>
+          <tr><td>wallTimeMs</td><td>number</td><td>Wall-clock simulation time (ms)</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-validate">
+      <div class="endpoint-header" onclick="toggle('ep-validate')">
+        <span class="badge badge-post">POST</span>
+        <span class="endpoint-path">/api/validate</span>
+        <span class="endpoint-desc">Validate and auto-repair an INP file</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Performs static analysis on an INP file, checking for structural errors, missing references, field count issues, and more. Optionally auto-repairs fixable issues and returns the corrected INP.</p>
+        <h4>Request Body</h4>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td>inp</td><td>string</td><td></td><td>INP file content (required)</td></tr>
+          <tr><td>autoFix</td><td>boolean</td><td>true</td><td>Whether to auto-repair fixable issues</td></tr>
+        </table>
+        <h4>Response</h4>
+        <table>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+          <tr><td>valid</td><td>boolean</td><td>Whether the INP file passed all checks</td></tr>
+          <tr><td>errors</td><td>array</td><td>Error-level issues found</td></tr>
+          <tr><td>warnings</td><td>array</td><td>Warning-level issues found</td></tr>
+          <tr><td>fixes</td><td>array</td><td>Auto-repair actions taken</td></tr>
+          <tr><td>stages</td><td>array</td><td>Validation stage results</td></tr>
+          <tr><td>fixedInp</td><td>string|null</td><td>Repaired INP content (if autoFix and issues found)</td></tr>
+          <tr><td>nodeCount</td><td>number</td><td>Total nodes found</td></tr>
+          <tr><td>linkCount</td><td>number</td><td>Total links found</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-presets">
+      <div class="endpoint-header" onclick="toggle('ep-presets')">
+        <span class="badge badge-get">GET</span>
+        <span class="endpoint-path">/api/presets</span>
+        <span class="endpoint-desc">List all example presets with configurations</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Returns all 38 example presets, each with a name, description, rationale, tags, and full configuration object ready to pass to <code>/api/generate</code>.</p>
+        <h4>Try it</h4>
+        <button class="try-btn" onclick="tryGet('/api/presets', 'ep-presets')">Send Request</button>
+        <div class="response-area" id="resp-ep-presets"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-preset-name">
+      <div class="endpoint-header" onclick="toggle('ep-preset-name')">
+        <span class="badge badge-get">GET</span>
+        <span class="endpoint-path">/api/presets/:name</span>
+        <span class="endpoint-desc">Get a preset by name, optionally generate its INP</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Returns a specific preset by name. Add <code>?generate=true</code> to generate its INP file. Add <code>&amp;format=inp</code> to download the raw .inp file.</p>
+        <h4>Query Parameters</h4>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+          <tr><td>generate</td><td>boolean</td><td>If "true", generates the INP file from the preset config</td></tr>
+          <tr><td>format</td><td>string</td><td>If "inp", returns raw .inp text instead of JSON</td></tr>
+        </table>
+        <h4>Try it</h4>
+        <button class="try-btn" onclick="tryGet('/api/presets/Small%20Residential%20Sanitary', 'ep-preset-name')">Get Preset Info</button>
+        <button class="try-btn" onclick="tryGet('/api/presets/Small%20Residential%20Sanitary?generate=true', 'ep-preset-name')" style="margin-left:8px">Generate from Preset</button>
+        <div class="response-area" id="resp-ep-preset-name"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-rainfall">
+      <div class="endpoint-header" onclick="toggle('ep-rainfall')">
+        <span class="badge badge-get">GET</span>
+        <span class="endpoint-path">/api/rainfall-patterns</span>
+        <span class="endpoint-desc">List all 276 rainfall distribution patterns</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Returns all rainfall patterns organized by category (SCS/NRCS, State DOTs, International, NOAA Atlas 14, Climate Change, etc.). Use the <code>id</code> field as the <code>rainfallDist</code> parameter in generation requests.</p>
+        <h4>Try it</h4>
+        <button class="try-btn" onclick="tryGet('/api/rainfall-patterns', 'ep-rainfall')">Send Request</button>
+        <div class="response-area" id="resp-ep-rainfall"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="endpoint" id="ep-sections">
+      <div class="endpoint-header" onclick="toggle('ep-sections')">
+        <span class="badge badge-get">GET</span>
+        <span class="endpoint-path">/api/sections</span>
+        <span class="endpoint-desc">List all 56 SWMM5 INP sections</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Returns all 56 SWMM5 INP sections grouped by functional area (always-on, subcatchments, hydrology, hydraulics, water quality, time series, LID, map).</p>
+        <h4>Try it</h4>
+        <button class="try-btn" onclick="tryGet('/api/sections', 'ep-sections')">Send Request</button>
+        <div class="response-area" id="resp-ep-sections"><pre></pre></div>
+      </div>
+    </div>
+
+    <div class="section-title">Code Examples</div>
+
+    <h3 style="font-size: 15px; margin: 16px 0 8px; color: var(--accent);">Python</h3>
+    <pre>
+import requests
+
+# Generate a 500-node stormwater model
+response = requests.post("https://your-app.replit.app/api/generate", json={
+    "N": 500,
+    "type": "stormwater",
+    "terrain": "hilly",
+    "enableWQ": True,
+    "enableLID": True,
+    "rainfallDist": "scs-type-ii",
+    "rainfallDepth": 3.0,
+})
+data = response.json()
+
+# Save the .inp file
+with open("model.inp", "w") as f:
+    f.write(data["inp"])
+
+print(f"Generated {data['stats']['junctions']} junctions, "
+      f"{data['stats']['conduits']} conduits in {data['generationTimeMs']}ms")
+print(f"Sections: {data['sectionCount']}/56")
+
+# Generate and simulate in one call
+response = requests.post("https://your-app.replit.app/api/generate-and-simulate", json={
+    "N": 200,
+    "type": "sanitary",
+})
+result = response.json()
+print(f"Simulation: {result['simulation']['summary']}")
+</pre>
+
+    <h3 style="font-size: 15px; margin: 16px 0 8px; color: var(--accent);">JavaScript / Node.js</h3>
+    <pre>
+const response = await fetch("/api/generate", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    N: 1000,
+    type: "combined",
+    terrain: "moderate",
+    enableSnowmelt: true,
+    enableDividers: true,
+    reswmm: { enabled: true, method: "fixed_interval", fixedMinLength: 50, fixedMaxLength: 200 },
+  }),
+});
+const { inp, stats, sections } = await response.json();
+console.log(`Generated: ${stats.junctions} junctions, ${stats.conduits} conduits`);
+console.log(`Active sections: ${sections.length}/56`);
+</pre>
+
+    <h3 style="font-size: 15px; margin: 16px 0 8px; color: var(--accent);">cURL</h3>
+    <pre>
+# Download raw .inp file
+curl -X POST "https://your-app.replit.app/api/generate?format=inp" \
+  -H "Content-Type: application/json" \
+  -d '{"N": 500, "type": "stormwater"}' \
+  -o model.inp
+
+# Validate an existing .inp file
+curl -X POST "https://your-app.replit.app/api/validate" \
+  -H "Content-Type: application/json" \
+  -d "{\"inp\": \"$(cat model.inp)\"}"
+
+# List all presets
+curl "https://your-app.replit.app/api/presets" | python3 -m json.tool
+</pre>
+
+    <div class="section-title" style="margin-top: 40px;">Response Codes</div>
+    <table>
+      <tr><th>Code</th><th>Meaning</th></tr>
+      <tr><td>200</td><td>Success</td></tr>
+      <tr><td>400</td><td>Bad request (invalid parameters or INP content)</td></tr>
+      <tr><td>404</td><td>Resource not found (e.g., preset name not found)</td></tr>
+      <tr><td>500</td><td>Server error (generation or simulation failure)</td></tr>
+    </table>
+  </div>
+
+  <script>
+    function toggle(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    async function tryGet(url, epId) {
+      const area = document.getElementById('resp-' + epId);
+      area.classList.add('visible');
+      area.querySelector('pre').textContent = 'Loading...';
+      try {
+        const r = await fetch(url);
+        const data = await r.json();
+        const text = JSON.stringify(data, null, 2);
+        area.querySelector('pre').textContent = text.length > 50000 ? text.substring(0, 50000) + '\n\n... (truncated)' : text;
+      } catch (e) {
+        area.querySelector('pre').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    async function tryPost(url, bodyId, epId) {
+      const area = document.getElementById('resp-' + epId);
+      area.classList.add('visible');
+      area.querySelector('pre').textContent = 'Loading...';
+      try {
+        const body = document.getElementById(bodyId).value;
+        JSON.parse(body);
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+        const data = await r.json();
+        const text = JSON.stringify(data, null, 2);
+        area.querySelector('pre').textContent = text.length > 50000 ? text.substring(0, 50000) + '\n\n... (truncated)' : text;
+      } catch (e) {
+        area.querySelector('pre').textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>

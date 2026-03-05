@@ -1,13 +1,13 @@
 # SWMM5 INP MAKER
 
 ## Overview
-A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 `.inp` files using physics-based force-directed network synthesis (Barnes-Hut quadtree). All generation runs in-browser — no database or backend API needed.
+A React/TypeScript web app that generates realistic EPA SWMM5 `.inp` files using physics-based force-directed network synthesis (Barnes-Hut quadtree). Model generation runs client-side in-browser, with a full REST API for programmatic access.
 
 ## Architecture
-- **Frontend-only app** built with React, TypeScript, Tailwind CSS, Shadcn/ui
-- Backend (Express) serves the frontend and provides `POST /api/simulate` for SWMM5 engine validation
-- All SWMM5 model generation is performed client-side in `swmm-engine.ts`
-- Server-side SWMM5 v5.2.4 binary (`./swmm5`) runs 1-minute validation simulations
+- **Frontend** built with React, TypeScript, Tailwind CSS, Shadcn/ui — all SWMM5 model generation in `swmm-engine.ts`
+- **Backend** (Express) serves the frontend, provides REST API endpoints, and runs SWMM5 v5.2.4 engine simulations
+- **REST API** at `/api/*` — 10 endpoints for generating, simulating, validating INP files, listing presets/patterns/sections
+- **API Docs** at `/api/docs` — interactive Swagger-style documentation with "Try it" buttons and code examples
 
 ## Key Files
 - `client/src/lib/swmm-engine.ts` — Complete physics engine: TerrainDEM (fBm noise), Barnes-Hut quadtree particle simulation, dendritic graph builder, INP file generator, ReSWMM discretization, profile path builder, rainfall profile generator, 5 generation methods, all constants from 1,729 real models. Full 56/56 SWMM5 section coverage.
@@ -47,6 +47,18 @@ A fully client-side React/TypeScript web app that generates realistic EPA SWMM5 
 - LID Controls: toggleable [LID_CONTROLS] and [LID_USAGE] sections — 5 LID types (bio-retention, permeable pavement, rain garden, green roof, infiltration trench) assigned to ~30% of subcatchments
 - Water Quality: toggleable [POLLUTANTS], [BUILDUP], [WASHOFF], [TREATMENT] sections — 5 pollutants (TSS, BOD, COD, TN, TP) with power-law buildup, EMC washoff, and treatment at storage nodes
 - ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
+- REST API (10 endpoints, open/no auth):
+  - `POST /api/generate` — Generate INP from config (JSON or raw .inp via `?format=inp`)
+  - `POST /api/generate-and-simulate` — Generate + run SWMM5 simulation in one call
+  - `POST /api/simulate` — Run SWMM5 v5.2.4 on provided INP content
+  - `POST /api/validate` — Static analysis with auto-repair
+  - `GET /api/presets` — List all 38 example presets
+  - `GET /api/presets/:name` — Get/generate specific preset (`?generate=true&format=inp`)
+  - `GET /api/rainfall-patterns` — List all 276 rainfall distributions by category
+  - `GET /api/sections` — List all 56 SWMM5 sections with grouping
+  - `GET /api/config-schema` — Full config schema with types, defaults, ranges
+  - `GET /api/info` — API metadata
+  - `GET /api/docs` — Interactive API documentation page with "Try it" buttons
 - Longitudinal profile view (outfall to upstream, invert + crown lines, tooltips)
 - INP File Viewer: upload or pass generated .inp files, browse sections by category, sortable/searchable tables, descriptive statistics, histograms
 - Static INP validation with auto-repair: runs automatically after generation and on file upload in viewer; prominent validation badge shows pass/fail status with fix count

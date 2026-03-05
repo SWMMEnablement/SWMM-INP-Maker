@@ -69,17 +69,42 @@ export default function ValidationPanel({ result, onDownloadFixed }: Props) {
       </div>
 
       {result.engineResult && (
-        <div className={`px-4 py-2.5 border-t border-border/50 text-[11px] ${result.engineResult.success ? 'text-emerald-400 bg-emerald-500/5' : 'text-red-400 bg-red-500/5'}`} data-testid="engine-result">
-          <div className="flex items-center gap-2">
-            <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
-            <div>
-              <span className="font-medium">SWMM5 v{result.engineResult.version}:</span>{' '}
-              {result.engineResult.summary}
-              {result.engineResult.wallTimeMs > 0 && (
-                <span className="text-muted-foreground ml-1.5">({(result.engineResult.wallTimeMs / 1000).toFixed(1)}s)</span>
-              )}
+        <div className={`border-t border-border/50 ${result.engineResult.success ? 'bg-emerald-500/5' : 'bg-red-500/5'}`} data-testid="engine-result">
+          <div className={`px-4 py-2.5 text-[11px] ${result.engineResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className="flex items-center gap-2">
+              <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
+              <div>
+                <span className="font-medium">SWMM5 v{result.engineResult.version}:</span>{' '}
+                {result.engineResult.summary}
+                {result.engineResult.wallTimeMs > 0 && (
+                  <span className="text-muted-foreground ml-1.5">({(result.engineResult.wallTimeMs / 1000).toFixed(1)}s)</span>
+                )}
+              </div>
             </div>
           </div>
+          {result.engineResult.errors.length > 0 && (
+            <div className="px-4 pb-3 space-y-1.5">
+              <div className="text-[10px] font-semibold text-red-400">Engine Errors ({result.engineResult.errors.length})</div>
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {result.engineResult.errors.map((err, i) => (
+                  <div key={i} className="flex items-start gap-2 text-[11px] py-1 px-2.5 rounded bg-red-500/10 border-l-2 border-red-500/40">
+                    <XCircle className="w-3 h-3 text-red-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-foreground break-all">{err}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.engineResult.success && result.engineResult.warnings > 0 && (
+            <div className="px-4 pb-2 text-[10px] text-amber-400">
+              {result.engineResult.warnings} engine warning{result.engineResult.warnings > 1 ? 's' : ''}
+              {result.engineResult.continuityError !== null && (
+                <span className="text-muted-foreground ml-2">
+                  Routing error: {Math.abs(result.engineResult.continuityError).toFixed(2)}%
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

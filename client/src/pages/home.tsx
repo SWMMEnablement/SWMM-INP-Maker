@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code, FileText, ExternalLink, Leaf, Droplets } from "lucide-react";
+import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code, FileText, ExternalLink, Leaf, Droplets, Snowflake, GitFork, Construction, Waypoints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -273,6 +273,10 @@ export default function Home() {
     lines.push(`| Groundwater | ${c.enableGroundwater ? 'Yes' : 'No'} |`);
     lines.push(`| LID Controls | ${c.enableLID ? 'Yes' : 'No'} |`);
     lines.push(`| Water Quality | ${c.enableWQ ? 'Yes' : 'No'} |`);
+    lines.push(`| Snowmelt | ${c.enableSnowmelt ? 'Yes' : 'No'} |`);
+    lines.push(`| Dividers | ${c.enableDividers ? 'Yes' : 'No'} |`);
+    lines.push(`| Street Inlets | ${c.enableStreetInlets ? 'Yes' : 'No'} |`);
+    lines.push(`| Curved Links | ${c.enableCurvedLinks ? 'Yes' : 'No'} |`);
     lines.push('');
     lines.push('## Element Counts');
     lines.push('');
@@ -753,6 +757,53 @@ export default function Home() {
                     {(config.enableLID || config.enableWQ) && (
                       <p className="text-[10px] text-muted-foreground italic">Requires subcatchments — model types without subcatchments will skip these sections</p>
                     )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-semibold flex items-center gap-1"><Snowflake className="w-3.5 h-3.5" />Snowmelt</label>
+                        <p className="text-[10px] text-muted-foreground">Temperature, snowpacks, adjustments for cold-climate models</p>
+                      </div>
+                      <Switch
+                        checked={config.enableSnowmelt}
+                        onCheckedChange={(v) => update({ enableSnowmelt: v })}
+                        data-testid="switch-snowmelt"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-semibold flex items-center gap-1"><GitFork className="w-3.5 h-3.5" />Dividers</label>
+                        <p className="text-[10px] text-muted-foreground">Flow-splitting nodes for CSO modeling and bypass channels</p>
+                      </div>
+                      <Switch
+                        checked={config.enableDividers}
+                        onCheckedChange={(v) => update({ enableDividers: v })}
+                        data-testid="switch-dividers"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-semibold flex items-center gap-1"><Construction className="w-3.5 h-3.5" />Street Inlets</label>
+                        <p className="text-[10px] text-muted-foreground">Street cross-sections, curb/grate inlets, and inlet usage</p>
+                      </div>
+                      <Switch
+                        checked={config.enableStreetInlets}
+                        onCheckedChange={(v) => update({ enableStreetInlets: v })}
+                        data-testid="switch-street-inlets"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-xs font-semibold flex items-center gap-1"><Waypoints className="w-3.5 h-3.5" />Curved Links</label>
+                        <p className="text-[10px] text-muted-foreground">Add vertex bend points to conduits for visual realism</p>
+                      </div>
+                      <Switch
+                        checked={config.enableCurvedLinks}
+                        onCheckedChange={(v) => update({ enableCurvedLinks: v })}
+                        data-testid="switch-curved-links"
+                      />
+                    </div>
                   </div>
 
                   <div>

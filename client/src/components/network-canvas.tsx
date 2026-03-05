@@ -72,6 +72,11 @@ export default function NetworkCanvas({ netData }: NetworkCanvasProps) {
       if (!a || !b) continue;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
+      if (l.vertices && l.vertices.length > 0) {
+        for (const v of l.vertices) {
+          ctx.lineTo(v.x, v.y);
+        }
+      }
       ctx.lineTo(b.x, b.y);
       ctx.strokeStyle = l.color;
       ctx.globalAlpha = l.alpha;

@@ -83,6 +83,10 @@ export const DEFAULT_HYDROLOGY = {
   enableGroundwater: false,
   enableLID: false,
   enableWQ: false,
+  enableSnowmelt: false,
+  enableDividers: false,
+  enableStreetInlets: false,
+  enableCurvedLinks: false,
 };
 
 export interface SwmmConfig {
@@ -109,6 +113,10 @@ export interface SwmmConfig {
   enableGroundwater: boolean;
   enableLID: boolean;
   enableWQ: boolean;
+  enableSnowmelt: boolean;
+  enableDividers: boolean;
+  enableStreetInlets: boolean;
+  enableCurvedLinks: boolean;
 }
 
 export interface ComputedElements {
@@ -144,6 +152,7 @@ export interface NetLink {
   width: number;
   hasOffset?: boolean;
   isPump?: boolean;
+  vertices?: { x: number; y: number }[];
 }
 
 export interface NetPolygon {
@@ -274,12 +283,16 @@ export const PIPE_INCHES = [6,8,10,12,15,18,21,24,30,36,42,48,54,60,72,84,96,120
 export const PIPE_WEIGHTS = [3,8,6,12,10,10,8,14,10,8,4,3,2,1,0.5,0.3,0.1,0.05,0.02];
 
 export const ALL_SECTIONS = [
-  "[TITLE]","[OPTIONS]","[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]",
-  "[INFILTRATION]","[AQUIFERS]","[GROUNDWATER]","[JUNCTIONS]","[OUTFALLS]","[STORAGE]","[CONDUITS]",
-  "[PUMPS]","[ORIFICES]","[WEIRS]","[XSECTIONS]","[TRANSECTS]","[LOSSES]",
-  "[CONTROLS]","[INFLOWS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]",
-  "[CURVES]","[TIMESERIES]","[COORDINATES]","[Polygons]","[MAP]","[REPORT]",
-  "[LID_CONTROLS]","[LID_USAGE]","[POLLUTANTS]","[BUILDUP]","[WASHOFF]","[TREATMENT]"
+  "[TITLE]","[OPTIONS]","[FILES]","[EVAPORATION]","[TEMPERATURE]","[ADJUSTMENTS]",
+  "[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]","[INFILTRATION]","[AQUIFERS]","[GROUNDWATER]","[GWF]","[SNOWPACKS]",
+  "[JUNCTIONS]","[OUTFALLS]","[DIVIDERS]","[STORAGE]",
+  "[CONDUITS]","[PUMPS]","[ORIFICES]","[WEIRS]","[OUTLETS]","[XSECTIONS]","[TRANSECTS]","[STREETS]","[INLETS]","[INLET_USAGE]","[LOSSES]",
+  "[CONTROLS]","[INFLOWS]","[DWF]","[PATTERNS]","[RDII]","[HYDROGRAPHS]","[LOADINGS]",
+  "[POLLUTANTS]","[LANDUSES]","[COVERAGES]","[BUILDUP]","[WASHOFF]","[TREATMENT]",
+  "[CURVES]","[TIMESERIES]",
+  "[LID_CONTROLS]","[LID_USAGE]",
+  "[COORDINATES]","[VERTICES]","[Polygons]","[SYMBOLS]","[LABELS]","[BACKDROP]","[MAP]",
+  "[TAGS]","[PROFILES]","[REPORT]"
 ];
 
 export const TERRAIN_LABELS: Record<string, string> = { flat:"0.1-0.5%", moderate:"0.2-1.5%", hilly:"0.5-3.0%", mountainous:"1-8%" };
@@ -550,6 +563,20 @@ export const EXAMPLE_PRESETS: ExamplePreset[] = [
     config: { N: 600, type: "stormwater", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, enableLID: true, enableWQ: true, enableAquifers: true, enableGroundwater: true },
     tags: ["Complete", "LID", "WQ"],
   },
+  {
+    name: "Cold Climate Snowmelt (SI)",
+    description: "Northern climate combined sewer — 500 junctions, snowpacks, temperature data, adjustments",
+    rationale: "Enables snowmelt modeling with temperature timeseries, snowpacks on subcatchments, and monthly climate adjustments for freeze/thaw cycle analysis.",
+    config: { N: 500, type: "combined", units: "SI", terrain: "moderate", detail: "moderate", landUse: "mixed", outfallElev: 10, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, enableSnowmelt: true },
+    tags: ["Snowmelt", "Cold Climate", "SI"],
+  },
+  {
+    name: "Full Coverage (All Sections)",
+    description: "Maximum section coverage — 400 junctions, all optional sections enabled, curved links, dividers, street inlets",
+    rationale: "Enables every optional SWMM5 section for maximum INP coverage testing: LID, WQ, aquifers, groundwater, snowmelt, dividers, street inlets, and curved link vertices.",
+    config: { N: 400, type: "combined", units: "US", terrain: "moderate", detail: "detailed", landUse: "mixed", outfallElev: 5, reswmm: { ...DEFAULT_RESWMM }, ...DEFAULT_HYDROLOGY, enableLID: true, enableWQ: true, enableAquifers: true, enableGroundwater: true, enableSnowmelt: true, enableDividers: true, enableStreetInlets: true, enableCurvedLinks: true },
+    tags: ["Full Coverage", "All Sections"],
+  },
 ];
 
 export const SWMM5_REAL_STATS = {
@@ -656,7 +683,15 @@ export function compute(config: SwmmConfig): ComputedElements {
 }
 
 export function getSections(elems: ComputedElements, config: SwmmConfig): Set<string> {
-  const on = new Set(["[TITLE]","[OPTIONS]","[JUNCTIONS]","[OUTFALLS]","[CONDUITS]","[XSECTIONS]","[COORDINATES]","[MAP]","[REPORT]","[LOSSES]"]);
+  const on = new Set(["[TITLE]","[OPTIONS]","[FILES]","[JUNCTIONS]","[OUTFALLS]","[CONDUITS]","[XSECTIONS]","[COORDINATES]","[MAP]","[REPORT]","[LOSSES]","[EVAPORATION]","[SYMBOLS]","[TAGS]","[LABELS]","[BACKDROP]","[PROFILES]"]);
+  if (config.enableCurvedLinks) on.add("[VERTICES]");
+  if (config.enableSnowmelt) ["[TEMPERATURE]","[ADJUSTMENTS]","[SNOWPACKS]"].forEach(s => on.add(s));
+  if (config.enableDividers) on.add("[DIVIDERS]");
+  if (config.enableStreetInlets && elems.subcatchments > 0) ["[STREETS]","[INLETS]","[INLET_USAGE]"].forEach(s => on.add(s));
+  if (elems.storage > 0) on.add("[OUTLETS]");
+  if (config.enableGroundwater && elems.subcatchments > 0) on.add("[GWF]");
+  if (config.enableWQ && elems.subcatchments > 0) ["[LANDUSES]","[COVERAGES]","[LOADINGS]"].forEach(s => on.add(s));
+  if (elems.raingages > 0) on.add("[SYMBOLS]");
   if (elems.subcatchments > 0) ["[RAINGAGES]","[SUBCATCHMENTS]","[SUBAREAS]","[INFILTRATION]","[TIMESERIES]","[Polygons]"].forEach(s => on.add(s));
   const hasDWF = config.dwfNodePct > 0 && (config.type==="sanitary"||config.type==="combined"||config.type==="wos_intensive");
   if (hasDWF) ["[DWF]","[PATTERNS]"].forEach(s => on.add(s));
@@ -1271,6 +1306,33 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   w(`REPORT_STEP          00:05:00`);
   w("");
 
+  w("[FILES]");
+  w(";;No external interface files");
+  w("");
+
+  w("[EVAPORATION]");
+  w(";;Type       Parameters");
+  w("CONSTANT     0.0");
+  w("DRY_ONLY     NO");
+  w("");
+
+  if (config.enableSnowmelt) {
+    w("[TEMPERATURE]");
+    w("WINDSPEED    MONTHLY  8.0  8.0  9.0  10.0  10.0  9.0  8.0  8.0  9.0  10.0  9.0  8.0");
+    w("SNOWMELT     34  0.5  0.6  0.0  50.0  0.0");
+    w("ADC  IMPERVIOUS  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0  1.0");
+    w("ADC  PERVIOUS    0.1  0.2  0.3  0.5  0.7  0.8  0.9  1.0  1.0  1.0");
+    w("");
+
+    w("[ADJUSTMENTS]");
+    w(";;Parameter    Jan   Feb   Mar   Apr   May   Jun   Jul   Aug   Sep   Oct   Nov   Dec");
+    w("TEMPERATURE    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0");
+    w("EVAPORATION    0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0   0.0");
+    w("RAINFALL       1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0");
+    w("CONDUCTIVITY   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0   1.0");
+    w("");
+  }
+
   const nGages = nSubcatch > 0 ? Math.max(1, Math.round(nSubcatch/500)) : 0;
   if (nGages > 0) {
     w("[RAINGAGES]");
@@ -1405,6 +1467,33 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w(`${o.name.padEnd(17)}${o.elev.toFixed(3).padEnd(12)}FREE                       NO`);
   }
   w("");
+
+  const dividerNodes: {name:string;elev:number;x:number;y:number;divLink:string;type:string;param:string}[] = [];
+  if (config.enableDividers && junctions.length > 10) {
+    const nDividers = Math.max(1, Math.floor(junctions.length * 0.01));
+    const divIndices = new Set<number>();
+    while (divIndices.size < nDividers && divIndices.size < junctions.length - 2) {
+      divIndices.add(Math.floor(rand(2, junctions.length - 1)));
+    }
+    const divJuncs = Array.from(divIndices).map(i => junctions[i]);
+    let di = 0;
+    w("[DIVIDERS]");
+    w(";;Name           InvertElev  DivLink      DivType    Param1  Param2  MaxDepth  InitDepth  SurDepth  Aponded");
+    for (const dj of divJuncs) {
+      di++;
+      const dName = `DIV${di}`;
+      const divConduit = conduits.find(c => c.from === dj.name);
+      const divLink = divConduit ? divConduit.name : conduits[0].name;
+      const rr = Math.random();
+      let divType: string, param1: string, param2: string;
+      if (rr < 0.5) { divType = 'OVERFLOW'; param1 = '0'; param2 = '0'; }
+      else if (rr < 0.8) { divType = 'CUTOFF'; param1 = rand(1,10).toFixed(2); param2 = '0'; }
+      else { divType = 'WEIR'; param1 = rand(1,5).toFixed(2); param2 = rand(1,3).toFixed(2); }
+      dividerNodes.push({name:dName, elev:dj.elev, x:dj.x, y:dj.y, divLink, type:divType, param:param1});
+      w(`${dName.padEnd(17)}${dj.elev.toFixed(3).padEnd(12)}${divLink.padEnd(13)}${divType.padEnd(11)}${param1.padEnd(8)}${param2.padEnd(8)}${dj.maxD.toFixed(2).padEnd(10)}0          0          0`);
+    }
+    w("");
+  }
 
   if (storages.length > 0) {
     w("[STORAGE]");
@@ -1633,8 +1722,31 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
           w(`${sName.padEnd(17)}${aqName.padEnd(17)}${gwNode.padEnd(17)}${surfElev.toFixed(2).padEnd(11)}${a1.toFixed(4).padEnd(11)}${b1.toFixed(2).padEnd(11)}${a2.toFixed(4).padEnd(11)}${b2.toFixed(2).padEnd(11)}${a3.toFixed(4).padEnd(11)}${dsw.toFixed(2).padEnd(11)}${egwt.toFixed(2).padEnd(11)}${ebot.toFixed(2).padEnd(11)}${wgr.toFixed(3).padEnd(11)}${umc.toFixed(3)}`);
         }
         w("");
+
+        w("[GWF]");
+        w(";;Subcatch       Type         Expression");
+        for (let i = 0; i < nSubcatch; i++) {
+          if (Math.random() < 0.2) {
+            const sName = `S${i + 1}`;
+            w(`${sName.padEnd(17)}LATERAL      0.001 * (Hgw - Hcb) ^ 2`);
+          }
+        }
+        w("");
       }
     }
+  }
+
+  if (config.enableSnowmelt && nSubcatch > 0) {
+    w("[SNOWPACKS]");
+    w(";;Name           Surface    Param1  Param2  Param3  Param4  Param5  Param6  Param7");
+    const spNames = ['SnowPack1', 'SnowPack2'];
+    for (const sp of spNames) {
+      w(`${sp.padEnd(17)}PLOWABLE   0.001  0.001  32.0  0.10  0.00  0.00  0.0`);
+      w(`${sp.padEnd(17)}IMPERVIOUS 0.001  0.001  32.0  0.10  0.00  0.00  0.0`);
+      w(`${sp.padEnd(17)}PERVIOUS   0.001  0.001  32.0  0.10  0.00  0.00  0.0`);
+      w(`${sp.padEnd(17)}REMOVAL    0.5    0.0    0.0   0.0   0.0   0.0   *`);
+    }
+    w("");
   }
 
   if (config.enableLID && nSubcatch > 0) {
@@ -1738,6 +1850,32 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     const LAND_USES = ['Residential_LU', 'Commercial_LU', 'Industrial_LU'];
     const luForConfig = config.landUse === 'mixed' ? LAND_USES : [config.landUse === 'residential' ? 'Residential_LU' : config.landUse === 'commercial' ? 'Commercial_LU' : 'Industrial_LU'];
 
+    w("[LANDUSES]");
+    w(";;Name             SweepIntv  Availabil  LastSweep");
+    const sweepData: Record<string, [number, number]> = { Residential_LU: [14, 0.9], Commercial_LU: [7, 0.95], Industrial_LU: [14, 0.85] };
+    for (const lu of luForConfig) {
+      const [si, av] = sweepData[lu] || [14, 0.9];
+      w(`${lu.padEnd(19)}${si}          ${av.toFixed(2).padEnd(11)}0`);
+    }
+    w("");
+
+    w("[COVERAGES]");
+    w(";;Subcatch         LandUse          Percent");
+    for (let i = 0; i < nSubcatch; i++) {
+      const sName = `S${i + 1}`;
+      if (luForConfig.length === 1) {
+        w(`${sName.padEnd(19)}${luForConfig[0].padEnd(17)}100`);
+      } else {
+        const pcts = luForConfig.map(() => rand(10, 50));
+        const total = pcts.reduce((a, b) => a + b, 0);
+        for (let li = 0; li < luForConfig.length; li++) {
+          const pct = Math.round(pcts[li] / total * 100);
+          if (pct > 0) w(`${sName.padEnd(19)}${luForConfig[li].padEnd(17)}${pct}`);
+        }
+      }
+    }
+    w("");
+
     w("[BUILDUP]");
     w(";;LandUse         Pollutant    BType      Rate       Power      Normalizer");
     for (const lu of luForConfig) {
@@ -1768,6 +1906,19 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       for (const p of POLLUTANTS) {
         const removalFrac = p.name === 'TSS' ? rand(0.4, 0.8) : p.name === 'BOD' ? rand(0.3, 0.6) : rand(0.2, 0.5);
         w(`${tn.name.padEnd(17)}${p.name.padEnd(13)}C = C * ${(1 - removalFrac).toFixed(3)}`);
+      }
+    }
+    w("");
+
+    w("[LOADINGS]");
+    w(";;Subcatch       Pollutant    InitLoad");
+    for (let i = 0; i < nSubcatch; i++) {
+      if (Math.random() < 0.3) {
+        const sName = `S${i + 1}`;
+        for (const p of POLLUTANTS) {
+          const load = p.name === 'TSS' ? rand(10, 80) : p.name === 'BOD' ? rand(5, 30) : p.name === 'COD' ? rand(15, 60) : p.name === 'TN' ? rand(1, 10) : rand(0.2, 3);
+          w(`${sName.padEnd(17)}${p.name.padEnd(13)}${load.toFixed(1)}`);
+        }
       }
     }
     w("");
@@ -1834,6 +1985,57 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w(";;Name           FromNode         ToNode           Type         CrestHt    Cd         FlapGate   EndCon     EndCoeff   Surcharge");
     for (const wr of weirs) {
       w(`${wr.name.padEnd(17)}${wr.from.padEnd(17)}${wr.to.padEnd(17)}${wr.type.padEnd(13)}${wr.crestHt.toFixed(2).padEnd(11)}${wr.cd.toFixed(2).padEnd(11)}${"NO".padEnd(11)}0          0          YES`);
+    }
+    w("");
+  }
+
+  if (storages.length > 0) {
+    w("[OUTLETS]");
+    w(";;Name           FromNode         ToNode           Offset     Type             Curve/C1     C2      Gated");
+    let oi = 0;
+    for (const su of storages) {
+      if (Math.random() < 0.5) continue;
+      oi++;
+      const tgt = junctions[Math.floor(rand(0, Math.min(5, N - 1)))].name;
+      const offset = (su.maxD * rand(0.05, 0.3)).toFixed(2);
+      if (Math.random() < 0.5) {
+        const c1 = rand(1, 5).toFixed(2);
+        const c2 = rand(0.4, 0.6).toFixed(2);
+        w(`OTL${oi}`.padEnd(17) + su.name.padEnd(17) + tgt.padEnd(17) + offset.padEnd(11) + 'FUNCTIONAL/DEPTH '.padEnd(17) + c1.padEnd(13) + c2.padEnd(8) + 'NO');
+      } else {
+        const crvName = `OC${oi}`;
+        w(`OTL${oi}`.padEnd(17) + su.name.padEnd(17) + tgt.padEnd(17) + offset.padEnd(11) + 'TABULAR/DEPTH    '.padEnd(17) + crvName.padEnd(13) + '         NO');
+      }
+    }
+    w("");
+  }
+
+  if (config.enableStreetInlets && nSubcatch > 0) {
+    w("[STREETS]");
+    w(";;Name           Tcrown   Hcurb    Sx       nRoad    a        W        Sides    Tback    Sback    nBack");
+    w("LocalStreet      24.0     0.5      0.02     0.016    0.0      0.0      1        0.0      0.0      0.0");
+    w("Arterial         36.0     0.5      0.025    0.016    0.0      0.0      2        0.0      0.0      0.0");
+    w("Collector        30.0     0.5      0.02     0.016    0.0      0.0      1        0.0      0.0      0.0");
+    w("");
+
+    w("[INLETS]");
+    w(";;Name           Type      Param1  Param2  Param3  Param4  Param5");
+    w("CurbInlet        CURB      2.0     0.5     HORIZONTAL");
+    w("GrateInlet       GRATE     2.0     2.0     P_BAR-50");
+    w("ComboInlet       CURB      2.0     0.5     HORIZONTAL");
+    w("ComboInlet       GRATE     2.0     2.0     P_BAR-50");
+    w("");
+
+    w("[INLET_USAGE]");
+    w(";;Conduit        Inlet        Node             Number  PctClog   Qmax     aLocal   wLocal   Placement");
+    const inletTypes = ['CurbInlet', 'GrateInlet', 'ComboInlet'];
+    for (const c of conduits) {
+      if (Math.random() < 0.1) {
+        const inletType = inletTypes[Math.floor(Math.random() * inletTypes.length)];
+        const nInlets = Math.floor(rand(1, 4));
+        const pctClog = Math.floor(rand(0, 30));
+        w(`${c.name.padEnd(17)}${inletType.padEnd(13)}${c.from.padEnd(17)}${nInlets}       ${pctClog}         0        0        0        AUTOMATIC`);
+      }
     }
     w("");
   }
@@ -1925,6 +2127,30 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  if (config.type === 'rdii_calibration' && nSubcatch > 0) {
+    w("[RDII]");
+    w(";;Node           UHGroup      SewerArea");
+    for (const j of junctions) {
+      if (Math.random() < 0.4) {
+        const uhGroup = Math.random() < 0.5 ? 'UH1' : 'UH2';
+        const area = rand(5, 50).toFixed(1);
+        w(`${j.name.padEnd(17)}${uhGroup.padEnd(13)}${area}`);
+      }
+    }
+    w("");
+
+    w("[HYDROGRAPHS]");
+    w(";;Name           Month   Response  R        T(hr)    K(hr)    IA_max   IA_rec   IA_init");
+    const uhGroups = ['UH1', 'UH2'];
+    for (const uh of uhGroups) {
+      w(`${uh.padEnd(17)}ALL`);
+      w(`${uh.padEnd(17)}ALL     SHORT     ${rand(0.03,0.08).toFixed(4)}  ${rand(0.5,2).toFixed(1)}      ${rand(1,4).toFixed(1)}      ${rand(0.05,0.2).toFixed(2)}     ${rand(0.01,0.05).toFixed(3)}    ${rand(0.0,0.1).toFixed(2)}`);
+      w(`${uh.padEnd(17)}ALL     MEDIUM    ${rand(0.02,0.05).toFixed(4)}  ${rand(2,8).toFixed(1)}      ${rand(3,10).toFixed(1)}     ${rand(0.1,0.3).toFixed(2)}     ${rand(0.02,0.08).toFixed(3)}    ${rand(0.0,0.15).toFixed(2)}`);
+      w(`${uh.padEnd(17)}ALL     LONG      ${rand(0.005,0.02).toFixed(4)}  ${rand(8,48).toFixed(1)}     ${rand(10,60).toFixed(1)}    ${rand(0.2,0.5).toFixed(2)}     ${rand(0.03,0.1).toFixed(3)}     ${rand(0.0,0.2).toFixed(2)}`);
+    }
+    w("");
+  }
+
   w("[COORDINATES]");
   w(";;Node           X-Coord        Y-Coord");
   for (const o of outfalls) w(`${o.name.padEnd(17)}${o.x.toFixed(1).padEnd(15)}${o.y.toFixed(1)}`);
@@ -1932,7 +2158,42 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
   for (const j of junctions) {
     w(`${j.name.padEnd(17)}${j.x.toFixed(1).padEnd(15)}${j.y.toFixed(1)}`);
   }
+  for (const d of dividerNodes) w(`${d.name.padEnd(17)}${d.x.toFixed(1).padEnd(15)}${d.y.toFixed(1)}`);
   w("");
+
+  const nodeCoords: Record<string, {x:number;y:number}> = {};
+  for (const o of outfalls) nodeCoords[o.name] = {x:o.x, y:o.y};
+  for (const s of storages) nodeCoords[s.name] = {x:s.x, y:s.y};
+  for (const j of junctions) nodeCoords[j.name] = {x:j.x, y:j.y};
+
+  const linkVertices: Record<string, {x:number;y:number}[]> = {};
+  if (config.enableCurvedLinks) {
+    w("[VERTICES]");
+    w(";;Link           X-Coord        Y-Coord");
+    for (const c of conduits) {
+      const fNode = nodeCoords[c.from], tNode = nodeCoords[c.to];
+      if (!fNode || !tNode) continue;
+      if (Math.random() > 0.3) continue;
+      const dx = tNode.x - fNode.x, dy = tNode.y - fNode.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 5) continue;
+      const perpX = -dy / dist, perpY = dx / dist;
+      const nPts = dist > 200 ? 3 : dist > 80 ? 2 : 1;
+      const verts: {x:number;y:number}[] = [];
+      for (let vi = 0; vi < nPts; vi++) {
+        const t = (vi + 1) / (nPts + 1);
+        const mx = fNode.x + dx * t;
+        const my = fNode.y + dy * t;
+        const offset = dist * rand(-0.12, 0.12);
+        const vx = mx + perpX * offset;
+        const vy = my + perpY * offset;
+        w(`${c.name.padEnd(17)}${vx.toFixed(1).padEnd(15)}${vy.toFixed(1)}`);
+        verts.push({x: vx, y: vy});
+      }
+      linkVertices[c.name] = verts;
+    }
+    w("");
+  }
 
   const voronoiCells: VoronoiCell[] = [];
   if (subcatchData.length > 0) {
@@ -1968,9 +2229,69 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
     w("");
   }
 
+  if (nGages > 0) {
+    w("[SYMBOLS]");
+    w(";;Gage           X-Coord        Y-Coord");
+    for (let i = 0; i < nGages; i++) {
+      const sx = domain * (i + 1) / (nGages + 1);
+      const sy = domain * 0.9;
+      w(`RG${i+1}`.padEnd(17) + sx.toFixed(1).padEnd(15) + sy.toFixed(1));
+    }
+    w("");
+  }
+
+  w("[LABELS]");
+  w(';;X-Coord          Y-Coord          Label');
+  if (outfalls.length > 0) {
+    w(`${outfalls[0].x.toFixed(1).padEnd(19)}${(outfalls[0].y - 30).toFixed(1).padEnd(17)}"Outfall"`);
+  }
+  w(`${(domain*0.5).toFixed(1).padEnd(19)}${(domain*0.95).toFixed(1).padEnd(17)}"Generated SWMM5 Network"`);
+  if (storages.length > 0) {
+    w(`${storages[0].x.toFixed(1).padEnd(19)}${(storages[0].y - 20).toFixed(1).padEnd(17)}"Storage"`);
+  }
+  w("");
+
+  w("[BACKDROP]");
+  w(`DIMENSIONS  0  0  ${Math.round(domain+200)}  ${Math.round(domain+200)}`);
+  w("");
+
   w("[MAP]");
   w(`DIMENSIONS  0  0  ${Math.round(domain+200)}  ${Math.round(domain+200)}`);
   w(`Units       ${isSI?"Meters":"Feet"}`);
+  w("");
+
+  w("[TAGS]");
+  w(";;Type       Name             Tag");
+  for (const o of outfalls) w(`Node         ${o.name.padEnd(17)}Outfall`);
+  for (const s of storages) w(`Node         ${s.name.padEnd(17)}Storage`);
+  for (const p of pumps) w(`Link         ${p.name.padEnd(17)}Pump`);
+  for (const c of conduits) {
+    if (Math.random() < 0.15) {
+      const tag = c.diam > (isSI ? 1.2 : 48) ? 'Trunk' : c.diam > (isSI ? 0.6 : 24) ? 'Collector' : 'Lateral';
+      w(`Link         ${c.name.padEnd(17)}${tag}`);
+    }
+  }
+  for (const d of dividerNodes) w(`Node         ${d.name.padEnd(17)}Divider`);
+  w("");
+
+  w("[PROFILES]");
+  w(';;Name           Links');
+  const maxProfiles = Math.min(3, outfalls.length);
+  for (let pi = 0; pi < maxProfiles; pi++) {
+    const profileLinks: string[] = [];
+    let curNode = outfalls[pi].name;
+    const visited = new Set<string>();
+    for (let step = 0; step < 10; step++) {
+      const incoming = conduits.find(c => c.to === curNode && !visited.has(c.name));
+      if (!incoming) break;
+      profileLinks.unshift(incoming.name);
+      visited.add(incoming.name);
+      curNode = incoming.from;
+    }
+    if (profileLinks.length > 0) {
+      w(`"Profile_${pi+1}"     ${profileLinks.join('  ')}`);
+    }
+  }
   w("");
 
   w("[REPORT]");
@@ -2031,6 +2352,7 @@ export function generateModel(config: SwmmConfig): GeneratedModel {
       alpha: hasOffset ? 0.7 : 0.35,
       width: Math.max(0.5, Math.min(3, c.diam * (isSI ? 3 : 1))),
       hasOffset,
+      vertices: linkVertices[c.name],
     });
   }
   for (const p of pumps) {

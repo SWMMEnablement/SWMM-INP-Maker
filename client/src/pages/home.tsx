@@ -30,7 +30,7 @@ import {
 } from "@/lib/swmm-engine";
 
 const ELEM_CARDS_META = [
-  { key: "junctions", label: "Junctions", cls: "bg-chart-1", max: 50000 },
+  { key: "junctions", label: "Junctions", cls: "bg-chart-1", max: 250000 },
   { key: "conduits", label: "Conduits", cls: "bg-chart-2", max: 55000 },
   { key: "subcatchments", label: "Subcatchments", cls: "bg-chart-3", max: 50000 },
   { key: "outfalls", label: "Outfalls", cls: "bg-chart-4", max: 250 },
@@ -573,10 +573,17 @@ export default function Home() {
                       <span className="font-mono text-sm text-primary bg-primary/10 px-2 rounded" data-testid="text-junction-count">{fmt(config.N)}</span>
                     </div>
                     <Slider
-                      min={5} max={5000} step={1} value={[config.N]}
-                      onValueChange={([v]) => update({ N: v })}
+                      min={0} max={1000} step={1}
+                      value={[Math.round(Math.log(config.N / 5) / Math.log(250000 / 5) * 1000)]}
+                      onValueChange={([v]) => {
+                        const n = Math.round(5 * Math.pow(250000 / 5, v / 1000));
+                        update({ N: Math.max(5, Math.min(250000, n)) });
+                      }}
                       data-testid="slider-junctions"
                     />
+                    <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+                      <span>5</span><span>50</span><span>500</span><span>5K</span><span>50K</span><span>250K</span>
+                    </div>
                   </div>
 
                   <div>

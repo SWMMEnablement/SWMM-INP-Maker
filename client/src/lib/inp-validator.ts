@@ -36,6 +36,19 @@ export interface ValidationResult {
   linkCount: number;
   subcatchCount: number;
   engineNote: string;
+  engineResult?: EngineSimResult;
+}
+
+export interface EngineSimResult {
+  success: boolean;
+  continuityError: number | null;
+  routingError: number | null;
+  warnings: number;
+  errors: string[];
+  elapsed: number;
+  version: string;
+  summary: string;
+  wallTimeMs: number;
 }
 
 export function validateInp(inpContent: string, autoFix = true): ValidationResult {

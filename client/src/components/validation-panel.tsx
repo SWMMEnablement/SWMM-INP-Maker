@@ -1,5 +1,5 @@
 import { type ValidationResult } from "@/lib/inp-validator";
-import { CheckCircle2, AlertTriangle, XCircle, Wrench, ChevronDown, Shield, Zap, Cpu } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, Wrench, ChevronDown, Shield, Zap, Cpu, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
@@ -59,11 +59,29 @@ export default function ValidationPanel({ result, onDownloadFixed }: Props) {
               <div className="text-[10px] font-medium">{stage.name}</div>
               {stage.issues !== undefined && <div className="text-[9px] opacity-70">{stage.issues} issues</div>}
               {stage.fixes !== undefined && <div className="text-[9px] opacity-70">{stage.fixes} fixes</div>}
-              {stage.status === "skipped" && <div className="text-[9px] opacity-50">skipped</div>}
+              {stage.status === "skipped" && stage.name === "Engine Validation" && result.engineNote === 'Running SWMM5 engine...'
+                ? <div className="text-[9px] opacity-70 flex items-center justify-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" />running</div>
+                : stage.status === "skipped" && <div className="text-[9px] opacity-50">skipped</div>
+              }
             </div>
           );
         })}
       </div>
+
+      {result.engineResult && (
+        <div className={`px-4 py-2.5 border-t border-border/50 text-[11px] ${result.engineResult.success ? 'text-emerald-400 bg-emerald-500/5' : 'text-red-400 bg-red-500/5'}`} data-testid="engine-result">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-3.5 h-3.5 flex-shrink-0" />
+            <div>
+              <span className="font-medium">SWMM5 v{result.engineResult.version}:</span>{' '}
+              {result.engineResult.summary}
+              {result.engineResult.wallTimeMs > 0 && (
+                <span className="text-muted-foreground ml-1.5">({(result.engineResult.wallTimeMs / 1000).toFixed(1)}s)</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {result.fixes.length > 0 && (
         <div className="border-t border-border/50">

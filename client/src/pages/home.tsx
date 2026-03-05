@@ -14,7 +14,7 @@ import InpViewer from "@/components/inp-viewer";
 import Onboarding, { useOnboarding } from "@/components/onboarding";
 import { useTheme, THEME_LABELS, type Theme } from "@/components/theme-provider";
 import ValidationPanel from "@/components/validation-panel";
-import { validateInp, type ValidationResult } from "@/lib/inp-validator";
+import { validateInp, type ValidationResult, type EngineSimResult } from "@/lib/inp-validator";
 import {
   type SwmmConfig, type ModelType, type TerrainType, type DetailLevel, type LandUseType,
   type DiscretizationMethod, type InfiltrationMethod, type RainfallDistribution,
@@ -141,6 +141,38 @@ export default function Home() {
     }, 50);
   }, [config, toast]);
 
+  const runEngineValidation = useCallback(async (inpText: string, vResult: ValidationResult) => {
+    try {
+      const resp = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inp: inpText }),
+      });
+      const engineResult: EngineSimResult = await resp.json();
+      const updatedStages = vResult.stages.map(s =>
+        s.name === 'Engine Validation'
+          ? { ...s, status: (engineResult.success ? 'done' : 'error') as 'done' | 'error', issues: engineResult.errors.length }
+          : s
+      );
+      setValidation({
+        ...vResult,
+        stages: updatedStages,
+        engineResult,
+        engineNote: engineResult.summary,
+      });
+    } catch {
+      setValidation({
+        ...vResult,
+        stages: vResult.stages.map(s =>
+          s.name === 'Engine Validation'
+            ? { ...s, status: 'error' as const, issues: 1 }
+            : s
+        ),
+        engineNote: 'Engine validation failed — server error',
+      });
+    }
+  }, []);
+
   const handleGenerate = useCallback(() => {
     setGenerating(true);
     setValidation(null);
@@ -150,18 +182,24 @@ export default function Home() {
         setResult(model);
         setResultConfig({ ...config });
         const vResult = validateInp(model.inpText, true);
-        setValidation(vResult);
+        const enginePendingStages = vResult.stages.map(s =>
+          s.name === 'Engine Validation' ? { ...s, status: 'skipped' as const } : s
+        );
+        const pendingResult = { ...vResult, stages: enginePendingStages, engineNote: 'Running SWMM5 engine...' };
+        setValidation(pendingResult);
         const desc = vResult.valid
-          ? `${fmt(model.stats.totalElements)} elements, ${model.stats.fileSize} — all checks passed`
+          ? `${fmt(model.stats.totalElements)} elements, ${model.stats.fileSize} — running engine validation...`
           : `${fmt(model.stats.totalElements)} elements — ${vResult.errors.length} errors, ${vResult.warnings.length} warnings`;
         toast({ title: "Model generated", description: desc });
+        const inpToSimulate = vResult.fixedInp || model.inpText;
+        runEngineValidation(inpToSimulate, pendingResult);
       } catch (err: unknown) {
         toast({ title: "Generation failed", description: (err as Error).message, variant: "destructive" });
       } finally {
         setGenerating(false);
       }
     }, 50);
-  }, [config, toast]);
+  }, [config, toast, runEngineValidation]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
@@ -954,11 +992,18 @@ export default function Home() {
                       <div className="space-y-3">
                         <p className="text-sm font-medium" style={{ color: "#34d399" }} data-testid="text-generate-success">Model generated successfully</p>
                         {validation && (
-                          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${validation.errors.length === 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`} data-testid="text-validation-badge">
-                            {validation.errors.length === 0 ? <Check className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
-                            {validation.errors.length === 0
-                              ? `Validation passed — ${validation.fixes.length} auto-fixes applied, ready for SWMM5 simulation`
-                              : `${validation.errors.length} error${validation.errors.length > 1 ? 's' : ''}, ${validation.warnings.length} warning${validation.warnings.length > 1 ? 's' : ''} — ${validation.fixes.length} auto-fixes applied`
+                          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${validation.engineResult ? (validation.engineResult.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20') : (validation.errors.length === 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20')}`} data-testid="text-validation-badge">
+                            {validation.engineResult
+                              ? (validation.engineResult.success ? <Check className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />)
+                              : (validation.errors.length === 0 ? <Check className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />)
+                            }
+                            {validation.engineResult
+                              ? validation.engineResult.summary
+                              : validation.engineNote === 'Running SWMM5 engine...'
+                                ? 'Static checks passed — running SWMM5 engine...'
+                                : validation.errors.length === 0
+                                  ? `Validation passed — ${validation.fixes.length} auto-fixes applied`
+                                  : `${validation.errors.length} error${validation.errors.length > 1 ? 's' : ''}, ${validation.warnings.length} warning${validation.warnings.length > 1 ? 's' : ''} — ${validation.fixes.length} auto-fixes applied`
                             }
                           </div>
                         )}

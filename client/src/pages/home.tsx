@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code, FileText, ExternalLink, Leaf, Droplets, Snowflake, GitFork, Construction, Waypoints } from "lucide-react";
+import { Download, Copy, Check, ChevronDown, Loader2, Sun, Moon, Palette, HelpCircle, FileSearch, Shield, BookOpen, Code, FileText, ExternalLink, Leaf, Droplets, Snowflake, GitFork, Construction, Waypoints, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -39,6 +39,711 @@ const ELEM_CARDS_META = [
   { key: "orifices", label: "Orifices", cls: "bg-chart-4", max: 1500 },
   { key: "weirs", label: "Weirs", cls: "bg-chart-5", max: 250 },
 ] as const;
+
+const HANDOVER_MD = `# SWMM5 INP MAKER — Network Generation Handover Document
+
+**Author:** Robert Dickinson — [SWMM5.org](https://swmm5.org) — March 2026
+**Data Source:** 1,729 real-world SWMM5 models (15,394,727 elements, 6,489,951 cross-sections)
+**Repository:** [SWMMEnablement/1729-SWMM5-Models](https://github.com/SWMMEnablement/1729-SWMM5-Models)
+
+---
+
+## Table of Contents
+
+1. [Architecture Overview](#1-architecture-overview)
+2. [Generation Pipeline (4 Phases)](#2-generation-pipeline)
+3. [All 16 Network Generation Methods (18 Variants)](#3-network-generation-methods)
+4. [INP Section Coverage (56/56 Sections)](#4-inp-section-coverage)
+5. [Configuration Parameters](#5-configuration-parameters)
+6. [Rainfall Patterns (34 Distributions)](#6-rainfall-patterns)
+7. [Validation & Auto-Repair](#7-validation--auto-repair)
+8. [SWMM5 Engine Integration](#8-swmm5-engine-integration)
+9. [Key Files & Functions](#9-key-files--functions)
+
+---
+
+## 1. Architecture Overview
+
+SWMM5 INP MAKER is a fully client-side React/TypeScript web application that generates realistic EPA SWMM5 \`.inp\` files. All network generation, parameter assignment, validation, and INP file construction runs entirely in the browser — no server computation required for model generation.
+
+The backend (Express) serves only the frontend static assets and provides a single endpoint (\`POST /api/simulate\`) that runs the compiled SWMM5 v5.2.4 binary for engine validation.
+
+### Technology Stack
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS + Shadcn/ui
+- **Routing:** wouter (single-page app)
+- **State:** React useState + TanStack Query
+- **Backend:** Express (serves frontend + SWMM5 engine endpoint)
+- **SWMM5 Binary:** v5.2.4, compiled for Linux x86_64
+
+### Key Design Principles
+- Every parameter, probability distribution, and scaling rule is derived from statistical analysis of 1,729 real-world SWMM5 models
+- Networks are physics-based: nodes are particles, forces produce realistic spatial patterns
+- Generated models pass the SWMM5 engine without format errors
+- Static validation with auto-repair catches and fixes common issues before engine submission
+
+---
+
+## 2. Generation Pipeline
+
+### Phase 0 — Terrain & Initialization
+
+A synthetic Digital Elevation Model (DEM) is created using 5-octave **fractal Brownian motion (fBm)** noise:
+
+\`\`\`
+elevation(x, y) = base_slope(x, y) + sum_{i=0}^{4} amplitude_i * noise(x * freq_i, y * freq_i, seed + i)
+\`\`\`
+
+- **Base slope** tilts the terrain toward outfall locations
+- **Noise octaves** add realistic micro-terrain variation
+- **Terrain types:** flat (0.1–0.5%), moderate (0.2–1.5%), hilly (0.5–3.0%), mountainous (1–8%)
+- N particles (future junction nodes) are scattered randomly across a normalized [0, 1] domain
+
+### Phase 1 — Force-Directed Particle Simulation (Barnes-Hut)
+
+Each iteration builds a **quadtree** for O(N log N) repulsive force calculation. Three forces act on every particle:
+
+| Force | Formula | Real-World Analog |
+|-------|---------|-------------------|
+| **Repulsion** | F = repel / (dist^2 + epsilon) | Min manhole spacing (300–500 ft typical) |
+| **Terrain Gradient** | F = -grav * gradient(DEM) | Gravity-driven sewer flow follows terrain |
+| **Outfall Attraction** | F = attract * dir / dist | Collection systems converge at treatment plants |
+
+**Barnes-Hut Quadtree:** Recursively subdivides space into quadrants. For distant node clusters (distance/size > theta), the entire cluster is treated as a single mass — reducing O(N^2) pairwise repulsion to O(N log N).
+
+**Parameters:**
+- \`grav\` = 0.18 (terrain gradient strength)
+- \`repel\` = 0.0004 (inter-particle repulsion)
+- \`attract\` = 0.003 (outfall attraction)
+- \`momentum\` = 0.85 (velocity damping)
+- \`iters\` = 80 (simulation steps, auto-scales with N)
+
+After simulation, particles have settled into positions that naturally follow drainage paths.
+
+### Phase 2 — Dendritic Topology Construction
+
+Each junction connects to its **steepest-descent neighbor** — the adjacent node providing the greatest elevation drop per unit distance:
+
+\`\`\`
+score = (elev_self - elev_neighbor) / (distance + 1)
+\`\`\`
+
+This produces a **tree-shaped (dendritic) graph** where all flow paths converge at outfall nodes — matching natural drainage network morphology.
+
+**Multi-outfall handling:** Each outfall acts as a root. The algorithm ensures every node connects to exactly one outfall via steepest descent. Orphan nodes are connected to the nearest downstream junction.
+
+### Phase 3 — Parameter Assignment
+
+The rules engine assigns all hydraulic properties using distributions from the 1,729-model database:
+
+| Parameter | Method | Source |
+|-----------|--------|--------|
+| **Pipe diameter** | Scales with upstream accumulation count | Median 12 in, P95 = 60 in |
+| **Pipe length** | Euclidean distance * domain scale | Median 330 ft, P95 = 1,200 ft |
+| **Manning's n** | Random from {0.011, 0.012, 0.013, 0.014, 0.015} | 1,729 model statistics |
+| **Invert elevation** | DEM elevation * terrain range | Terrain-dependent |
+| **Max depth** | Triangular distribution tri(3, 25, 6) ft | Real junction depths |
+| **Pipe shape** | 70% CIRCULAR, 12% RECT_CLOSED, 8% ARCH, 5% IRREGULAR, 5% other | Shape frequency analysis |
+| **Offsets** | 47% both zero, 33% outlet only, 15% both non-zero, 5% inlet only | Offset pattern analysis |
+| **Ponded area** | 45% zero, 55% tri(0, 500, 50) | Ponding statistics |
+
+### Phase 4 — INP File Assembly
+
+All sections are written in SWMM5-compliant format with proper field widths, column alignment, and section ordering. The writer handles 56 distinct sections with conditional inclusion based on configuration flags.
+
+---
+
+## 3. Network Generation Methods
+
+### Method 1: Force-Directed (Barnes-Hut)
+
+**File:** \`swmm-engine.ts\` — \`generateModel()\`
+
+The default and most realistic method. Uses an N-body particle simulation with quadtree acceleration to produce networks that resemble real collection systems.
+
+**Algorithm:**
+1. Initialize N particles at random positions on a synthetic DEM
+2. For each iteration (80 default):
+   a. Build quadtree from all particle positions
+   b. For each particle, compute: repulsion (from quadtree), terrain gradient, outfall attraction
+   c. Update velocity with momentum damping, update position
+3. After simulation, build dendritic graph via steepest-descent neighbor selection
+4. Assign pipe properties using statistical rules
+
+**Key Parameters:**
+- \`grav\`: 0.18 — terrain gradient influence
+- \`repel\`: 0.0004 — inter-particle repulsive force
+- \`attract\`: 0.003 — outfall attraction strength
+- \`momentum\`: 0.85 — velocity damping factor
+- \`theta\`: 0.7 — Barnes-Hut opening angle (accuracy vs speed tradeoff)
+
+**Complexity:** O(N log N) per iteration, O(I * N log N) total
+**Best For:** Realistic drainage networks at any scale (5 to 250,000 nodes)
+
+---
+
+### Method 2: Horton-Strahler Branching
+
+**File:** \`generators.ts\` — \`generateHortonStrahler()\`
+
+Mimics natural river/stream networks using the Horton-Strahler stream ordering system. Produces hierarchical branching patterns where lower-order streams merge to form higher-order channels.
+
+**Algorithm:**
+1. Calculate maximum stream order: \`maxOrder = floor(log(N) / log(Rb))\`
+2. Start at the outfall (highest order)
+3. Recursively branch: each node of order k spawns \`Rb\` children of order k-1
+4. Branch angles are randomized around +-30 degrees from parent direction
+5. Branch lengths scale by ratio \`Rl\`: \`length_k = baseLength * Rl^(maxOrder - k)\`
+
+**Key Parameters:**
+- \`Rb\`: 3.5 — Bifurcation ratio (branches per node)
+- \`Rl\`: 2.0 — Length ratio (child/parent length scaling)
+- \`baseLength\`: Computed from N and domain size
+
+**Complexity:** O(N)
+**Best For:** Natural watershed drainage patterns, academic demonstrations of stream ordering
+
+---
+
+### Method 3a/3b/3c: L-System Grammar (Dendritic / Grid / Radial)
+
+**File:** \`generators.ts\` — \`generateLSystem()\`
+
+Uses formal grammar (Lindenmayer systems) to produce fractal-like network patterns via string rewriting and turtle graphics interpretation.
+
+**Three Variants:**
+- **3a — Dendritic:** Axiom \`F\`, Rule \`F -> FF+[+F-F-F]-[-F+F+F]\` at 25 degrees
+- **3b — Grid:** Axiom \`F\`, Rule \`F -> F[+F]F[-F]F\` at 90 degrees
+- **3c — Radial:** Axiom \`F\`, Rule \`F -> F[+F][-F]F[++F][--F]\` at 36 degrees (72/5)
+
+**Algorithm:**
+1. Start with axiom string
+2. Apply production rules for \`iterations\` generations
+3. Interpret result string as turtle graphics:
+   - \`F\`: Move forward, create node + link
+   - \`+\`/\`-\`: Turn left/right by angle
+   - \`[\`/\`]\`: Push/pop state (branching point)
+4. Scale to domain and assign elevations from DEM
+
+**Complexity:** O(N) where N = string length after expansion
+**Best For:** Fractal branching patterns, academic demonstrations, grid-like urban layouts
+
+---
+
+### Method 4: Space Colonization
+
+**File:** \`generators.ts\` — \`generateSpaceColonization()\`
+
+Simulates tree growth toward resource points (attractors). The network grows organically from outfalls toward randomly distributed "demand" points.
+
+**Algorithm:**
+1. Scatter \`N\` attractor points across the domain
+2. Start growth from outfall positions
+3. Each iteration:
+   a. For each attractor, find nearest tree node within \`influenceDist\`
+   b. Average influence vectors for each tree node
+   c. Grow new segment of length \`segLen\` in averaged direction
+   d. Remove attractors within \`killDist\` of any tree node
+4. Continue until all attractors consumed or max iterations reached
+
+**Key Parameters:**
+- \`killDist\`: Distance to remove an attractor (node reached it)
+- \`influenceDist\`: Maximum search radius for attractor influence
+- \`segLen\`: Length of each new pipe segment
+
+**Complexity:** O(N * A) where A = number of attractors
+**Best For:** Organic-looking networks that fill space naturally, simulating demand-driven infrastructure growth
+
+---
+
+### Method 5: Minimum Spanning Tree (Prim's)
+
+**File:** \`generators.ts\` — \`generateMST()\`
+
+Connects randomly placed nodes with minimum total pipe length, producing an efficient tree topology.
+
+**Algorithm:**
+1. Place N nodes via random rejection sampling (Poisson-disk-like minimum spacing)
+2. Apply Prim's Algorithm:
+   a. Start from outfall node
+   b. Greedily add the shortest edge connecting a tree node to a non-tree node
+   c. Repeat until all nodes connected
+3. Orient edges based on elevation (higher node flows to lower)
+
+**Complexity:** O(N^2)
+**Best For:** Efficient minimal-infrastructure networks, cost-optimized layouts
+
+---
+
+### Method 6: D8 Flow Accumulation
+
+**File:** \`generators.ts\` — \`generateD8FlowAccum()\`
+
+A classic GIS hydrology method. Places nodes on a regular grid and routes flow to the steepest of 8 neighbors.
+
+**Algorithm:**
+1. Create a regular grid of \`gridSize x gridSize\` cells
+2. Assign elevation from DEM (fBm noise + base slope)
+3. For each cell, find the neighbor (N/S/E/W/NE/NW/SE/SW) with steepest downward slope
+4. Create a directed edge to that neighbor
+5. Add random jitter to node positions for visual variety
+6. Prune to exactly N nodes
+
+**Complexity:** O(G) where G = grid cells
+**Best For:** Terrain-following drainage, GIS-compatible networks, natural watershed delineation
+
+---
+
+### Method 7: Voronoi / Delaunay
+
+**File:** \`generators.ts\` — \`generateVoronoiDelaunay()\`
+
+Builds a proximity-based mesh using Delaunay triangulation, then filters to a tree structure.
+
+**Algorithm:**
+1. Distribute N points with minimum spacing
+2. Compute Delaunay triangulation (all triangles where circumcircle contains no other points)
+3. Filter edges using Gabriel Graph condition: edge (A,B) kept only if no point C lies inside the circle with AB as diameter
+4. Build MST from filtered edges to ensure tree structure
+5. Orient by elevation
+
+**Complexity:** O(N log N) for triangulation
+**Best For:** Naturally-spaced networks, dual-graph approaches, Thiessen polygon drainage areas
+
+---
+
+### Method 8: Interceptor + Lateral
+
+**File:** \`generators.ts\` — \`generateInterceptorLateral()\`
+
+Mimics typical urban sewer design with a large main interceptor and smaller lateral pipes branching perpendicularly.
+
+**Algorithm:**
+1. Create a central "spine" (interceptor) from upstream to outfall as a series of nodes
+2. At regular intervals along the spine, extend perpendicular laterals to both sides
+3. Laterals are shorter pipes with smaller diameters
+4. All laterals drain to the interceptor, which drains to the outfall
+
+**Key Parameters:**
+- \`nInterceptorNodes\`: Number of nodes on the main spine
+- \`nLateralsPerSide\`: Lateral branches per interceptor node
+
+**Complexity:** O(N)
+**Best For:** Urban sewer system layouts, interceptor sewer modeling, combined sewer overflow studies
+
+---
+
+### Method 9: Perlin Noise + D8
+
+**File:** \`generators.ts\` — \`generatePerlinD8()\`
+
+Similar to D8 but uses multi-octave Perlin noise for smoother, more natural-looking terrain.
+
+**Algorithm:**
+1. Generate grid with 3-octave Perlin noise elevation
+2. Apply D8 steepest-descent routing on the noise surface
+3. Result: more organic flow paths than pure fBm terrain
+
+**Key Parameters:**
+- \`octaves\`: 3 (Perlin noise octaves)
+- \`freq\`, \`amp\`: Frequency and amplitude per octave
+
+**Complexity:** O(G)
+**Best For:** Natural-looking drainage with smooth terrain variation
+
+---
+
+### Method 10: Genetic Algorithm
+
+**File:** \`generators.ts\` — \`generateGenetic()\`
+
+Evolves a network topology through simulated natural selection, optimizing for short pipe lengths and favorable slopes.
+
+**Algorithm:**
+1. Fix N node positions randomly
+2. Create initial population of \`popSize\` random topologies (each encoded as parent-gene array)
+3. For each generation:
+   a. Evaluate fitness: \`fitness = -(totalLength + 1000 * adverseSlopeCount)\`
+   b. Select parents via tournament selection
+   c. Crossover: swap gene segments between parents
+   d. Mutation: randomly reassign some node parents (mutation rate 5%)
+4. Return fittest individual after all generations
+
+**Key Parameters:**
+- \`popSize\`: 30 (population size)
+- \`generations\`: 50 (evolution rounds)
+- \`mutationRate\`: 0.05 (5% gene mutation probability)
+
+**Complexity:** O(P * G * N)
+**Best For:** Optimized network layouts, research into automated infrastructure design
+
+---
+
+### Method 11: Grid / Manhattan
+
+**File:** \`generators.ts\` — \`generateGridManhattan()\`
+
+Strict rectangular grid layout typical of urban "Manhattan" street patterns.
+
+**Algorithm:**
+1. Calculate grid dimensions: \`rows x cols ≈ N\`
+2. Place nodes at regular intervals
+3. Connect horizontally and vertically between adjacent grid neighbors
+4. Orient edges by elevation (higher flows to lower)
+5. Outfall placed at the corner with lowest elevation
+
+**Complexity:** O(R * C)
+**Best For:** Urban grid networks, Manhattan-style sewer layouts, regular infrastructure patterns
+
+---
+
+### Method 12: Steiner Tree
+
+**File:** \`generators.ts\` — \`generateSteinerTree()\`
+
+Approximation of the Steiner Tree problem — like MST but with additional junction points (Steiner points) that reduce total network length.
+
+**Algorithm:**
+1. Split N nodes into "terminal" nodes (fixed endpoints) and "Steiner points" (optional junctions)
+2. Place Steiner points near centroids of terminal clusters
+3. Build MST connecting all terminals through Steiner points
+4. Result: shorter total length than pure MST at the cost of additional junctions
+
+**Complexity:** O(N^2) for MST construction
+**Best For:** Optimized infrastructure routing, reducing total pipe length
+
+---
+
+### Method 13: Loop-and-Branch
+
+**File:** \`generators.ts\` — \`generateLoopAndBranch()\`
+
+Combines a central circular loop (common in water distribution or industrial estates) with dendritic branches extending outward.
+
+**Algorithm:**
+1. Create a circle of \`nLoopNodes\` at radius \`loopRadius\` from center
+2. Connect loop nodes sequentially (circular connectivity)
+3. Distribute remaining nodes outside the loop
+4. Connect external nodes to nearest loop node via radial links
+
+**Complexity:** O(N)
+**Best For:** Industrial estate drainage, networks requiring redundant flow paths, combined loop/tree systems
+
+---
+
+### Method 14: Zone-Based Hierarchical
+
+**File:** \`generators.ts\` — \`generateZoneBased()\`
+
+Creates distinct drainage zones (neighborhoods/districts) with local networks connected by a shared trunk line.
+
+**Algorithm:**
+1. Divide domain into \`nZones\` zones with random centers
+2. Create a central trunk line connecting zone heads to the outfall
+3. Within each zone, place \`nLocalPerZone\` nodes clustered around the zone center
+4. Connect local nodes via MST or steepest-descent within each zone
+5. Connect each zone's outlet to the trunk
+
+**Complexity:** O(Z * N_local) per zone
+**Best For:** Large systems with distinct drainage areas, phased development modeling, master planning
+
+---
+
+### Method 15: Diffusion-Limited Aggregation (DLA)
+
+**File:** \`generators.ts\` — \`generateDLA()\`
+
+Simulates Brownian motion where random-walking particles "stick" to a growing cluster, creating organic dendritic structures resembling natural drainage patterns.
+
+**Algorithm:**
+1. Start cluster with outfall node(s) as seed
+2. For each new particle:
+   a. Release from random position on domain boundary
+   b. Random walk (Brownian motion) until within \`stickDist\` of existing cluster
+   c. Attach particle to nearest cluster node, creating a link
+3. Repeat until N nodes placed
+
+**Key Parameters:**
+- \`stickDist\`: Distance threshold for particle attachment
+- \`maxWalk\`: Maximum random walk steps before abandoning particle
+
+**Complexity:** O(N * W) where W = average walk length
+**Best For:** Organic, naturally dendritic networks; fractal drainage pattern research
+
+---
+
+### Method 16: Radial Spoke-and-Ring
+
+**File:** \`generators.ts\` — \`generateRadialSpokeRing()\`
+
+Creates a "spider web" layout with concentric rings and radial spokes, common in some urban drainage designs.
+
+**Algorithm:**
+1. Place central outfall node
+2. Create \`nRings\` concentric rings at increasing radii
+3. On each ring, place nodes at angular intervals determined by \`nSpokes\`
+4. Connect nodes along spokes (radial direction, ring to ring)
+5. Connect nodes along rings (circumferential direction)
+6. Orient flow from outer rings inward toward the central outfall
+
+**Complexity:** O(S * R) where S = spokes, R = rings
+**Best For:** Radial city drainage, stadium/arena drainage, centralized collection systems
+
+---
+
+## 4. INP Section Coverage (56/56 Sections)
+
+The generator produces all 56 SWMM5 INP sections. Sections are conditionally included based on configuration flags:
+
+### Always Generated
+| Section | Description |
+|---------|-------------|
+| [TITLE] | Model description with generation metadata |
+| [OPTIONS] | Simulation options (flow units, routing method, dates, infiltration) |
+| [FILES] | External interface files (empty by default) |
+| [EVAPORATION] | Constant evaporation rate (0.0), DRY_ONLY NO |
+| [JUNCTIONS] | Node data: name, invert elevation, max depth, init depth, surcharge, ponded area |
+| [OUTFALLS] | Outfall nodes: FREE boundary condition |
+| [CONDUITS] | Link data: from/to nodes, length, roughness, offsets, init/max flow |
+| [XSECTIONS] | Cross-section data: shape, dimensions, barrels |
+| [LOSSES] | Entry/exit/average loss coefficients, flap gate status |
+| [COORDINATES] | Node X/Y positions |
+| [MAP] | Map extents (bounding box) |
+| [REPORT] | Report options (SUBCATCHMENTS ALL, NODES ALL, LINKS ALL) |
+| [TAGS] | Element categorization tags (Trunk/Collector/Lateral for conduits) |
+| [LABELS] | Map labels (outfall, upstream, center area labels) |
+| [BACKDROP] | Map backdrop dimensions |
+| [PROFILES] | Named profile paths (longest paths to outfalls) |
+
+### Conditional Sections
+
+| Section | Condition | Description |
+|---------|-----------|-------------|
+| [RAINGAGES] | subcatchments > 0 | Rain gage definitions with time series |
+| [SUBCATCHMENTS] | subcatchments > 0 | Subcatchment parameters (area, %imperv, width, slope, curb length) |
+| [SUBAREAS] | subcatchments > 0 | Surface properties (Manning's n, depression storage) |
+| [INFILTRATION] | subcatchments > 0 | Infiltration parameters (Horton/Green-Ampt/Curve Number) |
+| [TIMESERIES] | subcatchments > 0 or inflows > 0 | Rainfall hyetographs and inflow time series |
+| [Polygons] | subcatchments > 0 | Subcatchment polygon vertex coordinates |
+| [SYMBOLS] | raingages > 0 | Rain gage symbol positions on map |
+| [AQUIFERS] | enableGroundwater | Aquifer property definitions |
+| [GROUNDWATER] | enableGroundwater | Groundwater flow exchange per subcatchment |
+| [GWF] | enableGroundwater | Custom groundwater flow equations |
+| [TEMPERATURE] | enableSnowmelt | Wind speed, snowmelt parameters, ADC curves |
+| [ADJUSTMENTS] | enableSnowmelt | Monthly climate adjustments |
+| [SNOWPACKS] | enableSnowmelt | Snow accumulation/melt parameters per pack |
+| [DIVIDERS] | enableDividers | Flow divider nodes (Overflow/Cutoff/Weir types) |
+| [STORAGE] | storage > 0 | Storage unit nodes (FUNCTIONAL/TABULAR) |
+| [PUMPS] | pumps > 0 | Pump links with pump curves |
+| [ORIFICES] | orifices > 0 | Orifice links (SIDE/BOTTOM, CIRCULAR/RECT) |
+| [WEIRS] | weirs > 0 | Weir links (TRANSVERSE/SIDEFLOW/V-NOTCH/TRAPEZOIDAL) |
+| [OUTLETS] | storage > 0 | Outlet links (FUNCTIONAL/DEPTH) |
+| [TRANSECTS] | irregular conduits | HEC-2 format cross-section station/elevation data |
+| [STREETS] | enableStreetInlets | Street cross-section definitions |
+| [INLETS] | enableStreetInlets | Inlet type definitions (curb/grate/combo) |
+| [INLET_USAGE] | enableStreetInlets | Inlet placement on conduits |
+| [CONTROLS] | pumps > 0 | Rule-based pump controls |
+| [INFLOWS] | inflowTsPct > 0 | External inflow time series at junctions |
+| [DWF] | dwfNodePct > 0 | Dry weather flow at junctions |
+| [PATTERNS] | dwfNodePct > 0 | Temporal DWF patterns (diurnal/monthly/weekend/seasonal) |
+| [RDII] | rdii_calibration type | Rainfall-dependent inflow/infiltration per junction |
+| [HYDROGRAPHS] | rdii_calibration type | Unit hydrograph definitions (short/medium/long) |
+| [POLLUTANTS] | enableWQ | Pollutant definitions (TSS, BOD, COD, TN, TP) |
+| [LANDUSES] | enableWQ | Land use categories with sweep intervals |
+| [COVERAGES] | enableWQ | Land use coverage percentages per subcatchment |
+| [BUILDUP] | enableWQ | Pollutant buildup functions (POW type) |
+| [WASHOFF] | enableWQ | Pollutant washoff functions (EMC type) |
+| [TREATMENT] | enableWQ | Treatment expressions at storage/junction nodes |
+| [LOADINGS] | enableWQ | Initial pollutant loadings on subcatchments |
+| [CURVES] | pumps/storage > 0 | Pump curves, storage curves, rating curves |
+| [LID_CONTROLS] | enableLID | LID type definitions (5 types with layer properties) |
+| [LID_USAGE] | enableLID | LID placement on subcatchments |
+| [VERTICES] | enableCurvedLinks | Intermediate vertex points for curved conduit rendering |
+
+---
+
+## 5. Configuration Parameters
+
+### SwmmConfig Interface
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| \`N\` | number | 200 | Number of junction nodes (5–250,000) |
+| \`type\` | string | "combined" | Model type: sanitary, stormwater, combined, transport_only, rdii_calibration, pump_intensive, wos_intensive |
+| \`units\` | string | "US" | Unit system: US (CFS, ft, in) or SI (CMS, m, mm) |
+| \`terrain\` | string | "moderate" | Terrain type: flat, moderate, hilly, mountainous |
+| \`landUse\` | string | "mixed" | Land use: residential, commercial, industrial, mixed |
+| \`nOutfalls\` | number | auto | Number of outfall nodes |
+| \`nSubcatchments\` | number | auto | Number of subcatchments |
+| \`dwfNodePct\` | number | varies | % of junctions with dry weather flow (0–100) |
+| \`dwfPatterns\` | string[] | ["diurnal"] | DWF pattern types: diurnal, monthly, weekend, seasonal |
+| \`inflowTsPct\` | number | 0 | % of junctions with external inflow time series |
+| \`rainfallDepth\` | number | 2.0 | Total rainfall depth (inches or mm) |
+| \`rainfallDist\` | string | "SCS_II" | Rainfall distribution (34 options) |
+| \`infiltrationMethod\` | string | "HORTON" | Infiltration: HORTON, GREEN_AMPT, CURVE_NUMBER |
+| \`enableAquifers\` | boolean | false | Generate [AQUIFERS] and [GROUNDWATER] sections |
+| \`enableGroundwater\` | boolean | false | Include groundwater flow exchange |
+| \`enableLID\` | boolean | false | Generate LID controls and usage |
+| \`enableWQ\` | boolean | false | Generate water quality sections |
+| \`enableSnowmelt\` | boolean | false | Generate snowmelt/temperature sections |
+| \`enableDividers\` | boolean | false | Convert junctions to flow dividers |
+| \`enableStreetInlets\` | boolean | false | Generate street/inlet sections |
+| \`enableCurvedLinks\` | boolean | false | Add vertex points for curved conduit rendering |
+| \`generationMethod\` | string | "force_directed" | Network generation algorithm (16 methods) |
+
+### Model Type Ratios
+
+Each model type defines default element ratios (per junction):
+
+| Model Type | Outfall Ratio | Subcatch Ratio | Storage Ratio | Pump Ratio | Orifice Ratio | Weir Ratio | DWF % |
+|------------|---------------|----------------|---------------|------------|---------------|------------|-------|
+| Sanitary | 0.005 | 0.5 | 0.002 | 0.001 | 0 | 0 | 85 |
+| Stormwater | 0.01 | 1.5 | 0.01 | 0.002 | 0.005 | 0.003 | 0 |
+| Combined | 0.008 | 1.0 | 0.008 | 0.003 | 0.004 | 0.004 | 60 |
+| Transport Only | 0.003 | 0 | 0 | 0 | 0 | 0 | 0 |
+| RDII Calibration | 0.005 | 0.3 | 0.002 | 0.001 | 0 | 0 | 30 |
+| Pump Intensive | 0.005 | 0.3 | 0.04 | 0.03 | 0.01 | 0.005 | 50 |
+| WOS Intensive | 0.008 | 0.5 | 0.05 | 0.005 | 0.02 | 0.02 | 40 |
+
+---
+
+## 6. Rainfall Patterns (34 Distributions)
+
+Organized into 8 categories:
+
+| Category | Patterns | Description |
+|----------|----------|-------------|
+| **SCS/NRCS** | Type I, Type IA, Type II, Type III | NRCS 24-hour rainfall distributions |
+| **Huff Quartiles** | Q1, Q2, Q3, Q4 | Huff temporal distributions by storm quartile |
+| **Chicago** | Short (30min), Medium (2hr), Long (6hr) | Chicago design storm method |
+| **Alternating Block** | 5min, 15min, 30min, 60min | Alternating block method at various intervals |
+| **Uniform/Triangular** | Uniform, Triangular, Double Peak, Front-Loaded, Back-Loaded | Simple analytical distributions |
+| **Regional US** | Florida, Northeast, Midwest, Southwest, Pacific NW | Region-specific US patterns |
+| **International** | Tropical Monsoon, UK FSR, Australian ARR, Japanese AMeDAS, German KOSTRA | International design storms |
+| **Historical** | Harvey 2017, Ida 2021, Katrina 2005, Sandy 2012 | Major historical storm events |
+
+All patterns are computed locally using analytical formulas — no external API calls required.
+
+---
+
+## 7. Validation & Auto-Repair
+
+### Static Analysis Checks
+
+The validator performs 12 categories of checks:
+
+1. **Orphan nodes** — Junctions not connected to any conduit
+2. **Adverse slopes** — Downstream invert higher than upstream
+3. **Zero-length conduits** — Links with zero or negative length
+4. **Undefined references** — Conduits referencing non-existent nodes
+5. **Missing sections** — Required sections not present in INP
+6. **Duplicate IDs** — Repeated element names
+7. **Unusual values** — Depths > 100 ft, diameters > 300 in, negative elevations
+8. **Disconnected subgraphs** — Nodes not reachable from any outfall
+9. **Self-loops** — Conduits where from_node equals to_node
+10. **Missing outfalls** — No outfall nodes defined
+11. **Conduit slope validation** — Slopes outside reasonable range
+12. **Cross-section consistency** — Shape/dimension mismatches
+
+### Auto-Repair Actions
+
+- **Adverse slopes:** Swap upstream/downstream invert elevations
+- **Zero-length conduits:** Set minimum length (10 ft / 3 m)
+- **Orphan nodes:** Connect to nearest existing conduit endpoint
+- **Duplicate IDs:** Append numeric suffix
+- **Missing required sections:** Insert minimal valid section
+
+---
+
+## 8. SWMM5 Engine Integration
+
+### Endpoint: POST /api/simulate
+
+**Request:** \`{ inp: string }\` (raw INP file content, max 10 MB)
+
+**Processing:**
+1. Patch simulation dates to 01/01/2025 (1-minute duration)
+2. Write to temp file
+3. Execute \`./swmm5 model.inp model.rpt model.out\` (60s timeout)
+4. Parse report file for errors, warnings, continuity errors
+
+**Response:**
+\`\`\`json
+{
+  "success": true/false,
+  "continuityError": 0.05,
+  "routingError": 0.12,
+  "warnings": 3,
+  "errors": ["ERROR 203: ..."],
+  "elapsed": 0.5,
+  "version": "5.2.4",
+  "summary": "Simulation completed successfully, ...",
+  "wallTimeMs": 1200
+}
+\`\`\`
+
+### SWMM5 v5.2.4 Format Requirements
+
+Key field count requirements discovered through engine testing:
+- **[SUBCATCHMENTS]:** Requires 8+ fields (including CurbLen, 0 default)
+- **[BUILDUP]:** Requires 7 fields (including SatConst between Power and Normalizer)
+- **[TREATMENT]:** Uses \`R = fraction\` syntax (not \`C = C * factor\`)
+- **[SNOWPACKS] REMOVAL:** Do not use \`*\` wildcard for transfer-to field
+- **[TRANSECTS] X1 line:** Requires 10 fields (name, nsta, xleft, xright, 0, 0, 0, 0, lfactor, wfactor)
+
+---
+
+## 9. Key Files & Functions
+
+### Core Engine: client/src/lib/swmm-engine.ts (~2,500 lines)
+
+| Function | Description |
+|----------|-------------|
+| \`generateModel(config)\` | Main entry point: builds terrain, runs physics sim, constructs graph, writes INP |
+| \`buildDendriticGraph()\` | Connects particles via steepest-descent to form tree topology |
+| \`buildQuadtree()\` | Constructs Barnes-Hut quadtree for O(N log N) repulsion |
+| \`computeForces()\` | Calculates repulsion + terrain gradient + outfall attraction |
+| \`getSections(elems, config)\` | Returns set of active INP sections based on config flags |
+| \`computeElements(config)\` | Computes element counts from model type ratios |
+| \`findProfilePath()\` | Traces longest path from outfall upstream for profile view |
+| \`discretizeReSWMM()\` | ReSWMM conduit discretization (fixed interval or dx/D ratio) |
+
+### Alternative Generators: client/src/lib/generators.ts (~1,400 lines)
+
+| Function | Description |
+|----------|-------------|
+| \`generateHortonStrahler(N, domain, outfalls, dem)\` | Horton-Strahler recursive branching |
+| \`generateLSystem(N, domain, outfalls, dem, variant)\` | L-System grammar (3 variants) |
+| \`generateSpaceColonization(N, domain, outfalls, dem)\` | Space colonization growth |
+| \`generateMST(N, domain, outfalls, dem)\` | Minimum spanning tree (Prim's) |
+| \`generateD8FlowAccum(N, domain, outfalls, dem)\` | D8 steepest-descent on grid |
+| \`generateVoronoiDelaunay(N, domain, outfalls, dem)\` | Delaunay triangulation + Gabriel filter |
+| \`generateInterceptorLateral(N, domain, outfalls, dem)\` | Main interceptor + lateral branches |
+| \`generatePerlinD8(N, domain, outfalls, dem)\` | Perlin noise terrain + D8 routing |
+| \`generateGenetic(N, domain, outfalls, dem)\` | Genetic algorithm optimization |
+| \`generateGridManhattan(N, domain, outfalls, dem)\` | Regular rectangular grid |
+| \`generateSteinerTree(N, domain, outfalls, dem)\` | Steiner tree approximation |
+| \`generateLoopAndBranch(N, domain, outfalls, dem)\` | Central loop + radial branches |
+| \`generateZoneBased(N, domain, outfalls, dem)\` | Zone-clustered hierarchical |
+| \`generateDLA(N, domain, outfalls, dem)\` | Diffusion-limited aggregation |
+| \`generateRadialSpokeRing(N, domain, outfalls, dem)\` | Concentric rings + radial spokes |
+
+### Validation: client/src/lib/inp-validator.ts (~520 lines)
+
+| Function | Description |
+|----------|-------------|
+| \`validateInp(inpContent, autoFix)\` | Main validator: parses INP, runs all checks, applies repairs |
+
+### Parser: client/src/lib/inp-parser.ts (~230 lines)
+
+| Function | Description |
+|----------|-------------|
+| \`parseInpFile(content)\` | Parses INP into structured sections with column definitions |
+
+---
+
+*Document generated by SWMM5 INP MAKER — March 2026*
+*Robert Dickinson — SWMM5.org*
+`;
 
 function ToggleGroup({ options, value, onChange, testId }: { options: { label: string; value: string }[]; value: string; onChange: (v: string) => void; testId: string }) {
   return (
@@ -2381,6 +3086,94 @@ export default function Home() {
                       <p className="font-mono text-xs text-muted-foreground"><strong className="text-foreground">Total:</strong> ~6,300 lines of application code across 17 source files (excludes ~50 Shadcn UI component files in components/ui/)</p>
                       <p className="font-mono text-xs text-muted-foreground mt-1"><strong className="text-foreground">Stack:</strong> React + TypeScript + Vite + Tailwind CSS + Shadcn/ui + wouter + TanStack Query</p>
                       <p className="font-mono text-xs text-muted-foreground mt-1"><strong className="text-foreground">Backend:</strong> Express (serves frontend only, no API routes &mdash; all computation is client-side)</p>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="handover" className="border-border bg-card rounded-lg mb-4 border">
+                  <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 rounded-t-lg [&[data-state=open]]:rounded-b-none">
+                    <span className="font-serif text-xl text-card-foreground"><FileDown className="w-5 h-5 inline-block mr-2 align-text-bottom" />Network Generation Handover Document</span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-5 text-sm leading-relaxed text-foreground space-y-5">
+                    <div className="flex items-center justify-between">
+                      <p>Complete technical documentation of all 16 network generation methods (18 variants), the INP generation pipeline, and every configurable parameter. Download for offline reference or handover to collaborators.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-4 flex-shrink-0"
+                        data-testid="button-download-handover"
+                        onClick={() => {
+                          const blob = new Blob([HANDOVER_MD], { type: 'text/markdown' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = 'SWMM5_INP_MAKER_Network_Generation_Handover.md';
+                          a.click(); URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <FileDown className="w-3.5 h-3.5 mr-1.5" />Download .md
+                      </Button>
+                    </div>
+
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                        <span className="text-xs font-bold uppercase tracking-wider text-primary">Table of Contents</span>
+                      </div>
+                      <div className="px-4 py-3 text-xs space-y-1 font-mono">
+                        <p>1. Architecture Overview</p>
+                        <p>2. Generation Pipeline (4 Phases)</p>
+                        <p>3. All 16 Network Generation Methods</p>
+                        <p>4. INP Section Coverage (56/56 Sections)</p>
+                        <p>5. Configuration Parameters</p>
+                        <p>6. Rainfall Patterns (34 Distributions)</p>
+                        <p>7. Validation &amp; Auto-Repair</p>
+                        <p>8. SWMM5 Engine Integration</p>
+                        <p>9. Key Files &amp; Functions</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Preview: 16 Network Generation Methods</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead><tr className="bg-muted">
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">#</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Method</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Algorithm</th>
+                            <th className="text-left p-2 border border-border font-semibold text-primary uppercase tracking-wider text-[10px]">Complexity</th>
+                          </tr></thead>
+                          <tbody>
+                            {[
+                              ["1","Force-Directed (Barnes-Hut)","N-body particle simulation with quadtree acceleration","O(N log N)"],
+                              ["2","Horton-Strahler Branching","Recursive stream-order branching with bifurcation ratios","O(N)"],
+                              ["3a-c","L-System Grammar (3 variants)","Formal grammar string expansion with turtle graphics","O(N)"],
+                              ["4","Space Colonization","Iterative growth toward attractor points","O(N x A)"],
+                              ["5","Minimum Spanning Tree","Prim's algorithm on random point cloud","O(N^2)"],
+                              ["6","D8 Flow Accumulation","Steepest-descent on grid DEM","O(G)"],
+                              ["7","Voronoi / Delaunay","Delaunay triangulation filtered to Gabriel graph + MST","O(N log N)"],
+                              ["8","Interceptor + Lateral","Central spine with perpendicular branch pipes","O(N)"],
+                              ["9","Perlin Noise + D8","3-octave Perlin noise terrain + D8 routing","O(G)"],
+                              ["10","Genetic Algorithm","Evolutionary optimization of parent-gene encoding","O(P x G x N)"],
+                              ["11","Grid / Manhattan","Regular rectangular grid layout","O(R x C)"],
+                              ["12","Steiner Tree","MST with added Steiner junction points","O(N^2)"],
+                              ["13","Loop-and-Branch","Central circular loop + radial dendritic branches","O(N)"],
+                              ["14","Zone-Based Hierarchical","Clustered zones connected by trunk line","O(Z x N)"],
+                              ["15","Diffusion-Limited Aggregation","Random-walk particles sticking to growing cluster","O(N x W)"],
+                              ["16","Radial Spoke-and-Ring","Concentric rings intersected by radial spokes","O(S x R)"],
+                            ].map(([n,m,a,c]) => (
+                              <tr key={n} className="hover:bg-primary/5">
+                                <td className="p-2 border border-border font-mono text-center">{n}</td>
+                                <td className="p-2 border border-border font-medium">{m}</td>
+                                <td className="p-2 border border-border text-muted-foreground">{a}</td>
+                                <td className="p-2 border border-border font-mono text-center">{c}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/30 border border-border rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground">The full document ({(HANDOVER_MD.length / 1024).toFixed(0)} KB) contains detailed descriptions of every algorithm, all mathematical formulas, parameter tables, INP section specifications, configuration flags, and the complete validation pipeline. Click <strong>Download .md</strong> above to save it.</p>
                     </div>
                   </AccordionContent>
                 </AccordionItem>

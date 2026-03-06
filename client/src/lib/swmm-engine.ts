@@ -211,6 +211,9 @@ export interface GenerationStats {
   reswmmNewJunctions: number;
   reswmmSplitLinks: number;
   reswmmMNSA: number;
+  reswmmCflStandard: number;
+  reswmmCflConservative: number;
+  reswmmLenRatio: number;
 }
 
 export interface ProfileNode {
@@ -1239,7 +1242,7 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
   interface JunctionData { name: string; elev: number; maxD: number; ponded: number; x: number; y: number; }
   interface OutfallData { name: string; elev: number; x: number; y: number; }
   interface StorageData { name: string; elev: number; maxD: number; area: number; x: number; y: number; }
-  interface ConduitData { name: string; from: string; to: string; len: number; rough: number; inOff: number; outOff: number; diam: number; shape: string; }
+  interface ConduitData { name: string; from: string; to: string; len: number; rough: number; inOff: number; outOff: number; diam: number; shape: string; entryLoss: number; exitLoss: number; avgLoss: number; }
   interface PumpData { name: string; from: string; to: string; curve: string; startup: number; shutoff: number; maxD: number; }
 
   const junctions: JunctionData[] = [];
@@ -1386,7 +1389,10 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
     if (outOff > fromD * 0.8 - diam) outOff = +Math.max(0, fromD * 0.5 - diam).toFixed(3);
     inOff = Math.max(0, inOff); outOff = Math.max(0, outOff);
 
-    conduits.push({ name: `C${i+1}`, from: edge.from.name, to: edge.to.name, len: length, rough, inOff, outOff, diam, shape });
+    const entryLoss = Math.random() < 0.2 ? +rand(0.1, 0.5).toFixed(2) : 0;
+    const exitLoss = Math.random() < 0.1 ? +rand(0.05, 0.3).toFixed(2) : 0;
+    const avgLoss = Math.random() < 0.05 ? +rand(0.01, 0.1).toFixed(3) : 0;
+    conduits.push({ name: `C${i+1}`, from: edge.from.name, to: edge.to.name, len: length, rough, inOff, outOff, diam, shape, entryLoss, exitLoss, avgLoss });
   }
 
   const extraNeeded = nConduits - conduits.length;
@@ -1397,7 +1403,7 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
     const lowers = junctions.slice(0, i1).filter(j => j.elev < j1.elev);
     if (!lowers.length) continue;
     lowers.sort((a, b) => Math.hypot(a.x-j1.x, a.y-j1.y) - Math.hypot(b.x-j1.x, b.y-j1.y));
-    conduits.push({ name: `C${conduits.length+1}`, from: j1.name, to: lowers[0].name, len: +Math.max(1, Math.hypot(lowers[0].x-j1.x, lowers[0].y-j1.y)).toFixed(2), rough: 0.013, inOff: 0, outOff: 0, diam: pick(PIPES.slice(0, 10)), shape: "CIRCULAR" });
+    conduits.push({ name: `C${conduits.length+1}`, from: j1.name, to: lowers[0].name, len: +Math.max(1, Math.hypot(lowers[0].x-j1.x, lowers[0].y-j1.y)).toFixed(2), rough: 0.013, inOff: 0, outOff: 0, diam: pick(PIPES.slice(0, 10)), shape: "CIRCULAR", entryLoss: 0, exitLoss: 0, avgLoss: 0 });
   }
 
   onProgress?.("ReSWMM discretization", 52);
@@ -1439,7 +1445,7 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
           const interpX = fromNode.x + (toNode.x - fromNode.x) * frac;
           const interpY = fromNode.y + (toNode.y - fromNode.y) * frac;
           const maxD = fromNode.maxD || 6;
-          const mnsaPonded = Math.round(rCfg.mnsa);
+          const mnsaPonded = +rCfg.mnsa.toFixed(3);
           junctions.push({ name: nextNodeName, elev: interpElev, maxD: +maxD.toFixed(2), ponded: mnsaPonded, x: interpX, y: interpY });
           nodeLookup[nextNodeName] = { elev: interpElev, maxD, x: interpX, y: interpY };
           reswmmNewJunctions++;
@@ -1454,6 +1460,9 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
           outOff: isLast ? c.outOff : 0,
           diam: c.diam,
           shape: c.shape,
+          entryLoss: s === 0 ? c.entryLoss : 0,
+          exitLoss: isLast ? c.exitLoss : 0,
+          avgLoss: c.avgLoss > 0 ? +(c.avgLoss / nSeg).toFixed(4) : 0,
         });
         prevNodeName = nextNodeName;
       }
@@ -2060,9 +2069,10 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
   w("[LOSSES]");
   w(";;Conduit        Inlet      Outlet     Average    FlapGate");
   for (const c of conduits) {
-    const ik = Math.random()<0.2 ? rand(0.1,0.5).toFixed(2) : "0";
-    const ok = Math.random()<0.1 ? rand(0.05,0.3).toFixed(2) : "0";
-    if (ik!=="0" || ok!=="0") w(`${c.name.padEnd(17)}${ik.toString().padEnd(11)}${ok.toString().padEnd(11)}0          NO`);
+    const ik = c.entryLoss;
+    const ok = c.exitLoss;
+    const ak = c.avgLoss;
+    if (ik > 0 || ok > 0 || ak > 0) w(`${c.name.padEnd(17)}${ik.toFixed(2).padEnd(11)}${ok.toFixed(2).padEnd(11)}${ak.toFixed(2).padEnd(11)}NO`);
   }
   w("");
 
@@ -2332,6 +2342,15 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
   const lens = conduits.map(c => c.len);
   const diamConv = isSI ? 1000 : 12;
 
+  const g = isSI ? 9.81 : 32.174;
+  const cflTimes = conduits.map(c => {
+    const celerity = Math.sqrt(g * c.diam);
+    return celerity > 0 ? c.len / celerity : Infinity;
+  }).filter(t => isFinite(t));
+  const reswmmCflStandard = cflTimes.length > 0 ? Math.min(...cflTimes) : 0;
+  const reswmmCflConservative = reswmmCflStandard * 0.10;
+  const reswmmLenRatio = lens.length > 1 ? Math.max(...lens) / Math.max(0.01, Math.min(...lens)) : 1;
+
   const slopes = conduits.map(c => {
     const fj = junctions.find(j => j.name === c.from) || outfalls.find(o => o.name === c.from);
     const tj = junctions.find(j => j.name === c.to) || outfalls.find(o => o.name === c.to);
@@ -2434,6 +2453,9 @@ export function generateModel(config: SwmmConfig, onProgress?: ProgressCallback)
       reswmmNewJunctions,
       reswmmSplitLinks,
       reswmmMNSA: config.reswmm.mnsa,
+      reswmmCflStandard: +reswmmCflStandard.toFixed(2),
+      reswmmCflConservative: +reswmmCflConservative.toFixed(2),
+      reswmmLenRatio: +reswmmLenRatio.toFixed(1),
     },
     netData: { nodes: netNodes, links: netLinks, polygons: netPolygons, domain },
     profiles: buildProfiles(junctions, outfalls, storages, conduits, unitLabel),

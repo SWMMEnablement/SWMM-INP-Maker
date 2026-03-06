@@ -46,7 +46,11 @@ A React/TypeScript web app that generates realistic EPA SWMM5 `.inp` files using
 - Aquifers and Groundwater: toggleable [AQUIFERS] and [GROUNDWATER] sections with realistic soil properties and GW flow exchange per subcatchment
 - LID Controls: toggleable [LID_CONTROLS] and [LID_USAGE] sections — 5 LID types (bio-retention, permeable pavement, rain garden, green roof, infiltration trench) assigned to ~30% of subcatchments
 - Water Quality: toggleable [POLLUTANTS], [BUILDUP], [WASHOFF], [TREATMENT] sections — 5 pollutants (TSS, BOD, COD, TN, TP) with power-law buildup, EMC washoff, and treatment at storage nodes
-- ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA)
+- ReSWMM conduit discretization (Fixed Interval or Δx/D ratio methods, MNSA) with:
+  - CFL time step recommendation (standard and conservative per Vasconcelos et al. 2018)
+  - Loss distribution: entry/exit/average losses properly distributed across split segments
+  - Length ratio analysis with discretization recommendation (>4× threshold)
+  - MNSA stored as float (not rounded) for precision
 - REST API (10 endpoints, open/no auth):
   - `POST /api/generate` — Generate INP from config (JSON or raw .inp via `?format=inp`)
   - `POST /api/generate-and-simulate` — Generate + run SWMM5 simulation in one call

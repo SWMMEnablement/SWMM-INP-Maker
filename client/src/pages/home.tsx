@@ -1058,6 +1058,9 @@ export default function Home() {
       lines.push(`| New Conduits (after split) | ${fmt(s.reswmmNewConduits)} |`);
       lines.push(`| New Junctions (added) | ${fmt(s.reswmmNewJunctions)} |`);
       lines.push(`| MNSA | ${s.reswmmMNSA.toFixed(3)} |`);
+      lines.push(`| CFL Δt (standard) | ${s.reswmmCflStandard.toFixed(1)} s |`);
+      lines.push(`| CFL Δt (conservative) | ${s.reswmmCflConservative.toFixed(2)} s |`);
+      lines.push(`| Length ratio (max/min) | ${s.reswmmLenRatio.toFixed(1)}× |`);
       lines.push('');
     }
     lines.push('## File Metadata');
@@ -1965,6 +1968,9 @@ export default function Home() {
                             ["New intermediate junctions", fmt(s.reswmmNewJunctions)],
                             ["Final conduits", fmt(s.conduits)],
                             ["MNSA", `${s.reswmmMNSA.toFixed(3)} ${s.unitLabel}²`],
+                            ["CFL Δt (standard)", `${s.reswmmCflStandard.toFixed(1)} s`],
+                            ["CFL Δt (conservative)", `${s.reswmmCflConservative.toFixed(2)} s`],
+                            ["Length ratio (max/min)", `${s.reswmmLenRatio.toFixed(1)}×${s.reswmmLenRatio > 4 ? ' (discretize recommended)' : ''}`],
                           ].map(([k, v]) => (
                             <div key={k} className="flex justify-between text-xs py-0.5 border-b border-primary/10 last:border-0">
                               <span className="text-muted-foreground">{k}</span>

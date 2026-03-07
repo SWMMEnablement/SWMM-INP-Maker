@@ -15,6 +15,7 @@ A React/TypeScript web app that generates realistic EPA SWMM5 `.inp` files using
 - `client/src/lib/rain-canvas.ts` — Rain Canvas Studio integration: 34 rainfall patterns across 8 categories (SCS/NRCS, Huff, Chicago, Alternating Block, Uniform/Triangular, Regional US, International, Historical), all with local computation fallback
 - `client/src/lib/inp-parser.ts` — Client-side INP file parser: section detection, column mapping for 56 SWMM5 sections, descriptive statistics, histogram data
 - `client/src/lib/inp-validator.ts` — Static INP validator with auto-repair: checks orphan nodes, adverse slopes, undefined references, zero-length conduits, missing sections, duplicate IDs, unusual values
+- `client/src/lib/inp-transformer.ts` — INP file transformer/anonymizer: renames all elements (nodes, links, subcatchments, gages, curves, patterns, etc.), distorts coordinates (rotation, scale, translate, mirror, jitter), distorts elevations, scales dimensions
 - `client/src/pages/home.tsx` — Main page: tabbed layout (Generator + INP Viewer + Docs), config panel with hydrology controls, example presets, element cards, charts, stats, download, validation panel
 - `client/src/components/validation-panel.tsx` — Validation results display: status, error/warning/fix counts, stage pipeline, collapsible details, download-fixed button
 - `client/src/components/inp-viewer.tsx` — INP file viewer: drag-and-drop upload, categorized section sidebar, sortable/searchable data tables, statistics, SVG histograms, auto-validation on load
@@ -51,11 +52,19 @@ A React/TypeScript web app that generates realistic EPA SWMM5 `.inp` files using
   - Loss distribution: entry/exit/average losses properly distributed across split segments
   - Length ratio analysis with discretization recommendation (>4× threshold)
   - MNSA stored as float (not rounded) for precision
-- REST API (10 endpoints, open/no auth):
+- INP Transformer: reads existing INP files and anonymizes/distorts them with configurable transforms:
+  - Element renaming: all nodes, links, subcatchments, rain gages, curves, patterns, time series, transects, aquifers, LID controls, pollutants, land uses, etc. renamed with sequential IDs and configurable prefix
+  - Coordinate distortion: rotation (0-360deg), scaling (0.1-5x), translation, mirroring (X/Y/both), random jitter
+  - Elevation distortion: offset, scale factor, random jitter
+  - Dimension scaling: cross-section dimensions and conduit lengths
+  - Outputs: transformed INP file, original-to-new name map (downloadable CSV), transform stats
+  - Available in INP Viewer UI (Transform button) and REST API (POST /api/transform)
+- REST API (12 endpoints, open/no auth):
   - `POST /api/generate` — Generate INP from config (JSON or raw .inp via `?format=inp`)
   - `POST /api/generate-and-simulate` — Generate + run SWMM5 simulation in one call
   - `POST /api/simulate` — Run SWMM5 v5.2.4 on provided INP content
   - `POST /api/validate` — Static analysis with auto-repair
+  - `POST /api/transform` — Transform/anonymize INP (rename elements, distort geometry)
   - `GET /api/presets` — List all 38 example presets
   - `GET /api/presets/:name` — Get/generate specific preset (`?generate=true&format=inp`)
   - `GET /api/rainfall-patterns` — List all 276 rainfall distributions by category

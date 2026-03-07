@@ -22,6 +22,7 @@ import {
 } from "../client/src/lib/swmm-engine";
 import { RAIN_CANVAS_CATALOG } from "../client/src/lib/rain-canvas";
 import { validateInp } from "../client/src/lib/inp-validator";
+import { transformInp, DEFAULT_TRANSFORM, type TransformConfig } from "../client/src/lib/inp-transformer";
 
 const SWMM_BIN = join(process.cwd(), "swmm5");
 const SIM_TIMEOUT_MS = 60_000;
@@ -236,6 +237,7 @@ export async function registerRoutes(
         "POST /api/generate-and-simulate": "Generate an INP file and immediately run SWMM5 simulation",
         "POST /api/simulate": "Run SWMM5 simulation on provided INP content",
         "POST /api/validate": "Validate an INP file with static analysis and auto-repair",
+        "POST /api/transform": "Transform/anonymize an INP file (rename elements, distort geometry)",
         "GET /api/presets": "List all example presets with their configurations",
         "GET /api/presets/:name": "Get a specific preset by name and optionally generate its INP",
         "GET /api/rainfall-patterns": "List all 276 available rainfall distributions",
@@ -528,6 +530,32 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Validation failed' });
+    }
+  });
+
+  app.post("/api/transform", (req, res) => {
+    const { inp, config } = req.body as { inp?: string; config?: Partial<TransformConfig> };
+    if (!inp || typeof inp !== 'string' || inp.length < 50) {
+      return res.status(400).json({ error: "Invalid INP content" });
+    }
+    if (inp.length > 10_000_000) {
+      return res.status(400).json({ error: "INP file too large (max 10MB)" });
+    }
+    try {
+      const cfg: TransformConfig = { ...DEFAULT_TRANSFORM, ...config };
+      const result = transformInp(inp, cfg);
+      if (req.query.format === 'inp') {
+        res.set('Content-Type', 'text/plain');
+        return res.send(result.inp);
+      }
+      res.json({
+        inp: result.inp,
+        nameMap: result.nameMap,
+        stats: result.stats,
+        config: cfg,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Transform failed' });
     }
   });
 

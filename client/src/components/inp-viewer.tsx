@@ -1,14 +1,18 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download, Shield, Network, TrendingDown } from "lucide-react";
+import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download, Shield, Network, TrendingDown, Shuffle, RotateCw, Move, FlipHorizontal, MountainSnow, Ruler, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 import {
   type ParsedInpFile, type ParsedSection, type SectionStats,
   parseInpFile, computeSectionStats, getNumericColumns, formatFileSize,
 } from "@/lib/inp-parser";
 import { validateInp, type ValidationResult } from "@/lib/inp-validator";
+import { transformInp, DEFAULT_TRANSFORM, type TransformConfig, type TransformResult } from "@/lib/inp-transformer";
 import ValidationPanelComponent from "@/components/validation-panel";
 import { useTheme } from "@/components/theme-provider";
 
@@ -901,6 +905,9 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
   const [dragOver, setDragOver] = useState(false);
   const [viewerValidation, setViewerValidation] = useState<ValidationResult | null>(null);
   const [rawInpText, setRawInpText] = useState<string>("");
+  const [showTransform, setShowTransform] = useState(false);
+  const [transformCfg, setTransformCfg] = useState<TransformConfig>({ ...DEFAULT_TRANSFORM });
+  const [transformResult, setTransformResult] = useState<TransformResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadText = useCallback((text: string, name: string) => {
@@ -1070,6 +1077,14 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
             <Shield className="w-3.5 h-3.5 mr-1" /> Re-validate
           </Button>
           <Button
+            variant={showTransform ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowTransform(!showTransform)}
+            data-testid="button-transform"
+          >
+            <Shuffle className="w-3.5 h-3.5 mr-1" /> Transform
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
@@ -1089,6 +1104,279 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
 
       {viewerValidation && (
         <ValidationPanelComponent result={viewerValidation} />
+      )}
+
+      {showTransform && (
+        <Card className="border-border bg-card p-4 space-y-4" data-testid="panel-transform">
+          <div className="flex items-center gap-2 mb-1">
+            <Settings2 className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">INP Transformer</h3>
+            <span className="text-xs text-muted-foreground ml-1">Rename elements and distort geometry to anonymize a model</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-3 border border-border rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Shuffle className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Rename Elements</span>
+                <Switch
+                  checked={transformCfg.renameElements}
+                  onCheckedChange={(v) => setTransformCfg(c => ({ ...c, renameElements: v }))}
+                  data-testid="switch-rename"
+                />
+              </div>
+              {transformCfg.renameElements && (
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Name Prefix</Label>
+                    <Input
+                      value={transformCfg.prefix}
+                      onChange={(e) => setTransformCfg(c => ({ ...c, prefix: e.target.value.replace(/[^A-Za-z0-9_]/g, '').slice(0, 8) }))}
+                      className="h-7 text-xs font-mono mt-0.5"
+                      placeholder="N"
+                      data-testid="input-prefix"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Jitter Seed (reproducible noise)</Label>
+                    <Input
+                      type="number"
+                      value={transformCfg.scrambleSeed}
+                      onChange={(e) => setTransformCfg(c => ({ ...c, scrambleSeed: parseInt(e.target.value) || 1 }))}
+                      className="h-7 text-xs font-mono mt-0.5"
+                      data-testid="input-seed"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 border border-border rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Move className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Distort Coordinates</span>
+                <Switch
+                  checked={transformCfg.distortCoordinates}
+                  onCheckedChange={(v) => setTransformCfg(c => ({ ...c, distortCoordinates: v }))}
+                  data-testid="switch-distort-coords"
+                />
+              </div>
+              {transformCfg.distortCoordinates && (
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Rotation ({transformCfg.rotation}deg)</Label>
+                    <Slider
+                      value={[transformCfg.rotation]}
+                      onValueChange={([v]) => setTransformCfg(c => ({ ...c, rotation: v }))}
+                      min={0} max={360} step={5}
+                      className="mt-1"
+                      data-testid="slider-rotation"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Scale ({transformCfg.scale.toFixed(2)}x)</Label>
+                    <Slider
+                      value={[transformCfg.scale]}
+                      onValueChange={([v]) => setTransformCfg(c => ({ ...c, scale: v }))}
+                      min={0.1} max={5.0} step={0.1}
+                      className="mt-1"
+                      data-testid="slider-scale"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Translate X</Label>
+                      <Input
+                        type="number"
+                        value={transformCfg.translateX}
+                        onChange={(e) => setTransformCfg(c => ({ ...c, translateX: parseFloat(e.target.value) || 0 }))}
+                        className="h-7 text-xs font-mono mt-0.5"
+                        data-testid="input-translate-x"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Translate Y</Label>
+                      <Input
+                        type="number"
+                        value={transformCfg.translateY}
+                        onChange={(e) => setTransformCfg(c => ({ ...c, translateY: parseFloat(e.target.value) || 0 }))}
+                        className="h-7 text-xs font-mono mt-0.5"
+                        data-testid="input-translate-y"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Mirror</Label>
+                    <Select value={transformCfg.mirror} onValueChange={(v) => setTransformCfg(c => ({ ...c, mirror: v as TransformConfig['mirror'] }))}>
+                      <SelectTrigger className="h-7 text-xs mt-0.5" data-testid="select-mirror">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="x">Flip X</SelectItem>
+                        <SelectItem value="y">Flip Y</SelectItem>
+                        <SelectItem value="both">Flip Both</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Coordinate Jitter ({transformCfg.jitterCoords})</Label>
+                    <Slider
+                      value={[transformCfg.jitterCoords]}
+                      onValueChange={([v]) => setTransformCfg(c => ({ ...c, jitterCoords: v }))}
+                      min={0} max={100} step={1}
+                      className="mt-1"
+                      data-testid="slider-jitter-coords"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 border border-border rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <MountainSnow className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Distort Elevations</span>
+                <Switch
+                  checked={transformCfg.distortElevations}
+                  onCheckedChange={(v) => setTransformCfg(c => ({ ...c, distortElevations: v }))}
+                  data-testid="switch-distort-elevations"
+                />
+              </div>
+              {transformCfg.distortElevations && (
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Offset ({transformCfg.elevationOffset} ft)</Label>
+                    <Slider
+                      value={[transformCfg.elevationOffset]}
+                      onValueChange={([v]) => setTransformCfg(c => ({ ...c, elevationOffset: v }))}
+                      min={-500} max={500} step={10}
+                      className="mt-1"
+                      data-testid="slider-elev-offset"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Scale Factor ({transformCfg.elevationScale.toFixed(2)}x)</Label>
+                    <Slider
+                      value={[transformCfg.elevationScale]}
+                      onValueChange={([v]) => setTransformCfg(c => ({ ...c, elevationScale: v }))}
+                      min={0.5} max={2.0} step={0.05}
+                      className="mt-1"
+                      data-testid="slider-elev-scale"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground">Elevation Jitter ({transformCfg.jitterElevation} ft)</Label>
+                    <Slider
+                      value={[transformCfg.jitterElevation]}
+                      onValueChange={([v]) => setTransformCfg(c => ({ ...c, jitterElevation: v }))}
+                      min={0} max={10} step={0.5}
+                      className="mt-1"
+                      data-testid="slider-jitter-elev"
+                    />
+                  </div>
+              <div className="flex items-center gap-2 pt-2 border-t border-border">
+                <Ruler className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Distort Dimensions</span>
+                <Switch
+                  checked={transformCfg.distortDimensions}
+                  onCheckedChange={(v) => setTransformCfg(c => ({ ...c, distortDimensions: v }))}
+                  data-testid="switch-distort-dimensions"
+                />
+              </div>
+              {transformCfg.distortDimensions && (
+                <div>
+                  <Label className="text-[10px] text-muted-foreground">Dimension Scale ({transformCfg.dimensionScale.toFixed(2)}x)</Label>
+                  <Slider
+                    value={[transformCfg.dimensionScale]}
+                    onValueChange={([v]) => setTransformCfg(c => ({ ...c, dimensionScale: v }))}
+                    min={0.5} max={3.0} step={0.1}
+                    className="mt-1"
+                    data-testid="slider-dim-scale"
+                  />
+                </div>
+              )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2 border-t border-border">
+            <Button
+              size="sm"
+              onClick={() => {
+                if (!rawInpText) return;
+                const result = transformInp(rawInpText, transformCfg);
+                setTransformResult(result);
+              }}
+              data-testid="button-apply-transform"
+            >
+              <Shuffle className="w-3.5 h-3.5 mr-1" /> Apply Transform
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTransformCfg({ ...DEFAULT_TRANSFORM })}
+              data-testid="button-reset-transform"
+            >
+              <RotateCw className="w-3.5 h-3.5 mr-1" /> Reset
+            </Button>
+            {transformResult && (
+              <>
+                <span className="text-xs text-muted-foreground">
+                  Renamed: {transformResult.stats.nodesRenamed} nodes, {transformResult.stats.linksRenamed} links, {transformResult.stats.subcatchRenamed} subcatchments
+                  {transformResult.stats.coordsTransformed > 0 && ` | ${transformResult.stats.coordsTransformed} coords transformed`}
+                  {transformResult.stats.elevationsTransformed > 0 && ` | ${transformResult.stats.elevationsTransformed} elevations transformed`}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    loadText(transformResult.inp, `transformed_${parsed?.filename || 'model.inp'}`);
+                    setTransformResult(null);
+                    setShowTransform(false);
+                  }}
+                  data-testid="button-load-transformed"
+                >
+                  Load into Viewer
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const blob = new Blob([transformResult.inp], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `transformed_${parsed?.filename || 'model.inp'}`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  data-testid="button-download-transformed"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1" /> Download
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const csv = Object.entries(transformResult.nameMap).map(([o, n]) => `${o},${n}`).join('\n');
+                    const blob = new Blob([`Original,Transformed\n${csv}`], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'name_mapping.csv';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  data-testid="button-download-namemap"
+                >
+                  <Download className="w-3.5 h-3.5 mr-1" /> Name Map (CSV)
+                </Button>
+              </>
+            )}
+          </div>
+        </Card>
       )}
 
       <div className="flex gap-2 flex-wrap">

@@ -406,6 +406,66 @@ curl -X POST /api/generate-and-simulate \
       </div>
     </div>
 
+    <div class="endpoint" id="ep-transform">
+      <div class="endpoint-header" onclick="toggle('ep-transform')">
+        <span class="badge badge-post">POST</span>
+        <span class="endpoint-path">/api/transform</span>
+        <span class="endpoint-desc">Transform/anonymize an INP file</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Reads an existing INP file, renames all element names (nodes, links, subcatchments, rain gages, curves, etc.) using a consistent mapping, and optionally distorts geometry (coordinates, elevations, dimensions) via rotation, scaling, translation, mirroring, and jitter. Useful for anonymizing real-world models for sharing or publication.</p>
+        <h4>Request Body</h4>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td>inp</td><td>string</td><td></td><td>INP file content (required)</td></tr>
+          <tr><td>config.renameElements</td><td>boolean</td><td>true</td><td>Rename all element names with sequential IDs</td></tr>
+          <tr><td>config.prefix</td><td>string</td><td>"N"</td><td>Prefix for renamed elements (e.g. "N" &rarr; NJ1, NL1, NS1)</td></tr>
+          <tr><td>config.distortCoordinates</td><td>boolean</td><td>true</td><td>Apply geometric transforms to coordinates</td></tr>
+          <tr><td>config.rotation</td><td>number</td><td>0</td><td>Rotation angle in degrees (0-360)</td></tr>
+          <tr><td>config.scale</td><td>number</td><td>1.0</td><td>Scale factor for coordinates (0.1-5.0)</td></tr>
+          <tr><td>config.translateX</td><td>number</td><td>0</td><td>X translation offset</td></tr>
+          <tr><td>config.translateY</td><td>number</td><td>0</td><td>Y translation offset</td></tr>
+          <tr><td>config.mirror</td><td>string</td><td>"none"</td><td>Mirror axis: "none", "x", "y", or "both"</td></tr>
+          <tr><td>config.jitterCoords</td><td>number</td><td>0</td><td>Random jitter magnitude for coordinates</td></tr>
+          <tr><td>config.distortElevations</td><td>boolean</td><td>false</td><td>Apply transforms to elevations</td></tr>
+          <tr><td>config.elevationOffset</td><td>number</td><td>0</td><td>Elevation offset in model units</td></tr>
+          <tr><td>config.elevationScale</td><td>number</td><td>1.0</td><td>Elevation scale factor</td></tr>
+          <tr><td>config.jitterElevation</td><td>number</td><td>0</td><td>Random elevation jitter</td></tr>
+          <tr><td>config.distortDimensions</td><td>boolean</td><td>false</td><td>Scale cross-section dimensions</td></tr>
+          <tr><td>config.dimensionScale</td><td>number</td><td>1.0</td><td>Dimension scale factor</td></tr>
+          <tr><td>config.scrambleSeed</td><td>number</td><td>42</td><td>Random seed for reproducible jitter</td></tr>
+        </table>
+        <h4>Query Parameters</h4>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+          <tr><td>format</td><td>string</td><td>If "inp", returns raw transformed .inp text instead of JSON</td></tr>
+        </table>
+        <h4>Response</h4>
+        <table>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+          <tr><td>inp</td><td>string</td><td>Transformed INP file content</td></tr>
+          <tr><td>nameMap</td><td>object</td><td>Original-to-new name mapping for all renamed elements</td></tr>
+          <tr><td>stats</td><td>object</td><td>Counts: nodesRenamed, linksRenamed, subcatchRenamed, coordsTransformed, elevationsTransformed</td></tr>
+          <tr><td>config</td><td>object</td><td>Full transform config used</td></tr>
+        </table>
+        <h4>Try it</h4>
+        <div class="code-block"><textarea id="transform-body" rows="12" style="width:100%;font-family:monospace;font-size:12px;background:#1a1a2e;color:#e0e0ff;border:1px solid #334;padding:8px;border-radius:4px" spellcheck="false">{
+  "inp": "[TITLE]\nTransform Test\n\n[JUNCTIONS]\n;; Name Elev MaxD InitD SurD Aponded\nJ1 100.0 0 0 0 0\nJ2 95.0 0 0 0 0\n\n[OUTFALLS]\nO1 90.0 FREE NO\n\n[CONDUITS]\nC1 J1 J2 400 0.013 0 0 0 0\nC2 J2 O1 300 0.013 0 0 0 0\n\n[XSECTIONS]\nC1 CIRCULAR 1.5 0 0 0\nC2 CIRCULAR 2.0 0 0 0\n\n[COORDINATES]\nJ1 1000.0 2000.0\nJ2 1200.0 1800.0\nO1 1400.0 1600.0",
+  "config": {
+    "renameElements": true,
+    "prefix": "X",
+    "rotation": 45,
+    "scale": 1.5,
+    "distortElevations": true,
+    "elevationOffset": 50
+  }
+}</textarea></div>
+        <button class="try-btn" onclick="tryPost('/api/transform', 'transform-body', 'ep-transform')">Transform</button>
+        <div class="response-area" id="resp-ep-transform"><pre></pre></div>
+      </div>
+    </div>
+
     <div class="endpoint" id="ep-presets">
       <div class="endpoint-header" onclick="toggle('ep-presets')">
         <span class="badge badge-get">GET</span>

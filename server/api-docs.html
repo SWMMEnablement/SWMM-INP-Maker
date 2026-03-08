@@ -214,7 +214,7 @@
 
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-value">10</div>
+        <div class="stat-value">11</div>
         <div class="stat-label">API Endpoints</div>
       </div>
       <div class="stat-card">
@@ -533,6 +533,44 @@ curl -X POST /api/generate-and-simulate \
       </div>
     </div>
 
+    <div class="endpoint" id="ep-bulk">
+      <div class="endpoint-header" onclick="toggle('ep-bulk')">
+        <span class="badge badge-post">POST</span>
+        <span class="endpoint-path">/api/bulk-generate</span>
+        <span class="endpoint-desc">Generate multiple models as a ZIP file</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="endpoint-body">
+        <p>Generates multiple SWMM5 .inp files from an array of configurations (max 50). Returns a ZIP archive containing all .inp files, a summary.csv with statistics, and optionally .rpt files if simulation is enabled.</p>
+        <h4>Request Body</h4>
+        <table>
+          <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+          <tr><td>models</td><td>array</td><td></td><td>Array of model configuration objects (required, 1-50 items). Each object uses the same parameters as <code>/api/generate</code></td></tr>
+          <tr><td>simulate</td><td>boolean</td><td>false</td><td>If true, run SWMM5 simulation on each generated model and include .rpt files in the ZIP</td></tr>
+        </table>
+        <h4>Response</h4>
+        <p>Returns a <code>application/zip</code> file containing:</p>
+        <table>
+          <tr><th>File</th><th>Description</th></tr>
+          <tr><td>model_001.inp</td><td>Generated INP file for the first config</td></tr>
+          <tr><td>model_002.inp</td><td>Generated INP file for the second config, etc.</td></tr>
+          <tr><td>model_001.rpt</td><td>Simulation report (only if simulate=true)</td></tr>
+          <tr><td>summary.csv</td><td>CSV with statistics for all models: junctions, conduits, file size, generation time, and simulation results if applicable</td></tr>
+        </table>
+        <h4>Try it</h4>
+        <textarea id="bulk-body" rows="10">{
+  "models": [
+    {"N": 100, "type": "sanitary", "terrain": "flat"},
+    {"N": 200, "type": "stormwater", "terrain": "moderate"},
+    {"N": 150, "type": "combined", "terrain": "hilly"}
+  ],
+  "simulate": false
+}</textarea>
+        <button class="try-btn" onclick="tryBulk()">Generate Bulk ZIP</button>
+        <div class="response-area" id="resp-ep-bulk"><pre></pre></div>
+      </div>
+    </div>
+
     <div class="section-title">Code Examples</div>
 
     <h3 style="font-size: 15px; margin: 16px 0 8px; color: var(--accent);">Python</h3>
@@ -628,6 +666,36 @@ curl "https://your-app.replit.app/api/presets" | python3 -m json.tool
         const data = await r.json();
         const text = JSON.stringify(data, null, 2);
         area.querySelector('pre').textContent = text.length > 50000 ? text.substring(0, 50000) + '\n\n... (truncated)' : text;
+      } catch (e) {
+        area.querySelector('pre').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    async function tryBulk() {
+      const area = document.getElementById('resp-ep-bulk');
+      area.classList.add('visible');
+      area.querySelector('pre').textContent = 'Generating ZIP...';
+      try {
+        const body = document.getElementById('bulk-body').value;
+        JSON.parse(body);
+        const r = await fetch('/api/bulk-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+        if (r.headers.get('content-type')?.includes('application/zip')) {
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'swmm5_bulk_models.zip';
+          a.click();
+          URL.revokeObjectURL(url);
+          area.querySelector('pre').textContent = 'ZIP file downloaded successfully (' + (blob.size / 1024).toFixed(1) + ' KB)';
+        } else {
+          const data = await r.json();
+          area.querySelector('pre').textContent = JSON.stringify(data, null, 2);
+        }
       } catch (e) {
         area.querySelector('pre').textContent = 'Error: ' + e.message;
       }

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download, Shield, Network, TrendingDown, Shuffle, RotateCw, Move, FlipHorizontal, MountainSnow, Ruler, Settings2 } from "lucide-react";
+import { Upload, FileText, Table2, BarChart3, Search, X, ChevronDown, ChevronRight, Hash, Type, ArrowUpDown, Download, Shield, Network, TrendingDown, Shuffle, RotateCw, Move, FlipHorizontal, MountainSnow, Ruler, Settings2, Dna, Check, X as XIcon } from "lucide-react";
+import { computeModelDNA, computePercentiles, dnaToHash, type ModelDNA } from "@/lib/model-dna";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -885,6 +886,130 @@ function ViewerProfileCanvas({ parsed }: { parsed: ParsedInpFile }) {
   );
 }
 
+function PercentileBar({ percentile, label, value, unit }: { percentile: number; label: string; value: number; unit: string }) {
+  const pct = Math.max(0, Math.min(100, percentile));
+  const getColor = (p: number) => {
+    if (p < 20) return "bg-sky-400";
+    if (p < 40) return "bg-emerald-400";
+    if (p < 60) return "bg-amber-400";
+    if (p < 80) return "bg-orange-400";
+    return "bg-rose-400";
+  };
+  const fmt = (v: number) => {
+    if (Number.isInteger(v)) return v.toString();
+    if (Math.abs(v) < 0.01) return v.toExponential(2);
+    if (Math.abs(v) < 1) return v.toFixed(4);
+    return v.toFixed(2);
+  };
+  return (
+    <div className="flex items-center gap-3" data-testid={`dna-bar-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+      <span className="text-xs text-muted-foreground w-28 text-right shrink-0">{label}</span>
+      <div className="flex-1 relative h-4 rounded-md bg-muted/40 overflow-hidden">
+        <div className={`absolute inset-y-0 left-0 rounded-md ${getColor(pct)} opacity-70 transition-all`} style={{ width: `${pct}%` }} />
+        <div className="absolute inset-0 flex items-center px-2">
+          <span className="text-[10px] font-mono text-foreground font-semibold drop-shadow-sm">{fmt(value)}{unit ? ` ${unit}` : ""}</span>
+        </div>
+      </div>
+      <span className="text-[10px] font-mono text-muted-foreground w-12 text-right">p{Math.round(pct)}</span>
+    </div>
+  );
+}
+
+function DnaPanel({ parsed }: { parsed: ParsedInpFile }) {
+  const dna = useMemo(() => computeModelDNA(parsed), [parsed]);
+  const percentiles = useMemo(() => computePercentiles(dna), [dna]);
+  const hash = useMemo(() => dnaToHash(dna), [dna]);
+
+  const totalShapes = Object.values(dna.shapeDistribution).reduce((a, b) => a + b, 0) || 1;
+  const shapeColors = ["#38bdf8", "#818cf8", "#34d399", "#fb923c", "#f472b6", "#ef4444", "#facc15", "#a78bfa", "#6ee7b7", "#fca5a5"];
+  const sortedShapes = Object.entries(dna.shapeDistribution).sort((a, b) => b[1] - a[1]);
+
+  const flagEntries = Object.entries(dna.featureFlags) as [string, boolean][];
+  const flagLabels: Record<string, string> = {
+    hasSubcatchments: "Subcatchments",
+    hasDWF: "Dry Weather Flow",
+    hasRDII: "RDII",
+    hasPumps: "Pumps",
+    hasStorage: "Storage",
+    hasWeirs: "Weirs",
+    hasOrifices: "Orifices",
+    hasInflows: "Inflows",
+    hasPollutants: "Pollutants",
+    hasLID: "LID Controls",
+    hasControls: "Control Rules",
+    hasTransects: "Transects",
+    hasSnowpacks: "Snowpacks",
+    hasAquifers: "Aquifers",
+    hasGroundwater: "Groundwater",
+    hasCurves: "Curves",
+    hasTimeseries: "Timeseries",
+    hasPatterns: "Patterns",
+  };
+
+  return (
+    <Card className="border-border bg-card p-4 space-y-4" data-testid="panel-dna">
+      <div className="flex items-center gap-2 mb-1">
+        <Dna className="w-4 h-4 text-primary" />
+        <h3 className="text-sm font-semibold text-foreground">Model DNA Fingerprint</h3>
+        <span className="text-xs font-mono text-muted-foreground ml-auto" data-testid="text-dna-hash">{hash}</span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Percentile Rank (vs. 1,729 real-world models)</h4>
+          <div className="space-y-1.5">
+            {percentiles.map(p => (
+              <PercentileBar key={p.label} label={p.label} value={p.value} percentile={p.percentile} unit={p.unit} />
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Shape Distribution</h4>
+            {sortedShapes.length > 0 ? (
+              <div className="space-y-1">
+                {sortedShapes.map(([shape, count], i) => {
+                  const pct = (count / totalShapes) * 100;
+                  return (
+                    <div key={shape} className="flex items-center gap-2" data-testid={`dna-shape-${shape.toLowerCase()}`}>
+                      <span className="text-[10px] font-mono text-muted-foreground w-28 text-right shrink-0">{shape}</span>
+                      <div className="flex-1 h-3 rounded-md bg-muted/40 overflow-hidden">
+                        <div className="h-full rounded-md opacity-70" style={{ width: `${pct}%`, backgroundColor: shapeColors[i % shapeColors.length] }} />
+                      </div>
+                      <span className="text-[10px] font-mono text-muted-foreground w-16 text-right">{count} ({pct.toFixed(0)}%)</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No cross-section data found.</p>
+            )}
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Feature Flags</h4>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {flagEntries.map(([key, val]) => (
+                <div key={key} className="flex items-center gap-1.5" data-testid={`dna-flag-${key}`}>
+                  {val ? (
+                    <Check className="w-3 h-3 text-emerald-500" />
+                  ) : (
+                    <XIcon className="w-3 h-3 text-muted-foreground/40" />
+                  )}
+                  <span className={`text-[11px] ${val ? "text-foreground" : "text-muted-foreground/50"}`}>
+                    {flagLabels[key] || key}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 const PAGE_SIZE = 50;
 
 interface InpViewerProps {
@@ -908,6 +1033,7 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
   const [showTransform, setShowTransform] = useState(false);
   const [transformCfg, setTransformCfg] = useState<TransformConfig>({ ...DEFAULT_TRANSFORM });
   const [transformResult, setTransformResult] = useState<TransformResult | null>(null);
+  const [showDna, setShowDna] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadText = useCallback((text: string, name: string) => {
@@ -1085,6 +1211,14 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
             <Shuffle className="w-3.5 h-3.5 mr-1" /> Transform
           </Button>
           <Button
+            variant={showDna ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowDna(!showDna)}
+            data-testid="button-dna"
+          >
+            <Dna className="w-3.5 h-3.5 mr-1" /> DNA
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
@@ -1105,6 +1239,8 @@ export default function InpViewer({ initialInp, onConsumeInitial }: InpViewerPro
       {viewerValidation && (
         <ValidationPanelComponent result={viewerValidation} />
       )}
+
+      {showDna && parsed && <DnaPanel parsed={parsed} />}
 
       {showTransform && (
         <Card className="border-border bg-card p-4 space-y-4" data-testid="panel-transform">

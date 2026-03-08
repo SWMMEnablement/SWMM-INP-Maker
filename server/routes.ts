@@ -5,6 +5,7 @@ import { execFile } from "child_process";
 import { writeFile, readFile, unlink, mkdtemp } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
+import JSZip from "jszip";
 import {
   generateModel,
   EXAMPLE_PRESETS,
@@ -244,6 +245,7 @@ export async function registerRoutes(
         "GET /api/sections": "List all 56 SWMM5 INP sections",
         "GET /api/config-schema": "Get the full configuration schema with allowed values and defaults",
         "GET /api/info": "This endpoint — API metadata",
+        "POST /api/bulk-generate": "Generate multiple INP files as a ZIP archive (max 50, optional simulation)",
         "GET /api/docs": "Interactive API documentation page",
       },
       limits: {
@@ -651,6 +653,115 @@ export async function registerRoutes(
         map: ["[COORDINATES]", "[VERTICES]", "[Polygons]", "[SYMBOLS]", "[LABELS]", "[BACKDROP]", "[MAP]"],
       },
     });
+  });
+
+  app.post("/api/bulk-generate", async (req, res) => {
+    const { models, simulate } = req.body as { models?: any[]; simulate?: boolean };
+
+    if (!Array.isArray(models) || models.length === 0) {
+      return res.status(400).json({ error: "Request body must include a 'models' array with at least one config" });
+    }
+    if (models.length > 50) {
+      return res.status(400).json({ error: "Maximum 50 models per bulk request" });
+    }
+
+    if (activeGenerations.count >= MAX_CONCURRENT_GENERATIONS) {
+      return res.status(429).json({ error: "Too many concurrent generation requests. Please try again shortly." });
+    }
+    activeGenerations.count++;
+
+    try {
+      const zip = new JSZip();
+      const csvRows: string[] = [
+        'index,fileName,junctions,conduits,outfalls,storage,pumps,subcatchments,totalElements,lineCount,fileSize,generationTimeMs' +
+        (simulate ? ',simSuccess,continuityError,routingError,warnings,simTimeMs' : '')
+      ];
+
+      for (let i = 0; i < models.length; i++) {
+        const config = buildConfig(models[i] || {});
+        const startMs = Date.now();
+        const result: GeneratedModel = generateModel(config);
+        const genMs = Date.now() - startMs;
+
+        const baseName = `model_${String(i + 1).padStart(3, '0')}`;
+        zip.file(`${baseName}.inp`, result.inpText);
+
+        let simFields = '';
+
+        if (simulate) {
+          let dir: string | null = null;
+          try {
+            dir = await mkdtemp(join(tmpdir(), 'swmm-bulk-'));
+            const inpPath = join(dir, 'model.inp');
+            const rptPath = join(dir, 'model.rpt');
+            const outPath = join(dir, 'model.out');
+
+            const patchedInp = patchInpForQuickSim(result.inpText);
+            await writeFile(inpPath, patchedInp);
+
+            const simStart = Date.now();
+            let stderrData = '';
+            await new Promise<void>((resolve, reject) => {
+              const proc = execFile(SWMM_BIN, [inpPath, rptPath, outPath], {
+                timeout: SIM_TIMEOUT_MS,
+                maxBuffer: 5 * 1024 * 1024,
+              }, (error) => {
+                if (error && (error as any).killed) {
+                  reject(new Error('Simulation timed out'));
+                } else {
+                  resolve();
+                }
+              });
+              if (proc.stderr) proc.stderr.on('data', (d: any) => { stderrData += d.toString(); });
+            });
+            const simMs = Date.now() - simStart;
+
+            let report = '';
+            try {
+              report = await readFile(rptPath, 'utf-8');
+            } catch {
+              report = '';
+            }
+
+            if (report) {
+              zip.file(`${baseName}.rpt`, report);
+              const simResult = parseReport(report);
+              simFields = `,${simResult.success},${simResult.continuityError ?? ''},${simResult.routingError ?? ''},${simResult.warnings},${simMs}`;
+            } else {
+              simFields = `,false,,,0,0`;
+            }
+          } catch (err: any) {
+            simFields = `,false,,,0,0`;
+          } finally {
+            if (dir) {
+              try {
+                await unlink(join(dir, 'model.inp')).catch(() => {});
+                await unlink(join(dir, 'model.rpt')).catch(() => {});
+                await unlink(join(dir, 'model.out')).catch(() => {});
+                const { rmdir } = await import('fs/promises');
+                await rmdir(dir).catch(() => {});
+              } catch {}
+            }
+          }
+        }
+
+        csvRows.push(
+          `${i + 1},${baseName}.inp,${result.stats.junctions},${result.stats.conduits},${result.stats.outfalls},${result.stats.storage},${result.stats.pumps},${result.stats.subcatchments},${result.stats.totalElements},${result.stats.lineCount},${result.stats.fileSize},${genMs}${simFields}`
+        );
+      }
+
+      zip.file('summary.csv', csvRows.join('\n'));
+
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+      res.set('Content-Type', 'application/zip');
+      res.set('Content-Disposition', `attachment; filename="swmm5_bulk_${models.length}_models.zip"`);
+      res.send(zipBuffer);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Bulk generation failed' });
+    } finally {
+      activeGenerations.count--;
+    }
   });
 
   return httpServer;
